@@ -13,6 +13,7 @@ import {
 
 export default function Personas() {
   const [voters, setVoters] = useState([]);
+  const [allVoters, setAllVoters] = useState([]); // Todos los votantes para búsqueda
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showModal, setShowModal] = useState(false);
@@ -87,9 +88,56 @@ export default function Personas() {
     }
   };
 
+  const fetchAllVoters = async () => {
+    try {
+      let allVotersData = [];
+      let page = 1;
+      let hasMorePages = true;
+
+      // Cargar todas las páginas
+      while (hasMorePages) {
+        const data = await getVoters(page, 100); // Máximo permitido por el servidor
+        allVotersData = [...allVotersData, ...data.data];
+
+        if (page >= data.pages) {
+          hasMorePages = false;
+        } else {
+          page++;
+        }
+      }
+
+      setAllVoters(allVotersData);
+
+      // Cargar candidatos asignados para cada votante
+      const candidatesMap = {};
+      for (const voter of allVotersData) {
+        try {
+          const assignedData = await getAssignedCandidates(voter.id);
+          if (Array.isArray(assignedData) && assignedData.length > 0) {
+            candidatesMap[voter.id] = assignedData
+              .map((d) => d.candidate?.name || d.candidateName)
+              .filter(Boolean);
+          }
+        } catch {
+          // Ignorar si no hay candidatos asignados
+        }
+      }
+      setVoterCandidates((prev) => ({ ...prev, ...candidatesMap }));
+    } catch {
+      setError("No se pudieron cargar los votantes");
+    }
+  };
+
   useEffect(() => {
     fetchVoters(currentPage);
   }, [currentPage]);
+
+  // Cargar todos los votantes cuando el usuario comienza a buscar
+  useEffect(() => {
+    if (search && allVoters.length === 0) {
+      fetchAllVoters();
+    }
+  }, [search]);
 
   const handleEdit = (voter) => {
     setEditingVoter(voter);
@@ -132,16 +180,14 @@ export default function Personas() {
   };
 
   const filteredVoters = search
-    ? voters
-        .map(enrichVoterData)
-        .filter((v) => {
-          const fullName = `${v.firstName} ${v.lastName}`.toLowerCase();
-          const identification = v.identification?.toLowerCase() || "";
-          return (
-            fullName.includes(search.toLowerCase()) ||
-            identification.includes(search.toLowerCase())
-          );
-        })
+    ? allVoters.map(enrichVoterData).filter((v) => {
+        const fullName = `${v.firstName} ${v.lastName}`.toLowerCase();
+        const identification = v.identification?.toLowerCase() || "";
+        return (
+          fullName.includes(search.toLowerCase()) ||
+          identification.includes(search.toLowerCase())
+        );
+      })
     : voters.map(enrichVoterData);
 
   return (
@@ -301,43 +347,55 @@ export default function Personas() {
           </div>
 
           {/* Pagination Controls - Desktop */}
-          <div className="mt-6 flex items-center justify-between px-4 py-4 bg-gray-50 border-t border-gray-200 rounded-b-xl">
-            <div className="text-sm text-gray-600">
-              Mostrando{" "}
-              <span className="font-semibold">
-                {(currentPage - 1) * ITEMS_PER_PAGE + 1}
-              </span>{" "}
-              a{" "}
-              <span className="font-semibold">
-                {Math.min(currentPage * ITEMS_PER_PAGE, totalVoters)}
-              </span>{" "}
-              de <span className="font-semibold">{totalVoters}</span> votantes
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={handlePreviousPage}
-                disabled={currentPage === 1}
-                className="flex items-center gap-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
-              >
-                <ChevronLeftIcon className="w-4 h-4" />
-                Anterior
-              </button>
-              <div className="flex items-center gap-2 px-4 py-2">
-                <span className="text-sm text-gray-700">
-                  Página <span className="font-semibold">{currentPage}</span> de{" "}
-                  <span className="font-semibold">{totalPages}</span>
-                </span>
+          {!search && (
+            <div className="mt-6 flex items-center justify-between px-4 py-4 bg-gray-50 border-t border-gray-200 rounded-b-xl">
+              <div className="text-sm text-gray-600">
+                Mostrando{" "}
+                <span className="font-semibold">
+                  {(currentPage - 1) * ITEMS_PER_PAGE + 1}
+                </span>{" "}
+                a{" "}
+                <span className="font-semibold">
+                  {Math.min(currentPage * ITEMS_PER_PAGE, totalVoters)}
+                </span>{" "}
+                de <span className="font-semibold">{totalVoters}</span> votantes
               </div>
-              <button
-                onClick={handleNextPage}
-                disabled={currentPage === totalPages}
-                className="flex items-center gap-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
-              >
-                Siguiente
-                <ChevronRightIcon className="w-4 h-4" />
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={handlePreviousPage}
+                  disabled={currentPage === 1}
+                  className="flex items-center gap-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  <ChevronLeftIcon className="w-4 h-4" />
+                  Anterior
+                </button>
+                <div className="flex items-center gap-2 px-4 py-2">
+                  <span className="text-sm text-gray-700">
+                    Página <span className="font-semibold">{currentPage}</span>{" "}
+                    de <span className="font-semibold">{totalPages}</span>
+                  </span>
+                </div>
+                <button
+                  onClick={handleNextPage}
+                  disabled={currentPage === totalPages}
+                  className="flex items-center gap-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  Siguiente
+                  <ChevronRightIcon className="w-4 h-4" />
+                </button>
+              </div>
             </div>
-          </div>
+          )}
+          {search && (
+            <div className="mt-6 px-4 py-4 bg-gray-50 border-t border-gray-200 rounded-b-xl">
+              <div className="text-sm text-gray-600">
+                Mostrando{" "}
+                <span className="font-semibold">{filteredVoters.length}</span>{" "}
+                resultado
+                {filteredVoters.length !== 1 ? "s" : ""} de búsqueda
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -410,43 +468,55 @@ export default function Personas() {
           ))}
 
           {/* Pagination Controls - Mobile */}
-          <div className="mt-6 flex flex-col gap-4 px-4 py-4 bg-gray-50 rounded-xl border border-gray-200">
-            <div className="text-xs text-gray-600 text-center">
-              Mostrando{" "}
-              <span className="font-semibold">
-                {(currentPage - 1) * ITEMS_PER_PAGE + 1}
-              </span>{" "}
-              a{" "}
-              <span className="font-semibold">
-                {Math.min(currentPage * ITEMS_PER_PAGE, totalVoters)}
-              </span>{" "}
-              de <span className="font-semibold">{totalVoters}</span> votantes
-            </div>
-            <div className="flex gap-2 justify-center">
-              <button
-                onClick={handlePreviousPage}
-                disabled={currentPage === 1}
-                className="flex items-center gap-1 px-3 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition text-sm"
-              >
-                <ChevronLeftIcon className="w-4 h-4" />
-                Anterior
-              </button>
-              <div className="flex items-center gap-2 px-3 py-2">
-                <span className="text-xs text-gray-700">
-                  <span className="font-semibold">{currentPage}</span>/
-                  <span className="font-semibold">{totalPages}</span>
-                </span>
+          {!search && (
+            <div className="mt-6 flex flex-col gap-4 px-4 py-4 bg-gray-50 rounded-xl border border-gray-200">
+              <div className="text-xs text-gray-600 text-center">
+                Mostrando{" "}
+                <span className="font-semibold">
+                  {(currentPage - 1) * ITEMS_PER_PAGE + 1}
+                </span>{" "}
+                a{" "}
+                <span className="font-semibold">
+                  {Math.min(currentPage * ITEMS_PER_PAGE, totalVoters)}
+                </span>{" "}
+                de <span className="font-semibold">{totalVoters}</span> votantes
               </div>
-              <button
-                onClick={handleNextPage}
-                disabled={currentPage === totalPages}
-                className="flex items-center gap-1 px-3 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition text-sm"
-              >
-                Siguiente
-                <ChevronRightIcon className="w-4 h-4" />
-              </button>
+              <div className="flex gap-2 justify-center">
+                <button
+                  onClick={handlePreviousPage}
+                  disabled={currentPage === 1}
+                  className="flex items-center gap-1 px-3 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition text-sm"
+                >
+                  <ChevronLeftIcon className="w-4 h-4" />
+                  Anterior
+                </button>
+                <div className="flex items-center gap-2 px-3 py-2">
+                  <span className="text-xs text-gray-700">
+                    <span className="font-semibold">{currentPage}</span>/
+                    <span className="font-semibold">{totalPages}</span>
+                  </span>
+                </div>
+                <button
+                  onClick={handleNextPage}
+                  disabled={currentPage === totalPages}
+                  className="flex items-center gap-1 px-3 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition text-sm"
+                >
+                  Siguiente
+                  <ChevronRightIcon className="w-4 h-4" />
+                </button>
+              </div>
             </div>
-          </div>
+          )}
+          {search && (
+            <div className="mt-6 px-4 py-4 bg-gray-50 rounded-xl border border-gray-200">
+              <div className="text-xs text-gray-600 text-center">
+                Mostrando{" "}
+                <span className="font-semibold">{filteredVoters.length}</span>{" "}
+                resultado
+                {filteredVoters.length !== 1 ? "s" : ""} de búsqueda
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

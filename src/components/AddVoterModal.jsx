@@ -94,16 +94,28 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
     if (form.leaderId) {
       getCandidatesByLeader(form.leaderId).then((data) => {
         setCandidates(data);
-        // Solo limpiar candidatos si el usuario cambió manualmente de líder
-        // Si es la carga inicial (leaderId === initialLeaderId), mantener los preseleccionados
-        if (form.leaderId !== initialLeaderId && initialLeaderId !== null) {
-          setForm((p) => ({ ...p, candidateIds: [] }));
+
+        // Si es edición y el usuario cambió de líder, preseleccionar todos los candidatos del nuevo líder
+        // Si es inserción, preseleccionar todos los candidatos del líder seleccionado
+        const candidateIds = data.map((c) => c.id);
+
+        if (
+          voter &&
+          form.leaderId !== initialLeaderId &&
+          initialLeaderId !== null
+        ) {
+          // Usuario cambió de líder en edición - preseleccionar todos
+          setForm((p) => ({ ...p, candidateIds }));
+        } else if (!voter) {
+          // Inserción - preseleccionar todos
+          setForm((p) => ({ ...p, candidateIds }));
         }
+        // Si es edición y es el líder inicial, mantener los ya preseleccionados
       });
     } else {
       setCandidates([]);
     }
-  }, [form.leaderId, initialLeaderId]);
+  }, [form.leaderId, initialLeaderId, voter]);
 
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });

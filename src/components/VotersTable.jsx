@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 import { Workbook } from "exceljs";
-import { getVotingBooths } from "../../api/votingbooths";
-import { getVotingTables } from "../../api/votingtables";
+import { getVotingBooths } from "../api/votingbooths";
+import { getVotingTables } from "../api/votingtables";
 
 export default function VotersTable({
   voters,

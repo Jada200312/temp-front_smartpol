@@ -11,23 +11,34 @@ export default function Reportes() {
   const [error, setError] = useState(null);
   const [filters, setFilters] = useState({});
   const [activeFilters, setActiveFilters] = useState({});
+  const [pagination, setPagination] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
-    loadReport(filters);
-  }, [filters]);
+    loadReport(filters, currentPage);
+  }, [filters, currentPage]);
 
-  const loadReport = async (currentFilters) => {
+  const loadReport = async (currentFilters, page = 1) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await getVoterReport(currentFilters);
+      const response = await getVoterReport({ ...currentFilters, page, limit: 50 });
+      
+      console.log("Reporte recibido:", response);
+      
       setVoters(response.data || []);
       setAggregations(response.aggregations || null);
+      setPagination({
+        page: response.page || 1,
+        limit: response.limit || 50,
+        total: response.total || 0,
+      });
     } catch (error) {
       console.error("Error loading report:", error);
       setError(error.message || "Error al cargar el reporte");
       setVoters([]);
       setAggregations(null);
+      setPagination(null);
     } finally {
       setLoading(false);
     }
@@ -36,6 +47,11 @@ export default function Reportes() {
   const handleFiltersChange = (newFilters) => {
     setFilters(newFilters);
     setActiveFilters(newFilters);
+    setCurrentPage(1); // Reset a página 1
+  };
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
   };
 
   const handleCounterClick = (filterType, value) => {
@@ -48,19 +64,26 @@ export default function Reportes() {
     } else if (filterType === "candidateId") {
       newFilters.candidateId = newFilters.candidateId == value ? "" : value;
     } else if (filterType === "location") {
-      newFilters.departmentId =
-        newFilters.departmentId == value.departmentId ? "" : value.departmentId;
-      newFilters.municipalityId =
+      // Toggle location filter
+      if (
+        newFilters.departmentId == value.departmentId &&
         newFilters.municipalityId == value.municipalityId
-          ? ""
-          : value.municipalityId;
+      ) {
+        delete newFilters.departmentId;
+        delete newFilters.municipalityId;
+      } else {
+        newFilters.departmentId = value.departmentId;
+        newFilters.municipalityId = value.municipalityId;
+      }
     }
 
     setFilters(newFilters);
+    setCurrentPage(1); // Reset a página 1
   };
 
   return (
     <div className="space-y-6 pb-8">
+      {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900">
           Informe General de Votantes
@@ -84,21 +107,60 @@ export default function Reportes() {
       )}
 
       {/* Filtros Dinámicos */}
-      <ReportFilters
-        onFiltersChange={handleFiltersChange}
-        aggregations={aggregations}
-      />
+      {!error && (
+        <ReportFilters
+          onFiltersChange={handleFiltersChange}
+          aggregations={aggregations}
+        />
+      )}
 
       {/* Contadores Interactivos */}
-      {aggregations && (
+      {aggregations && !error && (
         <AggregationCounters
           aggregations={aggregations}
           onCounterClick={handleCounterClick}
         />
       )}
 
+      {/* Filtros activos */}
+      {Object.keys(activeFilters).length > 0 && !error && (
+        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+          <p className="text-sm font-semibold text-blue-900 mb-2">
+            Filtros activos:
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(activeFilters).map(([key, value]) => (
+              <span
+                key={key}
+                className="px-3 py-1 bg-blue-200 text-blue-900 rounded-full text-sm font-medium"
+              >
+                {key}: {typeof value === "object" ? JSON.stringify(value) : value}
+              </span>
+            ))}
+            <button
+              onClick={() => {
+                setFilters({});
+                setActiveFilters({});
+                setCurrentPage(1);
+              }}
+              className="px-3 py-1 bg-red-200 text-red-900 rounded-full text-sm font-medium hover:bg-red-300 transition"
+            >
+              Limpiar filtros
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Tabla de Votantes */}
-      <VotersTable voters={voters} filters={activeFilters} loading={loading} />
+      {!error && (
+        <VotersTable
+          voters={voters}
+          filters={activeFilters}
+          loading={loading}
+          pagination={pagination}
+          onPageChange={handlePageChange}
+        />
+      )}
     </div>
   );
 }

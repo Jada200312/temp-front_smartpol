@@ -8,6 +8,8 @@ import {
   updateAssignedCandidates,
 } from "../api/voters";
 import { getLeaders, getCandidatesByLeader } from "../api/leaders";
+import { getVotingBooths } from "../api/votingBooths";
+import { getTablesByBooth } from "../api/votingTables";
 import { XMarkIcon } from "@heroicons/react/24/solid";
 
 export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
@@ -20,13 +22,13 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
     birthDate: voter?.birthDate || "",
     phone: voter?.phone || "",
     address: voter?.address || "",
-    departmentId: voter?.departmentId || "",
-    municipalityId: voter?.municipalityId || "",
+    departmentId: voter?.departmentId?.toString() || "",
+    municipalityId: voter?.municipalityId?.toString() || "",
     neighborhood: voter?.neighborhood || "",
     email: voter?.email || "",
     occupation: voter?.occupation || "",
-    votingLocation: voter?.votingLocation || "",
-    votingBooth: voter?.votingBooth || "",
+    votingBoothId: voter?.votingBoothId?.toString() || "",
+    votingTableId: voter?.votingTableId?.toString() || "",
     politicalStatus: voter?.politicalStatus || "Active",
     leaderId: "",
     candidateIds: [],
@@ -36,6 +38,8 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
   const [municipalities, setMunicipalities] = useState([]);
   const [leaders, setLeaders] = useState([]);
   const [candidates, setCandidates] = useState([]);
+  const [votingBooths, setVotingBooths] = useState([]);
+  const [votingTables, setVotingTables] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [assignedData, setAssignedData] = useState([]);
@@ -44,9 +48,14 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
   useEffect(() => {
     getDepartments().then(setDepartments);
     getLeaders().then(setLeaders);
+    getVotingBooths().then(setVotingBooths);
 
-    // Si es edición, obtener datos de asignación actual
+    // Si es edición, obtener datos de asignación actual y mesas del centro
     if (voter) {
+      if (voter.votingBoothId) {
+        getTablesByBooth(voter.votingBoothId).then(setVotingTables);
+      }
+
       getAssignedCandidates(voter.id).then((data) => {
         if (Array.isArray(data) && data.length > 0) {
           setAssignedData(data);
@@ -71,6 +80,15 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
       setForm((p) => ({ ...p, municipalityId: "" }));
     }
   }, [form.departmentId]);
+
+  useEffect(() => {
+    if (form.votingBoothId) {
+      getTablesByBooth(form.votingBoothId).then(setVotingTables);
+    } else {
+      setVotingTables([]);
+      setForm((p) => ({ ...p, votingTableId: "" }));
+    }
+  }, [form.votingBoothId]);
 
   useEffect(() => {
     if (form.leaderId) {
@@ -104,8 +122,8 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
       firstName: "Nombre",
       lastName: "Apellido",
       identification: "Identificación",
-      votingLocation: "Lugar de votación",
-      votingBooth: "Casilla",
+      votingBoothId: "Centro de votación",
+      votingTableId: "Mesa de votación",
       leaderId: "Líder",
       departmentId: "Departamento",
       municipalityId: "Municipio",
@@ -150,8 +168,8 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
       neighborhood: form.neighborhood || undefined,
       email: form.email || undefined,
       occupation: form.occupation || undefined,
-      votingLocation: form.votingLocation,
-      votingBooth: form.votingBooth,
+      votingBoothId: Number(form.votingBoothId),
+      votingTableId: Number(form.votingTableId),
       politicalStatus: form.politicalStatus || undefined,
     };
 
@@ -229,8 +247,6 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
               ["Barrio", "neighborhood"],
               ["Correo", "email"],
               ["Ocupación", "occupation"],
-              ["Lugar de votación", "votingLocation", null, true],
-              ["Casilla", "votingBooth", null, true],
               ["Fecha de nacimiento", "birthDate", "date"],
             ].map(([label, name, type, required]) => (
               <div key={name}>
@@ -303,6 +319,36 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
               {municipalities.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.name}
+                </option>
+              ))}
+            </Select>
+
+            <Select
+              label="Centro de votación"
+              name="votingBoothId"
+              value={form.votingBoothId}
+              onChange={handleChange}
+              required
+            >
+              <option value="">Seleccione</option>
+              {votingBooths.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </Select>
+
+            <Select
+              label="Mesa de votación"
+              name="votingTableId"
+              value={form.votingTableId}
+              onChange={handleChange}
+              required
+            >
+              <option value="">Seleccione</option>
+              {votingTables.map((t) => (
+                <option key={t.id} value={t.id}>
+                  Mesa {t.tableNumber}
                 </option>
               ))}
             </Select>

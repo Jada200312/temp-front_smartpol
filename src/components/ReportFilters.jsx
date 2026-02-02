@@ -33,13 +33,18 @@ export default function ReportFilters({ onFiltersChange, aggregations = {} }) {
             getCorporations(),
             getDepartments(),
           ]);
-        setLeaders(leadersData);
-        setCandidates(candidatesData);
-        setCorporations(corporationsData);
-        setDepartments(departmentsData);
-        setFilteredCandidates(candidatesData);
+        setLeaders(Array.isArray(leadersData) ? leadersData : []);
+        setCandidates(Array.isArray(candidatesData) ? candidatesData : []);
+        setCorporations(Array.isArray(corporationsData) ? corporationsData : []);
+        setDepartments(Array.isArray(departmentsData) ? departmentsData : []);
+        setFilteredCandidates(Array.isArray(candidatesData) ? candidatesData : []);
       } catch (error) {
         console.error("Error loading filter options:", error);
+        setLeaders([]);
+        setCandidates([]);
+        setCorporations([]);
+        setDepartments([]);
+        setFilteredCandidates([]);
       } finally {
         setLoading(false);
       }
@@ -61,9 +66,13 @@ export default function ReportFilters({ onFiltersChange, aggregations = {} }) {
   // Filtrar candidatos cuando cambia la corporación
   useEffect(() => {
     if (filters.corporationId) {
-      const filtered = candidates.filter(
-        (c) => c.corporation?.id === parseInt(filters.corporationId),
-      );
+      const filtered = candidates.filter((c) => {
+        // Manejo seguro del objeto corporation
+        const corporationId = typeof c.corporation === "object" 
+          ? c.corporation?.id 
+          : c.corporationId;
+        return corporationId === parseInt(filters.corporationId);
+      });
       setFilteredCandidates(filtered);
       // Reset candidateId si el candidato actual no está en la corporación seleccionada
       if (
@@ -80,9 +89,10 @@ export default function ReportFilters({ onFiltersChange, aggregations = {} }) {
   const loadMunicipalities = async (departmentId) => {
     try {
       const municipalitiesData = await getMunicipalities(departmentId);
-      setMunicipalities(municipalitiesData);
+      setMunicipalities(Array.isArray(municipalitiesData) ? municipalitiesData : []);
     } catch (error) {
       console.error("Error loading municipalities:", error);
+      setMunicipalities([]);
     }
   };
 
@@ -167,7 +177,7 @@ export default function ReportFilters({ onFiltersChange, aggregations = {} }) {
             <option value="">Todos los líderes</option>
             {leaders.map((leader) => (
               <option key={leader.id} value={leader.id}>
-                {leader.name}
+                {leader.name || "Sin nombre"}
               </option>
             ))}
           </select>
@@ -188,7 +198,7 @@ export default function ReportFilters({ onFiltersChange, aggregations = {} }) {
             <option value="">Todas las corporaciones</option>
             {corporations.map((corp) => (
               <option key={corp.id} value={corp.id}>
-                {corp.name}
+                {corp.name || "Sin nombre"}
               </option>
             ))}
           </select>
@@ -205,11 +215,18 @@ export default function ReportFilters({ onFiltersChange, aggregations = {} }) {
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Todos los candidatos</option>
-            {filteredCandidates.map((candidate) => (
-              <option key={candidate.id} value={candidate.id}>
-                {candidate.name} ({candidate.corporation?.name})
-              </option>
-            ))}
+            {filteredCandidates.map((candidate) => {
+              // Manejo seguro del objeto corporation
+              const corporationName = typeof candidate.corporation === "object"
+                ? candidate.corporation?.name || "Sin partido"
+                : candidate.corporationName || "Sin partido";
+              
+              return (
+                <option key={candidate.id} value={candidate.id}>
+                  {candidate.name || "Sin nombre"} ({corporationName})
+                </option>
+              );
+            })}
           </select>
         </div>
 
@@ -226,7 +243,7 @@ export default function ReportFilters({ onFiltersChange, aggregations = {} }) {
             <option value="">Todos los departamentos</option>
             {departments.map((dept) => (
               <option key={dept.id} value={dept.id}>
-                {dept.name}
+                {dept.name || "Sin nombre"}
               </option>
             ))}
           </select>
@@ -248,7 +265,7 @@ export default function ReportFilters({ onFiltersChange, aggregations = {} }) {
             <option value="">Todos los municipios</option>
             {municipalities.map((mun) => (
               <option key={mun.id} value={mun.id}>
-                {mun.name}
+                {mun.name || "Sin nombre"}
               </option>
             ))}
           </select>

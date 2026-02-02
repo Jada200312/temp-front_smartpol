@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { getVoters, deleteVoter, getAssignedCandidates } from "../api/voters";
+import { getVotingBooths } from "../api/votingBooths";
+import { getVotingTables } from "../api/votingTables";
 import AddVoterModal from "../components/AddVoterModal";
 import {
   PlusIcon,
@@ -20,7 +22,38 @@ export default function Personas() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalVoters, setTotalVoters] = useState(0);
+  const [boothsMap, setBoothsMap] = useState({});
+  const [tablesMap, setTablesMap] = useState({});
   const ITEMS_PER_PAGE = 20;
+
+  // Cargar centros de votación y mesas una sola vez
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Cargar centros
+        const booths = await getVotingBooths();
+        const boothsMapTemp = {};
+        booths.forEach((booth) => {
+          boothsMapTemp[booth.id] = booth;
+        });
+        setBoothsMap(boothsMapTemp);
+        console.log("BoothsMap cargado:", boothsMapTemp);
+
+        // Cargar mesas
+        const tables = await getVotingTables();
+        const tablesMapTemp = {};
+        tables.forEach((table) => {
+          tablesMapTemp[table.id] = table;
+        });
+        setTablesMap(tablesMapTemp);
+        console.log("TablesMap cargado:", tablesMapTemp);
+      } catch (err) {
+        console.error("Error al obtener centros y mesas:", err);
+      }
+    };
+
+    loadData();
+  }, []);
 
   const fetchVoters = async (page = 1) => {
     setLoading(true);
@@ -82,16 +115,34 @@ export default function Personas() {
     }
   };
 
+  const enrichVoterData = (voter) => {
+    let enriched = { ...voter };
+
+    // Enriquecer con centro de votación
+    if (voter.votingBoothId && boothsMap[voter.votingBoothId]) {
+      enriched.votingBooth = boothsMap[voter.votingBoothId];
+    }
+
+    // Enriquecer con mesa de votación
+    if (voter.votingTableId && tablesMap[voter.votingTableId]) {
+      enriched.votingTable = tablesMap[voter.votingTableId];
+    }
+
+    return enriched;
+  };
+
   const filteredVoters = search
-    ? voters.filter((v) => {
-        const fullName = `${v.firstName} ${v.lastName}`.toLowerCase();
-        const identification = v.identification?.toLowerCase() || "";
-        return (
-          fullName.includes(search.toLowerCase()) ||
-          identification.includes(search.toLowerCase())
-        );
-      })
-    : voters;
+    ? voters
+        .map(enrichVoterData)
+        .filter((v) => {
+          const fullName = `${v.firstName} ${v.lastName}`.toLowerCase();
+          const identification = v.identification?.toLowerCase() || "";
+          return (
+            fullName.includes(search.toLowerCase()) ||
+            identification.includes(search.toLowerCase())
+          );
+        })
+    : voters.map(enrichVoterData);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-50 to-white p-4 sm:p-6 lg:p-8">
@@ -167,7 +218,8 @@ export default function Personas() {
                     "Identificación",
                     "Correo",
                     "Teléfono",
-                    "Lugar de Votación",
+                    "Centro de Votación",
+                    "Mesa",
                     "Candidatos",
                     "Acciones",
                   ].map((h) => (
@@ -200,8 +252,14 @@ export default function Personas() {
                       {v.phone || "No registrado"}
                     </td>
 
-                    <td className="px-6 py-4 text-sm text-gray-700 whitespace-nowrap">
-                      {v.votingLocation || "No registrado"}
+                    <td className="px-6 py-4 text-sm text-gray-700 font-semibold">
+                      {v.votingBooth?.name || "No registrado"}
+                    </td>
+
+                    <td className="px-6 py-4 text-sm text-gray-700 font-semibold">
+                      {v.votingTable?.tableNumber
+                        ? `Mesa ${v.votingTable.tableNumber}`
+                        : "No registrado"}
                     </td>
 
                     <td className="px-6 py-4 text-sm text-gray-700">
@@ -295,23 +353,30 @@ export default function Personas() {
                 {v.firstName} {v.lastName}
               </div>
 
-              <div className="text-sm text-gray-700 mt-3 space-y-1">
-                <p>
+              <div className="text-sm text-gray-700 mt-3 space-y-2">
+                <div>
                   <b>ID:</b> {v.identification || "No registrado"}
-                </p>
-                <p>
+                </div>
+                <div>
                   <b>Email:</b> {v.email || "No registrado"}
-                </p>
-                <p>
+                </div>
+                <div>
                   <b>Tel:</b> {v.phone || "No registrado"}
-                </p>
-                <p>
-                  <b>Ubicación:</b> {v.votingLocation || "No registrado"}
-                </p>
-                <p>
+                </div>
+                <div>
+                  <b>Centro de Votación:</b>{" "}
+                  {v.votingBooth?.name || "No registrado"}
+                </div>
+                <div>
+                  <b>Mesa:</b>{" "}
+                  {v.votingTable?.tableNumber
+                    ? `Mesa ${v.votingTable.tableNumber}`
+                    : "No registrado"}
+                </div>
+                <div>
                   <b>Candidatos:</b>{" "}
                   {voterCandidates[v.id] && voterCandidates[v.id].length > 0 ? (
-                    <div className="flex flex-col gap-2 mt-1">
+                    <div className="flex flex-col gap-2 mt-2">
                       {voterCandidates[v.id].map((candidateName, idx) => (
                         <span
                           key={idx}
@@ -324,7 +389,7 @@ export default function Personas() {
                   ) : (
                     <span className="text-gray-400">No asignado</span>
                   )}
-                </p>
+                </div>
               </div>
 
               <div className="flex justify-end gap-5 mt-4">

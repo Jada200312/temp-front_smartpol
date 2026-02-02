@@ -8,8 +8,8 @@ import {
   updateAssignedCandidates,
 } from "../api/voters";
 import { getLeaders, getCandidatesByLeader } from "../api/leaders";
-import { getVotingBooths } from "../../api/votingbooths";
-import { getTablesByBooth } from "../../api/votingtables";
+import { getVotingBooths } from "../api/votingbooths";
+import { getTablesByBooth } from "../api/votingtables";
 
 
 import { XMarkIcon } from "@heroicons/react/24/solid";

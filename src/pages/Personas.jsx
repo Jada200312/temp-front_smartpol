@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { getVoters, deleteVoter, getAssignedCandidates } from "../api/voters";
-import { getVotingBooths } from "../api/votingBooths";
-import { getVotingTables } from "../api/votingTables";
+import { getVotingBooths } from "../api/votingbooths";
+import { getVotingTables } from "../api/votingtables";
 import AddVoterModal from "../components/AddVoterModal";
 import {
   PlusIcon,

@@ -48,7 +48,6 @@ export default function Sidebar({ isOpen, onClose }) {
                       : "text-gray-600 hover:bg-orange-100 hover:text-orange-600"
                   }`}
               >
-                👥
                 <span className="ml-3">Personas</span>
               </Link>
             </li>
@@ -63,7 +62,6 @@ export default function Sidebar({ isOpen, onClose }) {
                       : "text-gray-600 hover:bg-orange-100 hover:text-orange-600"
                   }`}
               >
-                📊
                 <span className="ml-3">Informes</span>
               </Link>
             </li>

@@ -1,32 +1,31 @@
 import { useState, useEffect } from "react";
 import { getVoters, deleteVoter, getAssignedCandidates } from "../api/voters";
-import { getVotingBooths } from "../api/votingbooths";
-import { getVotingTables } from "../api/votingtables";
+import { getVotingBooths } from "../api/votingBooths";
 import AddVoterModal from "../components/AddVoterModal";
+import Pagination from "../components/Pagination";
 import {
   PlusIcon,
   PencilSquareIcon,
   TrashIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
 } from "@heroicons/react/24/outline";
 
 export default function Personas() {
   const [voters, setVoters] = useState([]);
+  const [allVoters, setAllVoters] = useState([]); // Todos los votantes para búsqueda
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingVoter, setEditingVoter] = useState(null);
   const [search, setSearch] = useState("");
   const [voterCandidates, setVoterCandidates] = useState({});
+  const [voterLeaders, setVoterLeaders] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalVoters, setTotalVoters] = useState(0);
   const [boothsMap, setBoothsMap] = useState({});
-  const [tablesMap, setTablesMap] = useState({});
   const ITEMS_PER_PAGE = 20;
 
-  // Cargar centros de votación y mesas una sola vez
+  // Cargar centros de votación una sola vez
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -38,17 +37,8 @@ export default function Personas() {
         });
         setBoothsMap(boothsMapTemp);
         console.log("BoothsMap cargado:", boothsMapTemp);
-
-        // Cargar mesas
-        const tables = await getVotingTables();
-        const tablesMapTemp = {};
-        tables.forEach((table) => {
-          tablesMapTemp[table.id] = table;
-        });
-        setTablesMap(tablesMapTemp);
-        console.log("TablesMap cargado:", tablesMapTemp);
       } catch (err) {
-        console.error("Error al obtener centros y mesas:", err);
+        console.error("Error al obtener centros:", err);
       }
     };
 
@@ -67,6 +57,7 @@ export default function Personas() {
 
       // Cargar candidatos asignados para cada votante
       const candidatesMap = {};
+      const leadersMap = {};
       for (const voter of data.data) {
         try {
           const assignedData = await getAssignedCandidates(voter.id);
@@ -74,12 +65,19 @@ export default function Personas() {
             candidatesMap[voter.id] = assignedData
               .map((d) => d.candidate?.name || d.candidateName)
               .filter(Boolean);
+            // Extraer el nombre del líder
+            const leaderName =
+              assignedData[0].leader?.name || assignedData[0].leader_name;
+            if (leaderName) {
+              leadersMap[voter.id] = leaderName;
+            }
           }
         } catch {
           // Ignorar si no hay candidatos asignados
         }
       }
       setVoterCandidates(candidatesMap);
+      setVoterLeaders(leadersMap);
     } catch {
       setError("No se pudieron cargar los votantes");
     } finally {
@@ -87,9 +85,67 @@ export default function Personas() {
     }
   };
 
+  const fetchAllVoters = async () => {
+    try {
+      let allVotersData = [];
+      let page = 1;
+      let hasMorePages = true;
+
+      // Cargar todas las páginas
+      while (hasMorePages) {
+        const data = await getVoters(page, 100); // Máximo permitido por el servidor
+        allVotersData = [...allVotersData, ...data.data];
+
+        if (page >= data.pages) {
+          hasMorePages = false;
+        } else {
+          page++;
+        }
+      }
+
+      setAllVoters(allVotersData);
+
+      // Cargar candidatos asignados para cada votante EN PARALELO
+      const candidatesMap = {};
+      const leadersMap = {};
+
+      const assignmentPromises = allVotersData.map(async (voter) => {
+        try {
+          const assignedData = await getAssignedCandidates(voter.id);
+          if (Array.isArray(assignedData) && assignedData.length > 0) {
+            candidatesMap[voter.id] = assignedData
+              .map((d) => d.candidate?.name || d.candidateName)
+              .filter(Boolean);
+            // Extraer el nombre del líder
+            const leaderName =
+              assignedData[0].leader?.name || assignedData[0].leader_name;
+            if (leaderName) {
+              leadersMap[voter.id] = leaderName;
+            }
+          }
+        } catch {
+          // Ignorar si no hay candidatos asignados
+        }
+      });
+
+      await Promise.all(assignmentPromises);
+      setVoterCandidates(candidatesMap);
+      setVoterLeaders(leadersMap);
+    } catch {
+      setError("No se pudieron cargar los votantes");
+    }
+  };
+
   useEffect(() => {
     fetchVoters(currentPage);
   }, [currentPage]);
+
+  // Cargar todos los votantes cuando el usuario comienza a buscar
+  useEffect(() => {
+    if (search) {
+      fetchAllVoters();
+    }
+  }, [search]);
 
   const handleEdit = (voter) => {
     setEditingVoter(voter);
@@ -103,18 +159,6 @@ export default function Personas() {
     fetchVoters(currentPage);
   };
 
-  const handlePreviousPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
-  };
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
-  };
-
   const enrichVoterData = (voter) => {
     let enriched = { ...voter };
 
@@ -123,25 +167,18 @@ export default function Personas() {
       enriched.votingBooth = boothsMap[voter.votingBoothId];
     }
 
-    // Enriquecer con mesa de votación
-    if (voter.votingTableId && tablesMap[voter.votingTableId]) {
-      enriched.votingTable = tablesMap[voter.votingTableId];
-    }
-
     return enriched;
   };
 
   const filteredVoters = search
-    ? voters
-        .map(enrichVoterData)
-        .filter((v) => {
-          const fullName = `${v.firstName} ${v.lastName}`.toLowerCase();
-          const identification = v.identification?.toLowerCase() || "";
-          return (
-            fullName.includes(search.toLowerCase()) ||
-            identification.includes(search.toLowerCase())
-          );
-        })
+    ? allVoters.map(enrichVoterData).filter((v) => {
+        const fullName = `${v.firstName} ${v.lastName}`.toLowerCase();
+        const identification = v.identification?.toLowerCase() || "";
+        return (
+          fullName.includes(search.toLowerCase()) ||
+          identification.includes(search.toLowerCase())
+        );
+      })
     : voters.map(enrichVoterData);
 
   return (
@@ -219,7 +256,7 @@ export default function Personas() {
                     "Correo",
                     "Teléfono",
                     "Centro de Votación",
-                    "Mesa",
+                    "Líder",
                     "Candidatos",
                     "Acciones",
                   ].map((h) => (
@@ -253,13 +290,19 @@ export default function Personas() {
                     </td>
 
                     <td className="px-6 py-4 text-sm text-gray-700 font-semibold">
-                      {v.votingBooth?.name || "No registrado"}
+                      {v.votingBooth?.name && v.votingTableId
+                        ? `${v.votingBooth.name} - ${v.votingTableId}`
+                        : v.votingBooth?.name || "No registrado"}
                     </td>
 
                     <td className="px-6 py-4 text-sm text-gray-700 font-semibold">
-                      {v.votingTable?.tableNumber
-                        ? `Mesa ${v.votingTable.tableNumber}`
-                        : "No registrado"}
+                      {voterLeaders[v.id] ? (
+                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                          {voterLeaders[v.id]}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">No asignado</span>
+                      )}
                     </td>
 
                     <td className="px-6 py-4 text-sm text-gray-700">
@@ -301,43 +344,25 @@ export default function Personas() {
           </div>
 
           {/* Pagination Controls - Desktop */}
-          <div className="mt-6 flex items-center justify-between px-4 py-4 bg-gray-50 border-t border-gray-200 rounded-b-xl">
-            <div className="text-sm text-gray-600">
-              Mostrando{" "}
-              <span className="font-semibold">
-                {(currentPage - 1) * ITEMS_PER_PAGE + 1}
-              </span>{" "}
-              a{" "}
-              <span className="font-semibold">
-                {Math.min(currentPage * ITEMS_PER_PAGE, totalVoters)}
-              </span>{" "}
-              de <span className="font-semibold">{totalVoters}</span> votantes
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={handlePreviousPage}
-                disabled={currentPage === 1}
-                className="flex items-center gap-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
-              >
-                <ChevronLeftIcon className="w-4 h-4" />
-                Anterior
-              </button>
-              <div className="flex items-center gap-2 px-4 py-2">
-                <span className="text-sm text-gray-700">
-                  Página <span className="font-semibold">{currentPage}</span> de{" "}
-                  <span className="font-semibold">{totalPages}</span>
-                </span>
+          {!search && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              totalItems={totalVoters}
+              itemsPerPage={ITEMS_PER_PAGE}
+            />
+          )}
+          {search && (
+            <div className="mt-6 px-4 py-4 bg-gray-50 border-t border-gray-200 rounded-b-xl">
+              <div className="text-sm text-gray-600">
+                Mostrando{" "}
+                <span className="font-semibold">{filteredVoters.length}</span>{" "}
+                resultado
+                {filteredVoters.length !== 1 ? "s" : ""} de búsqueda
               </div>
-              <button
-                onClick={handleNextPage}
-                disabled={currentPage === totalPages}
-                className="flex items-center gap-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
-              >
-                Siguiente
-                <ChevronRightIcon className="w-4 h-4" />
-              </button>
             </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -365,13 +390,19 @@ export default function Personas() {
                 </div>
                 <div>
                   <b>Centro de Votación:</b>{" "}
-                  {v.votingBooth?.name || "No registrado"}
+                  {v.votingBooth?.name && v.votingTableId
+                    ? `${v.votingBooth.name} - ${v.votingTableId}`
+                    : v.votingBooth?.name || "No registrado"}
                 </div>
                 <div>
-                  <b>Mesa:</b>{" "}
-                  {v.votingTable?.tableNumber
-                    ? `Mesa ${v.votingTable.tableNumber}`
-                    : "No registrado"}
+                  <b>Líder:</b>{" "}
+                  {voterLeaders[v.id] ? (
+                    <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700 font-semibold inline-block ml-2">
+                      {voterLeaders[v.id]}
+                    </span>
+                  ) : (
+                    <span className="text-gray-400">No asignado</span>
+                  )}
                 </div>
                 <div>
                   <b>Candidatos:</b>{" "}
@@ -410,43 +441,25 @@ export default function Personas() {
           ))}
 
           {/* Pagination Controls - Mobile */}
-          <div className="mt-6 flex flex-col gap-4 px-4 py-4 bg-gray-50 rounded-xl border border-gray-200">
-            <div className="text-xs text-gray-600 text-center">
-              Mostrando{" "}
-              <span className="font-semibold">
-                {(currentPage - 1) * ITEMS_PER_PAGE + 1}
-              </span>{" "}
-              a{" "}
-              <span className="font-semibold">
-                {Math.min(currentPage * ITEMS_PER_PAGE, totalVoters)}
-              </span>{" "}
-              de <span className="font-semibold">{totalVoters}</span> votantes
-            </div>
-            <div className="flex gap-2 justify-center">
-              <button
-                onClick={handlePreviousPage}
-                disabled={currentPage === 1}
-                className="flex items-center gap-1 px-3 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition text-sm"
-              >
-                <ChevronLeftIcon className="w-4 h-4" />
-                Anterior
-              </button>
-              <div className="flex items-center gap-2 px-3 py-2">
-                <span className="text-xs text-gray-700">
-                  <span className="font-semibold">{currentPage}</span>/
-                  <span className="font-semibold">{totalPages}</span>
-                </span>
+          {!search && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              totalItems={totalVoters}
+              itemsPerPage={ITEMS_PER_PAGE}
+            />
+          )}
+          {search && (
+            <div className="mt-6 px-4 py-4 bg-gray-50 rounded-xl border border-gray-200">
+              <div className="text-xs text-gray-600 text-center">
+                Mostrando{" "}
+                <span className="font-semibold">{filteredVoters.length}</span>{" "}
+                resultado
+                {filteredVoters.length !== 1 ? "s" : ""} de búsqueda
               </div>
-              <button
-                onClick={handleNextPage}
-                disabled={currentPage === totalPages}
-                className="flex items-center gap-1 px-3 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition text-sm"
-              >
-                Siguiente
-                <ChevronRightIcon className="w-4 h-4" />
-              </button>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>

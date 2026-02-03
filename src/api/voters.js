@@ -6,13 +6,24 @@ export async function getVoters(page = 1, limit = 20) {
   return response.json();
 }
 
+export async function getVoterByIdentification(identification) {
+  const response = await fetch(`${API_URL}/voters/by-identification/${identification}`);
+  if (!response.ok) return null;
+  return response.json();
+}
+
 export async function createVoter(voter) {
   const response = await fetch(`${API_URL}/voters`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(voter),
   });
-  if (!response.ok) throw new Error("Error al crear votante");
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: "Error al crear votante" }));
+    const err = new Error(error.message || "Error al crear votante");
+    err.response = { data: error };
+    throw err;
+  }
   return response.json();
 }
 

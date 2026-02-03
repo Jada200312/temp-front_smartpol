@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 import { Workbook } from "exceljs";
-import { getVotingBooths } from "../api/votingbooths";
-import { getVotingTables } from "../api/votingtables";
+import { getVotingBooths } from "../api/votingBooths";
+import Pagination from "./Pagination";
 
 export default function VotersTable({
   voters,
@@ -10,17 +10,17 @@ export default function VotersTable({
   filters,
   loading,
   pagination,
+  currentPageProp,
   onPageChange,
 }) {
   const [enrichedVoters, setEnrichedVoters] = useState([]);
   const [boothsMap, setBoothsMap] = useState({});
-  const [tablesMap, setTablesMap] = useState({});
   const [sortConfig, setSortConfig] = useState({
     key: "id",
     direction: "asc",
   });
 
-  // Cargar todos los centros y mesas una sola vez
+  // Cargar todos los centros de votación una sola vez
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -30,13 +30,6 @@ export default function VotersTable({
           boothsMapTemp[booth.id] = booth;
         });
         setBoothsMap(boothsMapTemp);
-
-        const tables = await getVotingTables();
-        const tablesMapTemp = {};
-        tables.forEach((table) => {
-          tablesMapTemp[table.id] = table;
-        });
-        setTablesMap(tablesMapTemp);
       } catch (err) {
         console.error("Error al obtener datos:", err);
       }
@@ -59,30 +52,18 @@ export default function VotersTable({
           enrichedVoter.votingBooth = boothsMap[voter.votingBoothId];
         }
 
-        if (
-          voter.votingTableId &&
-          !voter.votingTable &&
-          tablesMap[voter.votingTableId]
-        ) {
-          enrichedVoter.votingTable = tablesMap[voter.votingTableId];
-        }
-
         return enrichedVoter;
       });
 
       setEnrichedVoters(enriched);
     };
 
-    if (
-      voters.length > 0 &&
-      Object.keys(boothsMap).length > 0 &&
-      Object.keys(tablesMap).length > 0
-    ) {
+    if (voters.length > 0 && Object.keys(boothsMap).length > 0) {
       enrichVoters();
     } else if (voters.length > 0) {
       setEnrichedVoters(voters);
     }
-  }, [voters, boothsMap, tablesMap]);
+  }, [voters, boothsMap]);
 
   const sortedVoters = [...enrichedVoters].sort((a, b) => {
     const aValue = a[sortConfig.key];
@@ -127,7 +108,6 @@ export default function VotersTable({
       { header: "Municipio", key: "Municipio", width: 16 },
       { header: "Barrio", key: "Barrio", width: 16 },
       { header: "Centro de Votación", key: "CentroVotacion", width: 20 },
-      { header: "Mesa de Votación", key: "MesaVotacion", width: 16 },
       { header: "Candidatos", key: "Candidatos", width: 45 },
       { header: "Líderes", key: "Líderes", width: 30 },
     ];
@@ -191,9 +171,8 @@ export default function VotersTable({
 
     dataToExport.forEach((voter, rowIndex) => {
       const candidatosFormateados =
-        voter.candidates
-          ?.map((c) => `• ${c.name} (${c.party})`)
-          .join("\n") || "N/A";
+        voter.candidates?.map((c) => `• ${c.name} (${c.party})`).join("\n") ||
+        "N/A";
 
       const lideresFormateados =
         voter.leaders?.map((l) => `• ${l.name}`).join("\n") || "N/A";
@@ -214,10 +193,10 @@ export default function VotersTable({
         Departamento: voter.department?.name || "N/A",
         Municipio: voter.municipality?.name || "N/A",
         Barrio: voter.neighborhood || "N/A",
-        CentroVotacion: voter.votingBooth?.name || "N/A",
-        MesaVotacion: voter.votingTable?.tableNumber
-          ? `Mesa ${voter.votingTable.tableNumber}`
-          : "N/A",
+        CentroVotacion:
+          voter.votingBooth?.name && voter.votingTableId
+            ? `${voter.votingBooth.name} - ${voter.votingTableId}`
+            : voter.votingBooth?.name || "N/A",
         Candidatos: candidatosFormateados,
         Líderes: lideresFormateados,
       };
@@ -268,51 +247,7 @@ export default function VotersTable({
   const totalPages = pagination
     ? Math.ceil(pagination.total / pagination.limit)
     : 1;
-  const currentPage = pagination?.page || 1;
-
-  const getPaginationPages = () => {
-    if (totalPages <= 5) {
-      return Array.from({ length: totalPages }, (_, i) => i + 1);
-    }
-
-    const pages = new Set([1, totalPages]);
-    let middleStart = Math.max(2, currentPage - 1);
-    let middleEnd = Math.min(totalPages - 1, currentPage + 1);
-
-    const middleCount = 3;
-    const middleSize = middleEnd - middleStart + 1;
-    if (middleSize < middleCount) {
-      if (middleStart === 2) {
-        middleEnd = Math.min(totalPages - 1, middleStart + middleCount - 1);
-      } else {
-        middleStart = Math.max(2, middleEnd - middleCount + 1);
-      }
-    }
-
-    for (let i = middleStart; i <= middleEnd; i++) {
-      pages.add(i);
-    }
-
-    const sortedPages = Array.from(pages).sort((a, b) => a - b);
-    const result = [];
-
-    for (let i = 0; i < sortedPages.length; i++) {
-      result.push(sortedPages[i]);
-      if (
-        i < sortedPages.length - 1 &&
-        sortedPages[i + 1] - sortedPages[i] > 1
-      ) {
-        result.push("...");
-      }
-    }
-
-    return result;
-  };
-
-  const startRecord = pagination ? (currentPage - 1) * pagination.limit + 1 : 1;
-  const endRecord = pagination
-    ? Math.min(currentPage * pagination.limit, pagination.total)
-    : enrichedVoters.length;
+  const currentPage = currentPageProp || pagination?.page || 1;
 
   if (loading) {
     return (
@@ -378,9 +313,6 @@ export default function VotersTable({
                 Centro de Votación
               </th>
               <th className="px-4 py-3 text-left font-semibold text-gray-700">
-                Mesa de Votación
-              </th>
-              <th className="px-4 py-3 text-left font-semibold text-gray-700">
                 Candidatos
               </th>
               <th className="px-4 py-3 text-left font-semibold text-gray-700">
@@ -406,9 +338,15 @@ export default function VotersTable({
                     idx % 2 === 0 ? "bg-white" : "bg-gray-50"
                   } hover:bg-blue-50 transition`}
                 >
-                  <td className="px-4 py-3 text-gray-700">{voter.id || "N/A"}</td>
-                  <td className="px-4 py-3 text-gray-700">{voter.firstName || "N/A"}</td>
-                  <td className="px-4 py-3 text-gray-700">{voter.lastName || "N/A"}</td>
+                  <td className="px-4 py-3 text-gray-700">
+                    {voter.id || "N/A"}
+                  </td>
+                  <td className="px-4 py-3 text-gray-700">
+                    {voter.firstName || "N/A"}
+                  </td>
+                  <td className="px-4 py-3 text-gray-700">
+                    {voter.lastName || "N/A"}
+                  </td>
                   <td className="px-4 py-3 text-gray-600 text-xs font-mono">
                     {voter.identification || "N/A"}
                   </td>
@@ -419,7 +357,9 @@ export default function VotersTable({
                         ? "Femenino"
                         : "Otro"}
                   </td>
-                  <td className="px-4 py-3 text-gray-700">{voter.phone || "N/A"}</td>
+                  <td className="px-4 py-3 text-gray-700">
+                    {voter.phone || "N/A"}
+                  </td>
                   <td className="px-4 py-3 text-gray-700">
                     {voter.department?.name || "N/A"}
                   </td>
@@ -427,12 +367,9 @@ export default function VotersTable({
                     {voter.municipality?.name || "N/A"}
                   </td>
                   <td className="px-4 py-3 text-gray-700 text-sm font-semibold">
-                    {voter.votingBooth?.name || "N/A"}
-                  </td>
-                  <td className="px-4 py-3 text-gray-700 text-sm font-semibold">
-                    {voter.votingTable?.tableNumber
-                      ? `Mesa ${voter.votingTable.tableNumber}`
-                      : "N/A"}
+                    {voter.votingBooth?.name && voter.votingTableId
+                      ? `${voter.votingBooth.name} - ${voter.votingTableId}`
+                      : voter.votingBooth?.name || "N/A"}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">
@@ -491,7 +428,9 @@ export default function VotersTable({
                   <h3 className="font-bold text-gray-900 text-sm sm:text-base">
                     {voter.firstName || "N/A"} {voter.lastName || "N/A"}
                   </h3>
-                  <p className="text-xs text-gray-500">ID: {voter.id || "N/A"}</p>
+                  <p className="text-xs text-gray-500">
+                    ID: {voter.id || "N/A"}
+                  </p>
                 </div>
                 <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded whitespace-nowrap">
                   {voter.gender === "M"
@@ -505,7 +444,9 @@ export default function VotersTable({
               <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm border-t border-gray-100 pt-2">
                 <div>
                   <p className="text-gray-500 font-semibold">Identificación</p>
-                  <p className="text-gray-900 font-mono">{voter.identification || "N/A"}</p>
+                  <p className="text-gray-900 font-mono">
+                    {voter.identification || "N/A"}
+                  </p>
                 </div>
                 <div>
                   <p className="text-gray-500 font-semibold">Teléfono</p>
@@ -513,7 +454,9 @@ export default function VotersTable({
                 </div>
                 <div>
                   <p className="text-gray-500 font-semibold">Email</p>
-                  <p className="text-gray-900 break-all">{voter.email || "N/A"}</p>
+                  <p className="text-gray-900 break-all">
+                    {voter.email || "N/A"}
+                  </p>
                 </div>
                 <div>
                   <p className="text-gray-500 font-semibold">Tipo de sangre</p>
@@ -524,11 +467,15 @@ export default function VotersTable({
               <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm border-t border-gray-100 pt-2">
                 <div>
                   <p className="text-gray-500 font-semibold">Departamento</p>
-                  <p className="text-gray-900">{voter.department?.name || "N/A"}</p>
+                  <p className="text-gray-900">
+                    {voter.department?.name || "N/A"}
+                  </p>
                 </div>
                 <div>
                   <p className="text-gray-500 font-semibold">Municipio</p>
-                  <p className="text-gray-900">{voter.municipality?.name || "N/A"}</p>
+                  <p className="text-gray-900">
+                    {voter.municipality?.name || "N/A"}
+                  </p>
                 </div>
                 <div className="col-span-2">
                   <p className="text-gray-500 font-semibold">Barrio</p>
@@ -538,17 +485,13 @@ export default function VotersTable({
 
               <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm border-t border-gray-100 pt-2">
                 <div>
-                  <p className="text-gray-500 font-semibold">Centro de Votación</p>
-                  <p className="text-gray-900 font-semibold">
-                    {voter.votingBooth?.name || "N/A"}
+                  <p className="text-gray-500 font-semibold">
+                    Centro de Votación
                   </p>
-                </div>
-                <div>
-                  <p className="text-gray-500 font-semibold">Mesa</p>
                   <p className="text-gray-900 font-semibold">
-                    {voter.votingTable?.tableNumber
-                      ? `Mesa ${voter.votingTable.tableNumber}`
-                      : "N/A"}
+                    {voter.votingBooth?.name && voter.votingTableId
+                      ? `${voter.votingBooth.name} - ${voter.votingTableId}`
+                      : voter.votingBooth?.name || "N/A"}
                   </p>
                 </div>
               </div>
@@ -595,54 +538,13 @@ export default function VotersTable({
 
       {/* Información y controles de paginación */}
       {pagination && totalPages > 1 && (
-        <div className="p-3 sm:p-4 border-t border-gray-200 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-xs sm:text-sm text-gray-600">
-            Mostrando {startRecord} a {endRecord} de {pagination.total} votantes
-          </div>
-
-          <div className="flex flex-wrap gap-1 sm:gap-2 justify-center sm:justify-end">
-            <button
-              onClick={() => onPageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-gray-300 rounded-md text-gray-700 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed hover:bg-gray-50 transition"
-            >
-              ← Anterior
-            </button>
-
-            <div className="flex gap-1">
-              {getPaginationPages().map((page, idx) =>
-                page === "..." ? (
-                  <span
-                    key={`ellipsis-${idx}`}
-                    className="px-1 sm:px-2 py-1 text-xs sm:text-sm text-gray-400"
-                  >
-                    ...
-                  </span>
-                ) : (
-                  <button
-                    key={`page-${page}`}
-                    onClick={() => onPageChange(page)}
-                    className={`px-1.5 sm:px-3 py-1 text-xs sm:text-sm rounded-md transition ${
-                      currentPage === page
-                        ? "bg-blue-600 text-white"
-                        : "border border-gray-300 text-gray-700 hover:bg-gray-50"
-                    }`}
-                  >
-                    {page}
-                  </button>
-                ),
-              )}
-            </div>
-
-            <button
-              onClick={() => onPageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-gray-300 rounded-md text-gray-700 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed hover:bg-gray-50 transition"
-            >
-              Siguiente →
-            </button>
-          </div>
-        </div>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={onPageChange}
+          totalItems={pagination.total}
+          itemsPerPage={pagination.limit}
+        />
       )}
     </div>
   );

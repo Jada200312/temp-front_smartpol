@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { getVoters, deleteVoter, getAssignedCandidates } from "../api/voters";
-import { getVotingBooths } from "../api/votingBooths";
+import { getVotingBooths } from "../api/votingbooths";
 import AddVoterModal from "../components/AddVoterModal";
 import Pagination from "../components/Pagination";
 import {

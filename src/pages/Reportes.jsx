@@ -22,10 +22,14 @@ export default function Reportes() {
     setLoading(true);
     setError(null);
     try {
-      const response = await getVoterReport({ ...currentFilters, page, limit: 50 });
-      
+      const response = await getVoterReport({
+        ...currentFilters,
+        page,
+        limit: 50,
+      });
+
       console.log("Reporte recibido:", response);
-      
+
       setVoters(response.data || []);
       setAggregations(response.aggregations || null);
       setPagination({
@@ -134,7 +138,8 @@ export default function Reportes() {
                 key={key}
                 className="px-3 py-1 bg-blue-200 text-blue-900 rounded-full text-sm font-medium"
               >
-                {key}: {typeof value === "object" ? JSON.stringify(value) : value}
+                {key}:{" "}
+                {typeof value === "object" ? JSON.stringify(value) : value}
               </span>
             ))}
             <button
@@ -158,6 +163,7 @@ export default function Reportes() {
           filters={activeFilters}
           loading={loading}
           pagination={pagination}
+          currentPageProp={currentPage}
           onPageChange={handlePageChange}
         />
       )}

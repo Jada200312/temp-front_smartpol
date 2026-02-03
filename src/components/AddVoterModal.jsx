@@ -134,6 +134,7 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
       firstName: "Nombre",
       lastName: "Apellido",
       identification: "Identificación",
+      gender: "Género",
       votingBoothId: "Centro de votación",
       votingTableId: "Mesa de votación",
       leaderId: "Líder",
@@ -282,6 +283,7 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
               name="gender"
               value={form.gender}
               onChange={handleChange}
+              required
             >
               <option value="">Seleccione</option>
               <option value="M">Masculino</option>

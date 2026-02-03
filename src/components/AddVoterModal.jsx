@@ -9,7 +9,7 @@ import {
   getVoterByIdentification,
 } from "../api/voters";
 import { getLeaders, getCandidatesByLeader } from "../api/leaders";
-import { getVotingBooths } from "../api/votingBooths";
+import { getVotingBooths } from "../api/votingbooths";
 import { XMarkIcon } from "@heroicons/react/24/solid";
 
 export default function AddVoterModal({ onClose, onVoterAdded, voter }) {

@@ -6,10 +6,10 @@ import {
   updateVoter,
   getAssignedCandidates,
   updateAssignedCandidates,
+  getVoterByIdentification,
 } from "../api/voters";
 import { getLeaders, getCandidatesByLeader } from "../api/leaders";
 import { getVotingBooths } from "../api/votingBooths";
-import { getTablesByBooth } from "../api/votingTables";
 import { XMarkIcon } from "@heroicons/react/24/solid";
 
 export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
@@ -39,7 +39,8 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
   const [leaders, setLeaders] = useState([]);
   const [candidates, setCandidates] = useState([]);
   const [votingBooths, setVotingBooths] = useState([]);
-  const [votingTables, setVotingTables] = useState([]);
+  const [filteredBooths, setFilteredBooths] = useState([]);
+  const [mesas, setMesas] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [assignedData, setAssignedData] = useState([]);
@@ -50,12 +51,8 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
     getLeaders().then(setLeaders);
     getVotingBooths().then(setVotingBooths);
 
-    // Si es edición, obtener datos de asignación actual y mesas del centro
+    // Si es edición, obtener datos de asignación actual
     if (voter) {
-      if (voter.votingBoothId) {
-        getTablesByBooth(voter.votingBoothId).then(setVotingTables);
-      }
-
       getAssignedCandidates(voter.id).then((data) => {
         if (Array.isArray(data) && data.length > 0) {
           setAssignedData(data);
@@ -82,13 +79,42 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
   }, [form.departmentId]);
 
   useEffect(() => {
-    if (form.votingBoothId) {
-      getTablesByBooth(form.votingBoothId).then(setVotingTables);
+    if (form.municipalityId) {
+      // Filtrar puestos de votación por municipio
+      const filtered = votingBooths.filter(
+        (booth) => booth.municipalityId === parseInt(form.municipalityId),
+      );
+      setFilteredBooths(filtered);
     } else {
-      setVotingTables([]);
+      setFilteredBooths([]);
+      setForm((p) => ({ ...p, votingBoothId: "" }));
+    }
+  }, [form.municipalityId, votingBooths]);
+
+  // Generar mesas dinámicamente basado en el puesto de votación seleccionado
+  useEffect(() => {
+    if (form.votingBoothId) {
+      const selectedBooth = filteredBooths.find(
+        (booth) => booth.id === parseInt(form.votingBoothId),
+      );
+      if (selectedBooth && selectedBooth.mesas) {
+        // Generar array de mesas del 1 al N
+        const mesasArray = Array.from(
+          { length: selectedBooth.mesas },
+          (_, i) => ({
+            number: i + 1,
+            label: `Mesa ${i + 1}`,
+          }),
+        );
+        setMesas(mesasArray);
+      } else {
+        setMesas([]);
+      }
+    } else {
+      setMesas([]);
       setForm((p) => ({ ...p, votingTableId: "" }));
     }
-  }, [form.votingBoothId]);
+  }, [form.votingBoothId, filteredBooths]);
 
   useEffect(() => {
     if (form.leaderId) {
@@ -117,6 +143,63 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
     }
   }, [form.leaderId, initialLeaderId, voter]);
 
+  // Validar identificación en tiempo real
+  useEffect(() => {
+    if (form.identification && form.identification.trim() && !voter) {
+      const validateId = async () => {
+        try {
+          const existing = await getVoterByIdentification(form.identification);
+          if (existing) {
+            // Obtener información del líder asignado al usuario duplicado
+            let leaderInfo = "";
+            try {
+              const assignedData = await getAssignedCandidates(existing.id);
+              if (Array.isArray(assignedData) && assignedData.length > 0) {
+                const leaderName =
+                  assignedData[0].leader?.name || assignedData[0].leader_name;
+                if (leaderName) {
+                  leaderInfo = ` Está asignado al líder: ${leaderName}`;
+                }
+              }
+            } catch (error) {
+              console.error("Error obtiendo información del líder:", error);
+            }
+
+            alert(
+              `La identificación ${form.identification} ya está registrada.${leaderInfo} Se limpiarán todos los campos.`,
+            );
+            setForm({
+              firstName: "",
+              lastName: "",
+              identification: "",
+              gender: "",
+              departmentId: "",
+              municipalityId: "",
+              votingBoothId: "",
+              votingTableId: "",
+              leaderId: "",
+              candidateIds: [],
+              bloodType: "",
+              birthDate: "",
+              phone: "",
+              address: "",
+              neighborhood: "",
+              email: "",
+              occupation: "",
+              politicalStatus: "",
+            });
+          }
+        } catch (error) {
+          // Error silencioso en validación
+          console.error("Error validando identificación:", error);
+        }
+      };
+
+      const timer = setTimeout(validateId, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [form.identification, voter]);
+
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -136,7 +219,6 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
       identification: "Identificación",
       gender: "Género",
       votingBoothId: "Centro de votación",
-      votingTableId: "Mesa de votación",
       leaderId: "Líder",
       departmentId: "Departamento",
       municipalityId: "Municipio",
@@ -147,6 +229,12 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
         setError(`${label} es requerido`);
         return false;
       }
+    }
+
+    // Validar que votingTableId (mesa) sea válido si hay un votingBoothId
+    if (form.votingBoothId && !form.votingTableId) {
+      setError("Mesa de votación es requerida");
+      return false;
     }
 
     if (form.candidateIds.length === 0) {
@@ -171,20 +259,26 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
       firstName: form.firstName,
       lastName: form.lastName,
       identification: form.identification,
-      gender: form.gender || undefined,
-      bloodType: form.bloodType || undefined,
-      birthDate: form.birthDate || undefined,
-      phone: form.phone || undefined,
-      address: form.address || undefined,
+      gender: form.gender,
       departmentId: Number(form.departmentId),
       municipalityId: Number(form.municipalityId),
-      neighborhood: form.neighborhood || undefined,
-      email: form.email || undefined,
-      occupation: form.occupation || undefined,
       votingBoothId: Number(form.votingBoothId),
-      votingTableId: Number(form.votingTableId),
-      politicalStatus: form.politicalStatus || undefined,
     };
+
+    // Agregar campos opcionales solo si tienen valor
+    if (form.bloodType) voterPayload.bloodType = form.bloodType;
+    if (form.birthDate) voterPayload.birthDate = form.birthDate;
+    if (form.phone) voterPayload.phone = form.phone;
+    if (form.address) voterPayload.address = form.address;
+    if (form.neighborhood) voterPayload.neighborhood = form.neighborhood;
+    if (form.email) voterPayload.email = form.email;
+    if (form.occupation) voterPayload.occupation = form.occupation;
+    if (form.votingTableId)
+      voterPayload.votingTableId = String(form.votingTableId);
+    if (form.politicalStatus)
+      voterPayload.politicalStatus = form.politicalStatus;
+
+    console.log("Payload enviado:", voterPayload);
 
     try {
       let voterId;
@@ -220,7 +314,13 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
       onVoterAdded();
       onClose();
     } catch (err) {
-      setError(err.message || "Error al guardar la información.");
+      console.error("Error completo:", err);
+      const errorMsg =
+        err.response?.data?.message ||
+        err.message ||
+        "Error al guardar la información.";
+      console.error("Mensaje de error:", errorMsg);
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -343,11 +443,12 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
               value={form.votingBoothId}
               onChange={handleChange}
               required
+              disabled={!form.municipalityId}
             >
               <option value="">Seleccione</option>
-              {votingBooths.map((b) => (
+              {filteredBooths.map((b) => (
                 <option key={b.id} value={b.id}>
-                  {b.name}
+                  {b.name} ({b.mesas} mesas)
                 </option>
               ))}
             </Select>
@@ -358,11 +459,12 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
               value={form.votingTableId}
               onChange={handleChange}
               required
+              disabled={!form.votingBoothId}
             >
               <option value="">Seleccione</option>
-              {votingTables.map((t) => (
-                <option key={t.id} value={t.id}>
-                  Mesa {t.tableNumber}
+              {mesas.map((mesa) => (
+                <option key={mesa.number} value={mesa.label}>
+                  {mesa.label}
                 </option>
               ))}
             </Select>

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 import { Workbook } from "exceljs";
 import { getVotingBooths } from "../api/votingBooths";
-import { getVotingTables } from "../api/votingTables";
 import Pagination from "./Pagination";
 
 export default function VotersTable({
@@ -16,13 +15,12 @@ export default function VotersTable({
 }) {
   const [enrichedVoters, setEnrichedVoters] = useState([]);
   const [boothsMap, setBoothsMap] = useState({});
-  const [tablesMap, setTablesMap] = useState({});
   const [sortConfig, setSortConfig] = useState({
     key: "id",
     direction: "asc",
   });
 
-  // Cargar todos los centros y mesas una sola vez
+  // Cargar todos los centros de votación una sola vez
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -32,13 +30,6 @@ export default function VotersTable({
           boothsMapTemp[booth.id] = booth;
         });
         setBoothsMap(boothsMapTemp);
-
-        const tables = await getVotingTables();
-        const tablesMapTemp = {};
-        tables.forEach((table) => {
-          tablesMapTemp[table.id] = table;
-        });
-        setTablesMap(tablesMapTemp);
       } catch (err) {
         console.error("Error al obtener datos:", err);
       }
@@ -61,30 +52,18 @@ export default function VotersTable({
           enrichedVoter.votingBooth = boothsMap[voter.votingBoothId];
         }
 
-        if (
-          voter.votingTableId &&
-          !voter.votingTable &&
-          tablesMap[voter.votingTableId]
-        ) {
-          enrichedVoter.votingTable = tablesMap[voter.votingTableId];
-        }
-
         return enrichedVoter;
       });
 
       setEnrichedVoters(enriched);
     };
 
-    if (
-      voters.length > 0 &&
-      Object.keys(boothsMap).length > 0 &&
-      Object.keys(tablesMap).length > 0
-    ) {
+    if (voters.length > 0 && Object.keys(boothsMap).length > 0) {
       enrichVoters();
     } else if (voters.length > 0) {
       setEnrichedVoters(voters);
     }
-  }, [voters, boothsMap, tablesMap]);
+  }, [voters, boothsMap]);
 
   const sortedVoters = [...enrichedVoters].sort((a, b) => {
     const aValue = a[sortConfig.key];
@@ -129,7 +108,6 @@ export default function VotersTable({
       { header: "Municipio", key: "Municipio", width: 16 },
       { header: "Barrio", key: "Barrio", width: 16 },
       { header: "Centro de Votación", key: "CentroVotacion", width: 20 },
-      { header: "Mesa de Votación", key: "MesaVotacion", width: 16 },
       { header: "Candidatos", key: "Candidatos", width: 45 },
       { header: "Líderes", key: "Líderes", width: 30 },
     ];
@@ -215,10 +193,10 @@ export default function VotersTable({
         Departamento: voter.department?.name || "N/A",
         Municipio: voter.municipality?.name || "N/A",
         Barrio: voter.neighborhood || "N/A",
-        CentroVotacion: voter.votingBooth?.name || "N/A",
-        MesaVotacion: voter.votingTable?.tableNumber
-          ? `Mesa ${voter.votingTable.tableNumber}`
-          : "N/A",
+        CentroVotacion:
+          voter.votingBooth?.name && voter.votingTableId
+            ? `${voter.votingBooth.name} - ${voter.votingTableId}`
+            : voter.votingBooth?.name || "N/A",
         Candidatos: candidatosFormateados,
         Líderes: lideresFormateados,
       };
@@ -335,9 +313,6 @@ export default function VotersTable({
                 Centro de Votación
               </th>
               <th className="px-4 py-3 text-left font-semibold text-gray-700">
-                Mesa de Votación
-              </th>
-              <th className="px-4 py-3 text-left font-semibold text-gray-700">
                 Candidatos
               </th>
               <th className="px-4 py-3 text-left font-semibold text-gray-700">
@@ -392,12 +367,9 @@ export default function VotersTable({
                     {voter.municipality?.name || "N/A"}
                   </td>
                   <td className="px-4 py-3 text-gray-700 text-sm font-semibold">
-                    {voter.votingBooth?.name || "N/A"}
-                  </td>
-                  <td className="px-4 py-3 text-gray-700 text-sm font-semibold">
-                    {voter.votingTable?.tableNumber
-                      ? `Mesa ${voter.votingTable.tableNumber}`
-                      : "N/A"}
+                    {voter.votingBooth?.name && voter.votingTableId
+                      ? `${voter.votingBooth.name} - ${voter.votingTableId}`
+                      : voter.votingBooth?.name || "N/A"}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">
@@ -517,15 +489,9 @@ export default function VotersTable({
                     Centro de Votación
                   </p>
                   <p className="text-gray-900 font-semibold">
-                    {voter.votingBooth?.name || "N/A"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-gray-500 font-semibold">Mesa</p>
-                  <p className="text-gray-900 font-semibold">
-                    {voter.votingTable?.tableNumber
-                      ? `Mesa ${voter.votingTable.tableNumber}`
-                      : "N/A"}
+                    {voter.votingBooth?.name && voter.votingTableId
+                      ? `${voter.votingBooth.name} - ${voter.votingTableId}`
+                      : voter.votingBooth?.name || "N/A"}
                   </p>
                 </div>
               </div>

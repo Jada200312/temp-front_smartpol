@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { getVoters, deleteVoter, getAssignedCandidates } from "../api/voters";
 import { getVotingBooths } from "../api/votingBooths";
-import { getVotingTables } from "../api/votingTables";
 import AddVoterModal from "../components/AddVoterModal";
 import Pagination from "../components/Pagination";
 import {
@@ -19,14 +18,14 @@ export default function Personas() {
   const [editingVoter, setEditingVoter] = useState(null);
   const [search, setSearch] = useState("");
   const [voterCandidates, setVoterCandidates] = useState({});
+  const [voterLeaders, setVoterLeaders] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalVoters, setTotalVoters] = useState(0);
   const [boothsMap, setBoothsMap] = useState({});
-  const [tablesMap, setTablesMap] = useState({});
   const ITEMS_PER_PAGE = 20;
 
-  // Cargar centros de votación y mesas una sola vez
+  // Cargar centros de votación una sola vez
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -38,17 +37,8 @@ export default function Personas() {
         });
         setBoothsMap(boothsMapTemp);
         console.log("BoothsMap cargado:", boothsMapTemp);
-
-        // Cargar mesas
-        const tables = await getVotingTables();
-        const tablesMapTemp = {};
-        tables.forEach((table) => {
-          tablesMapTemp[table.id] = table;
-        });
-        setTablesMap(tablesMapTemp);
-        console.log("TablesMap cargado:", tablesMapTemp);
       } catch (err) {
-        console.error("Error al obtener centros y mesas:", err);
+        console.error("Error al obtener centros:", err);
       }
     };
 
@@ -67,6 +57,7 @@ export default function Personas() {
 
       // Cargar candidatos asignados para cada votante
       const candidatesMap = {};
+      const leadersMap = {};
       for (const voter of data.data) {
         try {
           const assignedData = await getAssignedCandidates(voter.id);
@@ -74,12 +65,19 @@ export default function Personas() {
             candidatesMap[voter.id] = assignedData
               .map((d) => d.candidate?.name || d.candidateName)
               .filter(Boolean);
+            // Extraer el nombre del líder
+            const leaderName =
+              assignedData[0].leader?.name || assignedData[0].leader_name;
+            if (leaderName) {
+              leadersMap[voter.id] = leaderName;
+            }
           }
         } catch {
           // Ignorar si no hay candidatos asignados
         }
       }
       setVoterCandidates(candidatesMap);
+      setVoterLeaders(leadersMap);
     } catch {
       setError("No se pudieron cargar los votantes");
     } finally {
@@ -107,21 +105,32 @@ export default function Personas() {
 
       setAllVoters(allVotersData);
 
-      // Cargar candidatos asignados para cada votante
+      // Cargar candidatos asignados para cada votante EN PARALELO
       const candidatesMap = {};
-      for (const voter of allVotersData) {
+      const leadersMap = {};
+
+      const assignmentPromises = allVotersData.map(async (voter) => {
         try {
           const assignedData = await getAssignedCandidates(voter.id);
           if (Array.isArray(assignedData) && assignedData.length > 0) {
             candidatesMap[voter.id] = assignedData
               .map((d) => d.candidate?.name || d.candidateName)
               .filter(Boolean);
+            // Extraer el nombre del líder
+            const leaderName =
+              assignedData[0].leader?.name || assignedData[0].leader_name;
+            if (leaderName) {
+              leadersMap[voter.id] = leaderName;
+            }
           }
         } catch {
           // Ignorar si no hay candidatos asignados
         }
-      }
-      setVoterCandidates((prev) => ({ ...prev, ...candidatesMap }));
+      });
+
+      await Promise.all(assignmentPromises);
+      setVoterCandidates(candidatesMap);
+      setVoterLeaders(leadersMap);
     } catch {
       setError("No se pudieron cargar los votantes");
     }
@@ -133,7 +142,7 @@ export default function Personas() {
 
   // Cargar todos los votantes cuando el usuario comienza a buscar
   useEffect(() => {
-    if (search && allVoters.length === 0) {
+    if (search) {
       fetchAllVoters();
     }
   }, [search]);
@@ -156,11 +165,6 @@ export default function Personas() {
     // Enriquecer con centro de votación
     if (voter.votingBoothId && boothsMap[voter.votingBoothId]) {
       enriched.votingBooth = boothsMap[voter.votingBoothId];
-    }
-
-    // Enriquecer con mesa de votación
-    if (voter.votingTableId && tablesMap[voter.votingTableId]) {
-      enriched.votingTable = tablesMap[voter.votingTableId];
     }
 
     return enriched;
@@ -252,7 +256,7 @@ export default function Personas() {
                     "Correo",
                     "Teléfono",
                     "Centro de Votación",
-                    "Mesa",
+                    "Líder",
                     "Candidatos",
                     "Acciones",
                   ].map((h) => (
@@ -286,13 +290,19 @@ export default function Personas() {
                     </td>
 
                     <td className="px-6 py-4 text-sm text-gray-700 font-semibold">
-                      {v.votingBooth?.name || "No registrado"}
+                      {v.votingBooth?.name && v.votingTableId
+                        ? `${v.votingBooth.name} - ${v.votingTableId}`
+                        : v.votingBooth?.name || "No registrado"}
                     </td>
 
                     <td className="px-6 py-4 text-sm text-gray-700 font-semibold">
-                      {v.votingTable?.tableNumber
-                        ? `Mesa ${v.votingTable.tableNumber}`
-                        : "No registrado"}
+                      {voterLeaders[v.id] ? (
+                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                          {voterLeaders[v.id]}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">No asignado</span>
+                      )}
                     </td>
 
                     <td className="px-6 py-4 text-sm text-gray-700">
@@ -380,13 +390,19 @@ export default function Personas() {
                 </div>
                 <div>
                   <b>Centro de Votación:</b>{" "}
-                  {v.votingBooth?.name || "No registrado"}
+                  {v.votingBooth?.name && v.votingTableId
+                    ? `${v.votingBooth.name} - ${v.votingTableId}`
+                    : v.votingBooth?.name || "No registrado"}
                 </div>
                 <div>
-                  <b>Mesa:</b>{" "}
-                  {v.votingTable?.tableNumber
-                    ? `Mesa ${v.votingTable.tableNumber}`
-                    : "No registrado"}
+                  <b>Líder:</b>{" "}
+                  {voterLeaders[v.id] ? (
+                    <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700 font-semibold inline-block ml-2">
+                      {voterLeaders[v.id]}
+                    </span>
+                  ) : (
+                    <span className="text-gray-400">No asignado</span>
+                  )}
                 </div>
                 <div>
                   <b>Candidatos:</b>{" "}

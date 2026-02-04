@@ -3,6 +3,9 @@ import { getVoters, deleteVoter, getAssignedCandidates } from "../api/voters";
 import { getVotingBooths } from "../api/votingBooths";
 import AddVoterModal from "../components/AddVoterModal";
 import Pagination from "../components/Pagination";
+import { ProtectedComponent } from "../components/ProtectedComponent";
+import { usePermission } from "../hooks/usePermission";
+import { useAlert } from "../hooks/useAlert";
 import {
   PlusIcon,
   PencilSquareIcon,
@@ -10,6 +13,8 @@ import {
 } from "@heroicons/react/24/outline";
 
 export default function Personas() {
+  const { can } = usePermission();
+  const alert = useAlert();
   const [voters, setVoters] = useState([]);
   const [allVoters, setAllVoters] = useState([]); // Todos los votantes para búsqueda
   const [loading, setLoading] = useState(true);
@@ -36,9 +41,8 @@ export default function Personas() {
           boothsMapTemp[booth.id] = booth;
         });
         setBoothsMap(boothsMapTemp);
-        console.log("BoothsMap cargado:", boothsMapTemp);
       } catch (err) {
-        console.error("Error al obtener centros:", err);
+        // Error handling without logging
       }
     };
 
@@ -152,11 +156,40 @@ export default function Personas() {
     setShowModal(true);
   };
 
+  const handleVoterSaved = async () => {
+    // Resetear búsqueda y estado completamente
+    setSearch("");
+    setAllVoters([]);
+    setCurrentPage(1);
+    setVoterCandidates({});
+    setVoterLeaders({});
+    setShowModal(false);
+    setEditingVoter(null);
+
+    // Recargar la primera página
+    await fetchVoters(1);
+  };
+
   const handleDelete = async (voterId) => {
-    if (!confirm("¿Estás seguro de eliminar este votante?")) return;
-    await deleteVoter(voterId);
-    // Recargar la página actual
-    fetchVoters(currentPage);
+    const result = await alert.confirm(
+      "¿Estás seguro de que deseas eliminar este votante?",
+      "Confirmar eliminación",
+      "Sí, eliminar",
+      "Cancelar",
+    );
+    if (!result.isConfirmed) return;
+
+    try {
+      await deleteVoter(voterId);
+      alert.success("Votante eliminado exitosamente");
+
+      // Recargar la página después de 1.5 segundos
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (err) {
+      alert.apiError(err, "Error al eliminar votante");
+    }
   };
 
   const enrichVoterData = (voter) => {
@@ -199,7 +232,15 @@ export default function Personas() {
             setEditingVoter(null);
             setShowModal(true);
           }}
-          className="flex items-center gap-2 bg-orange-500 text-white px-6 py-3 rounded-xl shadow-md shadow-orange-500/20 hover:bg-orange-600 transition"
+          disabled={!can("voters:create")}
+          title={
+            !can("voters:create") ? "No tienes permiso para crear votantes" : ""
+          }
+          className={`flex items-center gap-2 px-6 py-3 rounded-xl shadow-md transition ${
+            can("voters:create")
+              ? "bg-orange-500 text-white shadow-orange-500/20 hover:bg-orange-600"
+              : "bg-gray-300 text-gray-500 cursor-not-allowed"
+          }`}
         >
           <PlusIcon className="w-5 h-5" />
           Agregar votante
@@ -222,7 +263,7 @@ export default function Personas() {
         <AddVoterModal
           voter={editingVoter}
           onClose={() => setShowModal(false)}
-          onVoterAdded={fetchVoters}
+          onVoterAdded={handleVoterSaved}
         />
       )}
 
@@ -324,18 +365,27 @@ export default function Personas() {
                     </td>
 
                     <td className="px-6 py-4 flex gap-4">
-                      <button
-                        onClick={() => handleEdit(v)}
-                        className="text-gray-400 hover:text-orange-500 transition"
-                      >
-                        <PencilSquareIcon className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(v.id)}
-                        className="text-gray-400 hover:text-red-500 transition"
-                      >
-                        <TrashIcon className="w-5 h-5" />
-                      </button>
+                      {can("voters:update") && (
+                        <button
+                          onClick={() => handleEdit(v)}
+                          className="text-gray-400 hover:text-orange-500 transition"
+                        >
+                          <PencilSquareIcon className="w-5 h-5" />
+                        </button>
+                      )}
+                      {can("voters:delete") && (
+                        <button
+                          onClick={() => handleDelete(v.id)}
+                          className="text-gray-400 hover:text-red-500 transition"
+                        >
+                          <TrashIcon className="w-5 h-5" />
+                        </button>
+                      )}
+                      {!can("voters:update") && !can("voters:delete") && (
+                        <span className="text-gray-300 text-sm">
+                          Sin acceso
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -424,18 +474,22 @@ export default function Personas() {
               </div>
 
               <div className="flex justify-end gap-5 mt-4">
-                <button
-                  onClick={() => handleEdit(v)}
-                  className="text-gray-400 hover:text-orange-500 transition"
-                >
-                  <PencilSquareIcon className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => handleDelete(v.id)}
-                  className="text-gray-400 hover:text-red-500 transition"
-                >
-                  <TrashIcon className="w-5 h-5" />
-                </button>
+                {can("voters:update") && (
+                  <button
+                    onClick={() => handleEdit(v)}
+                    className="text-gray-400 hover:text-orange-500 transition"
+                  >
+                    <PencilSquareIcon className="w-5 h-5" />
+                  </button>
+                )}
+                {can("voters:delete") && (
+                  <button
+                    onClick={() => handleDelete(v.id)}
+                    className="text-gray-400 hover:text-red-500 transition"
+                  >
+                    <TrashIcon className="w-5 h-5" />
+                  </button>
+                )}
               </div>
             </div>
           ))}

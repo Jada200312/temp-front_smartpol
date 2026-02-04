@@ -1,4 +1,4 @@
-import { API_URL } from "./config";
+import { API_URL, getAuthHeaders, apiCall } from "./config";
 
 export async function getVoterReport(filters = {}) {
   const params = new URLSearchParams();
@@ -19,11 +19,45 @@ export async function getVoterReport(filters = {}) {
   const url = `${API_URL}/voters/report/general?${params.toString()}`;
   console.log("Fetching:", url); // Para debug
   
-  const response = await fetch(url);
-  if (!response.ok) {
-    const errorData = await response.text();
-    console.error("Error response:", errorData);
-    throw new Error(`Error al obtener reporte de votantes: ${response.status}`);
+  return apiCall(url, {
+    headers: getAuthHeaders(),
+  }, "obtener reporte de votantes");
+}
+
+export async function getVoterReportForExport(filters = {}) {
+  // Obtener todos los datos haciendo múltiples solicitudes si es necesario
+  const MAX_LIMIT = 500; // Límite máximo permitido por el servidor
+  let allData = [];
+  let currentPage = 1;
+  let totalPages = 1;
+
+  while (currentPage <= totalPages) {
+    const params = new URLSearchParams();
+    params.append("limit", MAX_LIMIT);
+    params.append("page", currentPage);
+    
+    // Agregar filtros solo si tienen valor (mismos filtros que la vista paginada)
+    if (filters.gender) params.append("gender", filters.gender);
+    if (filters.leaderId) params.append("leaderId", filters.leaderId);
+    if (filters.corporationId) params.append("corporationId", filters.corporationId);
+    if (filters.candidateId) params.append("candidateId", filters.candidateId);
+    if (filters.departmentId) params.append("departmentId", filters.departmentId);
+    if (filters.municipalityId) params.append("municipalityId", filters.municipalityId);
+    if (filters.votingLocation) params.append("votingLocation", filters.votingLocation);
+
+    const url = `${API_URL}/voters/report/general?${params.toString()}`;
+    
+    const response = await apiCall(url, {
+      headers: getAuthHeaders(),
+    }, "obtener reporte completo para exportación");
+
+    if (response.data && Array.isArray(response.data)) {
+      allData = allData.concat(response.data);
+    }
+
+    totalPages = response.pages || 1;
+    currentPage++;
   }
-  return response.json();
+
+  return { data: allData };
 }

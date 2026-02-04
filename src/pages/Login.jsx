@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { login } from "../api/auth";
+import { notifyStorageChange } from "../context/UserContext";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 
 // IMPORTA EL LOGO
@@ -20,13 +21,20 @@ export default function Login() {
     try {
       const data = await login(email, password);
 
+      // Guardar todos los datos
       localStorage.setItem("access_token", data.access_token);
       localStorage.setItem("refresh_token", data.refresh_token);
       localStorage.setItem("user_email", data.email);
+      localStorage.setItem("user_id", String(data.id));
+      localStorage.setItem("roleId", String(data.roleId));
 
-      navigate("/app/personas");
+      // Notificar a UserContext que localStorage cambió (para la misma pestaña)
+      notifyStorageChange();
+
+      // Navegar inmediatamente sin esperar
+      navigate("/app/personas", { replace: true });
     } catch (err) {
-      setError("Usuario o contraseña incorrectos");
+      setError(err.message || "Usuario o contraseña incorrectos");
     }
   };
 

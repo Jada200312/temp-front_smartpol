@@ -1,47 +1,42 @@
-import { API_URL } from './config';
+import { API_URL, getAuthHeaders, apiCall } from './config';
 
 export async function getVotingTables() {
-  const response = await fetch(`${API_URL}/voting-tables`);
-  if (!response.ok) throw new Error('Error al obtener mesas de votación');
-  return response.json();
+  return apiCall(`${API_URL}/voting-tables`, {
+    headers: getAuthHeaders(),
+  }, 'obtener mesas de votación');
 }
 
 export async function getVotingTableById(tableId) {
-  const response = await fetch(`${API_URL}/voting-tables/${tableId}`);
-  if (!response.ok) throw new Error('Error al obtener mesa de votación');
-  return response.json();
+  return apiCall(`${API_URL}/voting-tables/${tableId}`, {
+    headers: getAuthHeaders(),
+  }, 'obtener mesa de votación');
 }
 
 export async function createVotingTable(table) {
-  const response = await fetch(`${API_URL}/voting-tables`, {
+  return apiCall(`${API_URL}/voting-tables`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify(table),
-  });
-  if (!response.ok) throw new Error('Error al crear mesa de votación');
-  return response.json();
+  }, 'crear mesa de votación');
 }
 
 export async function updateVotingTable(tableId, table) {
-  const response = await fetch(`${API_URL}/voting-tables/${tableId}`, {
+  return apiCall(`${API_URL}/voting-tables/${tableId}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify(table),
-  });
-  if (!response.ok) throw new Error('Error al actualizar mesa de votación');
-  return response.json();
+  }, 'actualizar mesa de votación');
 }
 
 export async function deleteVotingTable(tableId) {
-  const response = await fetch(`${API_URL}/voting-tables/${tableId}`, {
+  return apiCall(`${API_URL}/voting-tables/${tableId}`, {
     method: 'DELETE',
-  });
-  if (!response.ok) throw new Error('Error al eliminar mesa de votación');
-  return true;
+    headers: getAuthHeaders(),
+  }, 'eliminar mesa de votación');
 }
 
 export async function getTablesByBooth(boothId) {
-  const response = await fetch(`${API_URL}/voting-tables/by-booth/${boothId}`);
-  if (!response.ok) throw new Error('Error al obtener mesas del centro');
-  return response.json();
+  return apiCall(`${API_URL}/voting-tables/by-booth/${boothId}`, {
+    headers: getAuthHeaders(),
+  }, 'obtener mesas del centro');
 }

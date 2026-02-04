@@ -30,13 +30,20 @@ export default function Reportes() {
       });
 
       console.log("Reporte recibido:", response);
+      console.log("Total de votantes:", response.total);
+      console.log("Cantidad de datos:", response.data?.length);
 
-      setVoters(response.data || []);
+      const data = response.data || [];
+      setVoters(data);
       setAggregations(response.aggregations || null);
+
+      // Asegurar que el total coincida con los datos reales
+      const totalVoters = data.length > 0 ? response.total : 0;
+
       setPagination({
         page: response.page || 1,
         limit: response.limit || 50,
-        total: response.total || 0,
+        total: totalVoters,
       });
     } catch (error) {
       console.error("Error loading report:", error);
@@ -167,16 +174,6 @@ export default function Reportes() {
                   {typeof value === "object" ? JSON.stringify(value) : value}
                 </span>
               ))}
-              <button
-                onClick={() => {
-                  setFilters({});
-                  setActiveFilters({});
-                  setCurrentPage(1);
-                }}
-                className="px-3 py-1 bg-red-200 text-red-900 rounded-full text-sm font-medium hover:bg-red-300 transition"
-              >
-                Limpiar filtros
-              </button>
             </div>
           </div>
         )}

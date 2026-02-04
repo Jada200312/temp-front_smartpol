@@ -65,6 +65,9 @@ export default function VotersTable({
       enrichVoters();
     } else if (voters.length > 0) {
       setEnrichedVoters(voters);
+    } else {
+      // Limpiar cuando no hay votantes
+      setEnrichedVoters([]);
     }
   }, [voters, boothsMap]);
 
@@ -347,11 +350,30 @@ export default function VotersTable({
           <tbody>
             {sortedVoters.length === 0 ? (
               <tr>
-                <td
-                  colSpan="12"
-                  className="px-4 py-6 text-center text-gray-500"
-                >
-                  No hay votantes registrados con los filtros aplicados
+                <td colSpan="12" className="px-4 py-12 text-center">
+                  <div className="flex flex-col items-center justify-center">
+                    <svg
+                      className="w-12 h-12 text-gray-400 mb-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M20 21l-4.35-4.35m0 0A7.5 7.5 0 103.5 3.5a7.5 7.5 0 0013.15 13.15z"
+                      />
+                    </svg>
+                    <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                      No hay votantes
+                    </h3>
+                    <p className="text-gray-500 text-sm max-w-md">
+                      No se encontraron votantes con los filtros seleccionados.
+                      Intenta ajustar los criterios de búsqueda o limpiar los
+                      filtros.
+                    </p>
+                  </div>
                 </td>
               </tr>
             ) : (
@@ -438,8 +460,26 @@ export default function VotersTable({
       {/* Vista Móvil - Tarjetas */}
       <div className="md:hidden space-y-3 p-3 sm:p-4">
         {sortedVoters.length === 0 ? (
-          <div className="text-center py-6 text-gray-500 text-sm">
-            No hay votantes registrados con los filtros aplicados
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <svg
+              className="w-12 h-12 text-gray-400 mb-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M20 21l-4.35-4.35m0 0A7.5 7.5 0 103.5 3.5a7.5 7.5 0 0013.15 13.15z"
+              />
+            </svg>
+            <h3 className="text-base font-semibold text-gray-700 mb-1">
+              No hay votantes
+            </h3>
+            <p className="text-gray-500 text-sm">
+              No se encontraron votantes con los filtros seleccionados.
+            </p>
           </div>
         ) : (
           sortedVoters.map((voter) => (

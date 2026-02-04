@@ -7,6 +7,41 @@ export async function getLeaders() {
   }, 'obtener líderes');
 }
 
+export async function getAllLeaders() {
+  // Obtener todos los líderes cargando todas las páginas
+  try {
+    let allLeaders = [];
+    let page = 1;
+    let hasMorePages = true;
+
+    while (hasMorePages) {
+      const data = await apiCall(`${API_URL}/leaders?page=${page}&limit=100`, {
+        headers: getAuthHeaders(),
+      }, 'obtener líderes página ' + page);
+
+      if (Array.isArray(data?.data)) {
+        allLeaders = [...allLeaders, ...data.data];
+      } else if (Array.isArray(data)) {
+        allLeaders = [...allLeaders, ...data];
+      }
+
+      // Verificar si hay más páginas
+      if (data?.pages && page >= data.pages) {
+        hasMorePages = false;
+      } else if (!data?.pages && (!data?.data || data.data.length < 100)) {
+        hasMorePages = false;
+      } else {
+        page++;
+      }
+    }
+
+    return allLeaders;
+  } catch (error) {
+    console.error('Error loading all leaders:', error);
+    throw error;
+  }
+}
+
 export async function getLeadersWithPagination(page = 1, limit = 10, search = '') {
   const params = new URLSearchParams({
     page,

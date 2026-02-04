@@ -7,6 +7,41 @@ export async function getCandidates() {
   }, "obtener candidatos");
 }
 
+export async function getAllCandidates() {
+  // Obtener todos los candidatos cargando todas las páginas
+  try {
+    let allCandidates = [];
+    let page = 1;
+    let hasMorePages = true;
+
+    while (hasMorePages) {
+      const data = await apiCall(`${API_URL}/candidates?page=${page}&limit=100`, {
+        headers: getAuthHeaders(),
+      }, "obtener candidatos página " + page);
+
+      if (Array.isArray(data?.data)) {
+        allCandidates = [...allCandidates, ...data.data];
+      } else if (Array.isArray(data)) {
+        allCandidates = [...allCandidates, ...data];
+      }
+
+      // Verificar si hay más páginas
+      if (data?.pages && page >= data.pages) {
+        hasMorePages = false;
+      } else if (!data?.pages && (!data?.data || data.data.length < 100)) {
+        hasMorePages = false;
+      } else {
+        page++;
+      }
+    }
+
+    return allCandidates;
+  } catch (error) {
+    console.error("Error loading all candidates:", error);
+    throw error;
+  }
+}
+
 export async function getCandidatesWithPagination(page = 1, limit = 10, search = '') {
   const params = new URLSearchParams({
     page,

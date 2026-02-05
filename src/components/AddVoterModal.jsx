@@ -9,7 +9,7 @@ import {
   getVoterByIdentification,
 } from "../api/voters";
 import { getLeaders, getCandidatesByLeader } from "../api/leaders";
-import { getVotingBooths } from "../api/votingBooths";
+import { getVotingBooths } from "../api/votingbooths";
 import { usePermission } from "../hooks/usePermission";
 import { useAlert } from "../hooks/useAlert";
 import { XMarkIcon } from "@heroicons/react/24/solid";

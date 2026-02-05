@@ -9,7 +9,7 @@ import {
 } from "../api/voters";
 import { getCandidateByUserId } from "../api/candidates";
 import { getLeaderByUserId } from "../api/leaders";
-import { getVotingBooths } from "../api/votingBooths";
+import { getVotingBooths } from "../api/votingbooths";
 import AddVoterModal from "../components/AddVoterModal";
 import Pagination from "../components/Pagination";
 import { ProtectedComponent } from "../components/ProtectedComponent";

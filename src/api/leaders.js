@@ -1,13 +1,128 @@
-import { API_URL } from './config';
+import { API_URL, getAuthHeaders, apiCall } from './config';
 
 export async function getLeaders() {
-  const response = await fetch(`${API_URL}/leaders`);
-  if (!response.ok) throw new Error('Error al obtener líderes');
-  return await response.json();
+  // Obtener todos los líderes sin paginación (con límite alto)
+  return apiCall(`${API_URL}/leaders?limit=10000`, {
+    headers: getAuthHeaders(),
+  }, 'obtener líderes');
+}
+
+export async function getAllLeaders() {
+  // Obtener todos los líderes cargando todas las páginas
+  try {
+    let allLeaders = [];
+    let page = 1;
+    let hasMorePages = true;
+
+    while (hasMorePages) {
+      const data = await apiCall(`${API_URL}/leaders?page=${page}&limit=100`, {
+        headers: getAuthHeaders(),
+      }, 'obtener líderes página ' + page);
+
+      if (Array.isArray(data?.data)) {
+        allLeaders = [...allLeaders, ...data.data];
+      } else if (Array.isArray(data)) {
+        allLeaders = [...allLeaders, ...data];
+      }
+
+      // Verificar si hay más páginas
+      if (data?.pages && page >= data.pages) {
+        hasMorePages = false;
+      } else if (!data?.pages && (!data?.data || data.data.length < 100)) {
+        hasMorePages = false;
+      } else {
+        page++;
+      }
+    }
+
+    return allLeaders;
+  } catch (error) {
+    console.error('Error loading all leaders:', error);
+    throw error;
+  }
+}
+
+export async function getLeadersWithPagination(page = 1, limit = 10, search = '') {
+  const params = new URLSearchParams({
+    page,
+    limit,
+  });
+  if (search) {
+    params.append('search', search);
+  }
+  return apiCall(`${API_URL}/leaders?${params.toString()}`, {
+    headers: getAuthHeaders(),
+  }, 'obtener líderes con paginación');
+}
+
+export async function getLeadersByCandidateWithPagination(candidateId, page = 1, limit = 10, search = '') {
+  const params = new URLSearchParams({
+    page,
+    limit,
+  });
+  if (search) {
+    params.append('search', search);
+  }
+  return apiCall(`${API_URL}/leaders/by-candidate/${candidateId}?${params.toString()}`, {
+    headers: getAuthHeaders(),
+  }, 'obtener líderes del candidato con paginación');
+}
+
+export async function getLeaderByUserId(userId) {
+  return apiCall(`${API_URL}/leaders/by-user/${userId}`, {
+    headers: getAuthHeaders(),
+  }, 'obtener líder del usuario');
 }
 
 export async function getCandidatesByLeader(leaderId) {
-  const response = await fetch(`${API_URL}/leaders/${leaderId}/candidates`);
-  if (!response.ok) throw new Error('Error al obtener candidatos');
-  return await response.json();
+  return apiCall(`${API_URL}/leaders/${leaderId}/candidates`, {
+    headers: getAuthHeaders(),
+  }, 'obtener candidatos');
+}
+
+export async function createLeader(leaderData) {
+  return apiCall(`${API_URL}/leaders`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(leaderData),
+  }, 'crear líder');
+}
+
+export async function assignCandidatesToLeader(leaderId, candidateIds) {
+  return apiCall(`${API_URL}/leaders/${leaderId}/assign-candidates`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ candidateIds }),
+  }, 'asignar candidatos');
+}
+
+export async function addCandidatesToLeader(leaderId, candidateIds) {
+  return apiCall(`${API_URL}/leaders/${leaderId}/add-candidates`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ candidateIds }),
+  }, 'agregar candidatos');
+}
+
+export async function removeCandidatesFromLeader(leaderId, candidateIds) {
+  return apiCall(`${API_URL}/leaders/${leaderId}/remove-candidates`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ candidateIds }),
+  }, 'remover candidatos');
+}
+
+export async function updateLeader(leaderId, leaderData) {
+  return apiCall(`${API_URL}/leaders/${leaderId}`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(leaderData),
+  }, 'actualizar líder');
+}
+
+export async function deleteLeader(leaderId) {
+  return apiCall(`${API_URL}/leaders/${leaderId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  }, 'eliminar líder');
 }

@@ -1,8 +1,21 @@
 import { useState, useEffect } from "react";
-import { getVoters, deleteVoter, getAssignedCandidates } from "../api/voters";
+import { useLocation } from "react-router-dom";
+import {
+  getVoters,
+  getVotersByCandidate,
+  getVotersByLeader,
+  deleteVoter,
+  getAssignedCandidates,
+} from "../api/voters";
+import { getCandidateByUserId } from "../api/candidates";
+import { getLeaderByUserId } from "../api/leaders";
 import { getVotingBooths } from "../api/votingbooths";
 import AddVoterModal from "../components/AddVoterModal";
 import Pagination from "../components/Pagination";
+import { ProtectedComponent } from "../components/ProtectedComponent";
+import { usePermission } from "../hooks/usePermission";
+import { useAlert } from "../hooks/useAlert";
+import { useUser } from "../context/UserContext";
 import {
   PlusIcon,
   PencilSquareIcon,
@@ -10,6 +23,10 @@ import {
 } from "@heroicons/react/24/outline";
 
 export default function Personas() {
+  const { can } = usePermission();
+  const { user } = useUser();
+  const alert = useAlert();
+  const location = useLocation();
   const [voters, setVoters] = useState([]);
   const [allVoters, setAllVoters] = useState([]); // Todos los votantes para búsqueda
   const [loading, setLoading] = useState(true);
@@ -23,9 +40,15 @@ export default function Personas() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalVoters, setTotalVoters] = useState(0);
   const [boothsMap, setBoothsMap] = useState({});
+  const [candidateId, setCandidateId] = useState(null);
+  const [loadingCandidateId, setLoadingCandidateId] = useState(
+    user?.roleId === 3,
+  );
+  const [leaderId, setLeaderId] = useState(null);
+  const [loadingLeaderId, setLoadingLeaderId] = useState(user?.roleId === 4);
   const ITEMS_PER_PAGE = 20;
 
-  // Cargar centros de votación una sola vez
+  // Cargar centros de votación, candidateId si es candidato y leaderId si es líder
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -36,20 +59,64 @@ export default function Personas() {
           boothsMapTemp[booth.id] = booth;
         });
         setBoothsMap(boothsMapTemp);
-        console.log("BoothsMap cargado:", boothsMapTemp);
+
+        // Si es candidato, obtener su candidateId
+        if (user?.roleId === 3) {
+          try {
+            const candidate = await getCandidateByUserId(user.id);
+            if (candidate?.id) {
+              setCandidateId(candidate.id);
+            }
+          } catch (err) {
+            console.error("Error loading candidate:", err);
+          } finally {
+            setLoadingCandidateId(false);
+          }
+        } else {
+          setCandidateId(null);
+          setLoadingCandidateId(false);
+        }
+
+        // Si es líder, obtener su leaderId
+        if (user?.roleId === 4) {
+          try {
+            const leader = await getLeaderByUserId(user.id);
+            if (leader?.id) {
+              setLeaderId(leader.id);
+            }
+          } catch (err) {
+            console.error("Error loading leader:", err);
+          } finally {
+            setLoadingLeaderId(false);
+          }
+        } else {
+          setLeaderId(null);
+          setLoadingLeaderId(false);
+        }
       } catch (err) {
-        console.error("Error al obtener centros:", err);
+        // Error handling without logging
+        setLoadingCandidateId(false);
+        setLoadingLeaderId(false);
       }
     };
 
-    loadData();
-  }, []);
+    if (user) {
+      loadData();
+    }
+  }, [user]);
 
   const fetchVoters = async (page = 1) => {
     setLoading(true);
     setError("");
     try {
-      const data = await getVoters(page, ITEMS_PER_PAGE);
+      // Si es candidato, usar endpoint específico; si es líder, usar endpoint de líder
+      const data =
+        user?.roleId === 3 && candidateId
+          ? await getVotersByCandidate(candidateId, page, ITEMS_PER_PAGE)
+          : user?.roleId === 4 && leaderId
+            ? await getVotersByLeader(leaderId, page, ITEMS_PER_PAGE)
+            : await getVoters(page, ITEMS_PER_PAGE);
+
       setVoters(data.data);
       setCurrentPage(data.page);
       setTotalPages(data.pages);
@@ -93,7 +160,13 @@ export default function Personas() {
 
       // Cargar todas las páginas
       while (hasMorePages) {
-        const data = await getVoters(page, 100); // Máximo permitido por el servidor
+        // Si es candidato, usar endpoint específico; si es líder, usar endpoint de líder
+        const data =
+          user?.roleId === 3 && candidateId
+            ? await getVotersByCandidate(candidateId, page, 100)
+            : user?.roleId === 4 && leaderId
+              ? await getVotersByLeader(leaderId, page, 100)
+              : await getVoters(page, 100); // Máximo permitido por el servidor
         allVotersData = [...allVotersData, ...data.data];
 
         if (page >= data.pages) {
@@ -137,26 +210,107 @@ export default function Personas() {
   };
 
   useEffect(() => {
+    // Si es candidato y aún está cargando el candidateId, no ejecutar
+    if (user?.roleId === 3 && loadingCandidateId) {
+      return;
+    }
+    // Si es candidato pero no tiene candidateId, no ejecutar
+    if (user?.roleId === 3 && !candidateId) {
+      return;
+    }
+    // Si es líder y aún está cargando el leaderId, no ejecutar
+    if (user?.roleId === 4 && loadingLeaderId) {
+      return;
+    }
+    // Si es líder pero no tiene leaderId, no ejecutar
+    if (user?.roleId === 4 && !leaderId) {
+      return;
+    }
     fetchVoters(currentPage);
-  }, [currentPage]);
+  }, [
+    currentPage,
+    candidateId ?? null,
+    loadingCandidateId,
+    leaderId ?? null,
+    loadingLeaderId,
+  ]);
 
   // Cargar todos los votantes cuando el usuario comienza a buscar
   useEffect(() => {
     if (search) {
       fetchAllVoters();
     }
-  }, [search]);
+  }, [search, candidateId ?? null, leaderId ?? null, user]);
+
+  // Refrescar cuando se llega desde la creación
+  useEffect(() => {
+    if (location.state?.refresh) {
+      // Si es candidato, esperar a que candidateId esté cargado
+      if (user?.roleId === 3) {
+        if (!loadingCandidateId && candidateId) {
+          setCurrentPage(1);
+          setSearch("");
+          fetchVoters(1);
+        }
+      } else if (user?.roleId === 4) {
+        if (!loadingLeaderId && leaderId) {
+          setCurrentPage(1);
+          setSearch("");
+          fetchVoters(1);
+        }
+      } else {
+        setCurrentPage(1);
+        setSearch("");
+        fetchVoters(1);
+      }
+    }
+  }, [
+    location,
+    candidateId ?? null,
+    loadingCandidateId,
+    leaderId ?? null,
+    loadingLeaderId,
+  ]);
 
   const handleEdit = (voter) => {
     setEditingVoter(voter);
     setShowModal(true);
   };
 
+  const handleVoterSaved = async () => {
+    // Resetear búsqueda y estado completamente
+    setSearch("");
+    setAllVoters([]);
+    setCurrentPage(1);
+    setVoterCandidates({});
+    setVoterLeaders({});
+    setShowModal(false);
+    setEditingVoter(null);
+
+    // Recargar la primera página
+    await fetchVoters(1);
+  };
+
   const handleDelete = async (voterId) => {
-    if (!confirm("¿Estás seguro de eliminar este votante?")) return;
-    await deleteVoter(voterId);
-    // Recargar la página actual
-    fetchVoters(currentPage);
+    const result = await alert.confirm(
+      "¿Estás seguro de que deseas eliminar este votante?",
+      "Confirmar eliminación",
+      "Sí, eliminar",
+      "Cancelar",
+    );
+    if (!result.isConfirmed) return;
+
+    try {
+      await deleteVoter(voterId);
+      alert.success("Votante eliminado exitosamente");
+
+      // Recargar la página después de 1.5 segundos
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (err) {
+      alert.apiError(err, "Error al eliminar votante");
+    }
   };
 
   const enrichVoterData = (voter) => {
@@ -199,7 +353,15 @@ export default function Personas() {
             setEditingVoter(null);
             setShowModal(true);
           }}
-          className="flex items-center gap-2 bg-orange-500 text-white px-6 py-3 rounded-xl shadow-md shadow-orange-500/20 hover:bg-orange-600 transition"
+          disabled={!can("voters:create")}
+          title={
+            !can("voters:create") ? "No tienes permiso para crear votantes" : ""
+          }
+          className={`flex items-center gap-2 px-6 py-3 rounded-xl shadow-md transition ${
+            can("voters:create")
+              ? "bg-orange-500 text-white shadow-orange-500/20 hover:bg-orange-600"
+              : "bg-gray-300 text-gray-500 cursor-not-allowed"
+          }`}
         >
           <PlusIcon className="w-5 h-5" />
           Agregar votante
@@ -222,7 +384,7 @@ export default function Personas() {
         <AddVoterModal
           voter={editingVoter}
           onClose={() => setShowModal(false)}
-          onVoterAdded={fetchVoters}
+          onVoterAdded={handleVoterSaved}
         />
       )}
 
@@ -324,18 +486,27 @@ export default function Personas() {
                     </td>
 
                     <td className="px-6 py-4 flex gap-4">
-                      <button
-                        onClick={() => handleEdit(v)}
-                        className="text-gray-400 hover:text-orange-500 transition"
-                      >
-                        <PencilSquareIcon className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(v.id)}
-                        className="text-gray-400 hover:text-red-500 transition"
-                      >
-                        <TrashIcon className="w-5 h-5" />
-                      </button>
+                      {can("voters:update") && (
+                        <button
+                          onClick={() => handleEdit(v)}
+                          className="text-gray-400 hover:text-orange-500 transition"
+                        >
+                          <PencilSquareIcon className="w-5 h-5" />
+                        </button>
+                      )}
+                      {can("voters:delete") && (
+                        <button
+                          onClick={() => handleDelete(v.id)}
+                          className="text-gray-400 hover:text-red-500 transition"
+                        >
+                          <TrashIcon className="w-5 h-5" />
+                        </button>
+                      )}
+                      {!can("voters:update") && !can("voters:delete") && (
+                        <span className="text-gray-300 text-sm">
+                          Sin acceso
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -424,18 +595,22 @@ export default function Personas() {
               </div>
 
               <div className="flex justify-end gap-5 mt-4">
-                <button
-                  onClick={() => handleEdit(v)}
-                  className="text-gray-400 hover:text-orange-500 transition"
-                >
-                  <PencilSquareIcon className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => handleDelete(v.id)}
-                  className="text-gray-400 hover:text-red-500 transition"
-                >
-                  <TrashIcon className="w-5 h-5" />
-                </button>
+                {can("voters:update") && (
+                  <button
+                    onClick={() => handleEdit(v)}
+                    className="text-gray-400 hover:text-orange-500 transition"
+                  >
+                    <PencilSquareIcon className="w-5 h-5" />
+                  </button>
+                )}
+                {can("voters:delete") && (
+                  <button
+                    onClick={() => handleDelete(v.id)}
+                    className="text-gray-400 hover:text-red-500 transition"
+                  >
+                    <TrashIcon className="w-5 h-5" />
+                  </button>
+                )}
               </div>
             </div>
           ))}

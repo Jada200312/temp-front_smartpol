@@ -1,47 +1,43 @@
-import { API_URL } from './config';
+import { API_URL, getAuthHeaders, apiCall } from './config';
 
 export async function getVotingBooths() {
-  const response = await fetch(`${API_URL}/voting-booths`);
-  if (!response.ok) throw new Error('Error al obtener centros de votación');
-  return response.json();
+  const headers = getAuthHeaders();
+  return apiCall(`${API_URL}/voting-booths`, {
+    headers,
+  }, 'obtener centros de votación');
 }
 
 export async function getVotingBoothById(boothId) {
-  const response = await fetch(`${API_URL}/voting-booths/${boothId}`);
-  if (!response.ok) throw new Error('Error al obtener centro de votación');
-  return response.json();
+  return apiCall(`${API_URL}/voting-booths/${boothId}`, {
+    headers: getAuthHeaders(),
+  }, 'obtener centro de votación');
 }
 
 export async function getBoothsByMunicipality(municipalityId) {
-  const response = await fetch(`${API_URL}/voting-booths/by-municipality/${municipalityId}`);
-  if (!response.ok) throw new Error('Error al obtener centros de votación');
-  return response.json();
+  return apiCall(`${API_URL}/voting-booths/by-municipality/${municipalityId}`, {
+    headers: getAuthHeaders(),
+  }, 'obtener centros de votación');
 }
 
 export async function createVotingBooth(booth) {
-  const response = await fetch(`${API_URL}/voting-booths`, {
+  return apiCall(`${API_URL}/voting-booths`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify(booth),
-  });
-  if (!response.ok) throw new Error('Error al crear centro de votación');
-  return response.json();
+  }, 'crear centro de votación');
 }
 
 export async function updateVotingBooth(boothId, booth) {
-  const response = await fetch(`${API_URL}/voting-booths/${boothId}`, {
+  return apiCall(`${API_URL}/voting-booths/${boothId}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify(booth),
-  });
-  if (!response.ok) throw new Error('Error al actualizar centro de votación');
-  return response.json();
+  }, 'actualizar centro de votación');
 }
 
 export async function deleteVotingBooth(boothId) {
-  const response = await fetch(`${API_URL}/voting-booths/${boothId}`, {
+  return apiCall(`${API_URL}/voting-booths/${boothId}`, {
     method: 'DELETE',
-  });
-  if (!response.ok) throw new Error('Error al eliminar centro de votación');
-  return true;
+    headers: getAuthHeaders(),
+  }, 'eliminar centro de votación');
 }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { getLeaders } from "../api/leaders";
-import { getCandidates } from "../api/candidates";
+import { getAllLeaders } from "../api/leaders";
+import { getAllCandidates } from "../api/candidates";
 import { getDepartments, getMunicipalities } from "../api/departments";
 import { getCorporations } from "../api/corporations";
 
@@ -28,16 +28,20 @@ export default function ReportFilters({ onFiltersChange, aggregations = {} }) {
       try {
         const [leadersData, candidatesData, corporationsData, departmentsData] =
           await Promise.all([
-            getLeaders(),
-            getCandidates(),
+            getAllLeaders(),
+            getAllCandidates(),
             getCorporations(),
             getDepartments(),
           ]);
         setLeaders(Array.isArray(leadersData) ? leadersData : []);
         setCandidates(Array.isArray(candidatesData) ? candidatesData : []);
-        setCorporations(Array.isArray(corporationsData) ? corporationsData : []);
+        setCorporations(
+          Array.isArray(corporationsData) ? corporationsData : [],
+        );
         setDepartments(Array.isArray(departmentsData) ? departmentsData : []);
-        setFilteredCandidates(Array.isArray(candidatesData) ? candidatesData : []);
+        setFilteredCandidates(
+          Array.isArray(candidatesData) ? candidatesData : [],
+        );
       } catch (error) {
         console.error("Error loading filter options:", error);
         setLeaders([]);
@@ -68,9 +72,10 @@ export default function ReportFilters({ onFiltersChange, aggregations = {} }) {
     if (filters.corporationId) {
       const filtered = candidates.filter((c) => {
         // Manejo seguro del objeto corporation
-        const corporationId = typeof c.corporation === "object" 
-          ? c.corporation?.id 
-          : c.corporationId;
+        const corporationId =
+          typeof c.corporation === "object"
+            ? c.corporation?.id
+            : c.corporationId;
         return corporationId === parseInt(filters.corporationId);
       });
       setFilteredCandidates(filtered);
@@ -89,7 +94,9 @@ export default function ReportFilters({ onFiltersChange, aggregations = {} }) {
   const loadMunicipalities = async (departmentId) => {
     try {
       const municipalitiesData = await getMunicipalities(departmentId);
-      setMunicipalities(Array.isArray(municipalitiesData) ? municipalitiesData : []);
+      setMunicipalities(
+        Array.isArray(municipalitiesData) ? municipalitiesData : [],
+      );
     } catch (error) {
       console.error("Error loading municipalities:", error);
       setMunicipalities([]);
@@ -217,10 +224,11 @@ export default function ReportFilters({ onFiltersChange, aggregations = {} }) {
             <option value="">Todos los candidatos</option>
             {filteredCandidates.map((candidate) => {
               // Manejo seguro del objeto corporation
-              const corporationName = typeof candidate.corporation === "object"
-                ? candidate.corporation?.name || "Sin partido"
-                : candidate.corporationName || "Sin partido";
-              
+              const corporationName =
+                typeof candidate.corporation === "object"
+                  ? candidate.corporation?.name || "Sin partido"
+                  : candidate.corporationName || "Sin partido";
+
               return (
                 <option key={candidate.id} value={candidate.id}>
                   {candidate.name || "Sin nombre"} ({corporationName})

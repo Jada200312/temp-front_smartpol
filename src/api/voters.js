@@ -6,6 +6,18 @@ export async function getVoters(page = 1, limit = 20) {
   }, "obtener votantes");
 }
 
+export async function getVotersByCandidate(candidateId, page = 1, limit = 20) {
+  return apiCall(`${API_URL}/voters/by-candidate/${candidateId}?page=${page}&limit=${limit}`, {
+    headers: getAuthHeaders(),
+  }, "obtener votantes del candidato");
+}
+
+export async function getVotersByLeader(leaderId, page = 1, limit = 20) {
+  return apiCall(`${API_URL}/voters/by-leader/${leaderId}?page=${page}&limit=${limit}`, {
+    headers: getAuthHeaders(),
+  }, "obtener votantes del líder");
+}
+
 export async function getVoterByIdentification(identification) {
   try {
     const result = await apiCall(`${API_URL}/voters/by-identification/${identification}`, {

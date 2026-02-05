@@ -61,6 +61,12 @@ export async function getCandidateById(candidateId) {
   }, "obtener candidato");
 }
 
+export async function getCandidateByUserId(userId) {
+  return apiCall(`${API_URL}/candidates/by-user/${userId}`, {
+    headers: getAuthHeaders(),
+  }, "obtener candidato por usuario");
+}
+
 export async function createCandidate(candidate) {
   return apiCall(`${API_URL}/candidates`, {
     method: "POST",

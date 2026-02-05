@@ -200,7 +200,7 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
         }
       };
 
-      const timer = setTimeout(validateId, 500);
+      const timer = setTimeout(validateId, 300);
       return () => clearTimeout(timer);
     }
   }, [form.identification, voter]);

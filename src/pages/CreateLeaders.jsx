@@ -293,7 +293,7 @@ export default function CreateLeaders() {
           <div className="flex justify-end gap-4">
             <button
               type="button"
-              onClick={() => navigate("/app/personas")}
+              onClick={() => navigate("/app/votantes")}
               className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
             >
               Cancelar

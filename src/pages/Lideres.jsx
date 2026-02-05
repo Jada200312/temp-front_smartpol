@@ -2,11 +2,14 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   getLeadersWithPagination,
+  getLeadersByCandidateWithPagination,
   updateLeader,
   deleteLeader,
 } from "../api/leaders";
+import { getCandidateByUserId } from "../api/candidates";
 import { usePermission } from "../hooks/usePermission";
 import { useAlert } from "../hooks/useAlert";
+import { useUser } from "../context/UserContext";
 import Pagination from "../components/Pagination";
 import {
   PlusIcon,
@@ -17,6 +20,7 @@ import {
 
 export default function Lideres() {
   const { can } = usePermission();
+  const { user } = useUser();
   const navigate = useNavigate();
   const location = useLocation();
   const alert = useAlert();
@@ -30,6 +34,10 @@ export default function Lideres() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [itemsPerPage] = useState(10);
+  const [candidateId, setCandidateId] = useState(null);
+  const [loadingCandidateId, setLoadingCandidateId] = useState(
+    user?.roleId === 3,
+  );
   const [formData, setFormData] = useState({
     name: "",
     document: "",
@@ -37,16 +45,47 @@ export default function Lideres() {
     phone: "",
   });
 
+  // Cargar candidateId si es candidato
+  useEffect(() => {
+    const loadData = async () => {
+      if (user?.roleId === 3) {
+        try {
+          const candidate = await getCandidateByUserId(user.id);
+          if (candidate?.id) {
+            setCandidateId(candidate.id);
+          }
+        } catch (err) {
+          console.error("Error loading candidate:", err);
+        } finally {
+          setLoadingCandidateId(false);
+        }
+      } else {
+        setCandidateId(null);
+        setLoadingCandidateId(false);
+      }
+    };
+
+    if (user) {
+      loadData();
+    }
+  }, [user]);
+
   // Cargar líderes con paginación
   const fetchLeaders = async (page = 1, searchTerm = "") => {
     setLoading(true);
     setError("");
     try {
-      const data = await getLeadersWithPagination(
-        page,
-        itemsPerPage,
-        searchTerm,
-      );
+      // Si es candidato, usar endpoint específico
+      const data =
+        user?.roleId === 3 && candidateId
+          ? await getLeadersByCandidateWithPagination(
+              candidateId,
+              page,
+              itemsPerPage,
+              searchTerm,
+            )
+          : await getLeadersWithPagination(page, itemsPerPage, searchTerm);
+
       const leadersList = Array.isArray(data.data) ? data.data : [];
       setLeaders(leadersList);
       setCurrentPage(data.page);
@@ -62,17 +101,34 @@ export default function Lideres() {
   };
 
   useEffect(() => {
+    // Si es candidato y aún está cargando el candidateId, no ejecutar
+    if (user?.roleId === 3 && loadingCandidateId) {
+      return;
+    }
+    // Si es candidato pero no tiene candidateId, no ejecutar
+    if (user?.roleId === 3 && !candidateId) {
+      return;
+    }
     fetchLeaders(currentPage, search);
-  }, [currentPage, search]);
+  }, [currentPage, search, candidateId, loadingCandidateId]);
 
   // Refrescar cuando se llega desde la creación
   useEffect(() => {
     if (location.state?.refresh) {
-      setCurrentPage(1);
-      setSearch("");
-      fetchLeaders(1, "");
+      // Si es candidato, esperar a que candidateId esté cargado
+      if (user?.roleId === 3) {
+        if (!loadingCandidateId && candidateId) {
+          setCurrentPage(1);
+          setSearch("");
+          fetchLeaders(1, "");
+        }
+      } else {
+        setCurrentPage(1);
+        setSearch("");
+        fetchLeaders(1, "");
+      }
     }
-  }, [location]);
+  }, [location, candidateId, loadingCandidateId]);
 
   const handleSearchChange = (value) => {
     setSearch(value);

@@ -32,7 +32,7 @@ export default function Login() {
       notifyStorageChange();
 
       // Navegar inmediatamente sin esperar
-      navigate("/app/personas", { replace: true });
+      navigate("/app/inicio", { replace: true });
     } catch (err) {
       setError(err.message || "Usuario o contraseña incorrectos");
     }

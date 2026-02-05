@@ -1,11 +1,21 @@
 import { useState, useEffect } from "react";
-import { getVoters, deleteVoter, getAssignedCandidates } from "../api/voters";
+import { useLocation } from "react-router-dom";
+import {
+  getVoters,
+  getVotersByCandidate,
+  getVotersByLeader,
+  deleteVoter,
+  getAssignedCandidates,
+} from "../api/voters";
+import { getCandidateByUserId } from "../api/candidates";
+import { getLeaderByUserId } from "../api/leaders";
 import { getVotingBooths } from "../api/votingBooths";
 import AddVoterModal from "../components/AddVoterModal";
 import Pagination from "../components/Pagination";
 import { ProtectedComponent } from "../components/ProtectedComponent";
 import { usePermission } from "../hooks/usePermission";
 import { useAlert } from "../hooks/useAlert";
+import { useUser } from "../context/UserContext";
 import {
   PlusIcon,
   PencilSquareIcon,
@@ -14,7 +24,9 @@ import {
 
 export default function Personas() {
   const { can } = usePermission();
+  const { user } = useUser();
   const alert = useAlert();
+  const location = useLocation();
   const [voters, setVoters] = useState([]);
   const [allVoters, setAllVoters] = useState([]); // Todos los votantes para búsqueda
   const [loading, setLoading] = useState(true);
@@ -28,9 +40,15 @@ export default function Personas() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalVoters, setTotalVoters] = useState(0);
   const [boothsMap, setBoothsMap] = useState({});
+  const [candidateId, setCandidateId] = useState(null);
+  const [loadingCandidateId, setLoadingCandidateId] = useState(
+    user?.roleId === 3,
+  );
+  const [leaderId, setLeaderId] = useState(null);
+  const [loadingLeaderId, setLoadingLeaderId] = useState(user?.roleId === 4);
   const ITEMS_PER_PAGE = 20;
 
-  // Cargar centros de votación una sola vez
+  // Cargar centros de votación, candidateId si es candidato y leaderId si es líder
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -41,19 +59,64 @@ export default function Personas() {
           boothsMapTemp[booth.id] = booth;
         });
         setBoothsMap(boothsMapTemp);
+
+        // Si es candidato, obtener su candidateId
+        if (user?.roleId === 3) {
+          try {
+            const candidate = await getCandidateByUserId(user.id);
+            if (candidate?.id) {
+              setCandidateId(candidate.id);
+            }
+          } catch (err) {
+            console.error("Error loading candidate:", err);
+          } finally {
+            setLoadingCandidateId(false);
+          }
+        } else {
+          setCandidateId(null);
+          setLoadingCandidateId(false);
+        }
+
+        // Si es líder, obtener su leaderId
+        if (user?.roleId === 4) {
+          try {
+            const leader = await getLeaderByUserId(user.id);
+            if (leader?.id) {
+              setLeaderId(leader.id);
+            }
+          } catch (err) {
+            console.error("Error loading leader:", err);
+          } finally {
+            setLoadingLeaderId(false);
+          }
+        } else {
+          setLeaderId(null);
+          setLoadingLeaderId(false);
+        }
       } catch (err) {
         // Error handling without logging
+        setLoadingCandidateId(false);
+        setLoadingLeaderId(false);
       }
     };
 
-    loadData();
-  }, []);
+    if (user) {
+      loadData();
+    }
+  }, [user]);
 
   const fetchVoters = async (page = 1) => {
     setLoading(true);
     setError("");
     try {
-      const data = await getVoters(page, ITEMS_PER_PAGE);
+      // Si es candidato, usar endpoint específico; si es líder, usar endpoint de líder
+      const data =
+        user?.roleId === 3 && candidateId
+          ? await getVotersByCandidate(candidateId, page, ITEMS_PER_PAGE)
+          : user?.roleId === 4 && leaderId
+            ? await getVotersByLeader(leaderId, page, ITEMS_PER_PAGE)
+            : await getVoters(page, ITEMS_PER_PAGE);
+
       setVoters(data.data);
       setCurrentPage(data.page);
       setTotalPages(data.pages);
@@ -97,7 +160,13 @@ export default function Personas() {
 
       // Cargar todas las páginas
       while (hasMorePages) {
-        const data = await getVoters(page, 100); // Máximo permitido por el servidor
+        // Si es candidato, usar endpoint específico; si es líder, usar endpoint de líder
+        const data =
+          user?.roleId === 3 && candidateId
+            ? await getVotersByCandidate(candidateId, page, 100)
+            : user?.roleId === 4 && leaderId
+              ? await getVotersByLeader(leaderId, page, 100)
+              : await getVoters(page, 100); // Máximo permitido por el servidor
         allVotersData = [...allVotersData, ...data.data];
 
         if (page >= data.pages) {
@@ -141,15 +210,67 @@ export default function Personas() {
   };
 
   useEffect(() => {
+    // Si es candidato y aún está cargando el candidateId, no ejecutar
+    if (user?.roleId === 3 && loadingCandidateId) {
+      return;
+    }
+    // Si es candidato pero no tiene candidateId, no ejecutar
+    if (user?.roleId === 3 && !candidateId) {
+      return;
+    }
+    // Si es líder y aún está cargando el leaderId, no ejecutar
+    if (user?.roleId === 4 && loadingLeaderId) {
+      return;
+    }
+    // Si es líder pero no tiene leaderId, no ejecutar
+    if (user?.roleId === 4 && !leaderId) {
+      return;
+    }
     fetchVoters(currentPage);
-  }, [currentPage]);
+  }, [
+    currentPage,
+    candidateId ?? null,
+    loadingCandidateId,
+    leaderId ?? null,
+    loadingLeaderId,
+  ]);
 
   // Cargar todos los votantes cuando el usuario comienza a buscar
   useEffect(() => {
     if (search) {
       fetchAllVoters();
     }
-  }, [search]);
+  }, [search, candidateId ?? null, leaderId ?? null, user]);
+
+  // Refrescar cuando se llega desde la creación
+  useEffect(() => {
+    if (location.state?.refresh) {
+      // Si es candidato, esperar a que candidateId esté cargado
+      if (user?.roleId === 3) {
+        if (!loadingCandidateId && candidateId) {
+          setCurrentPage(1);
+          setSearch("");
+          fetchVoters(1);
+        }
+      } else if (user?.roleId === 4) {
+        if (!loadingLeaderId && leaderId) {
+          setCurrentPage(1);
+          setSearch("");
+          fetchVoters(1);
+        }
+      } else {
+        setCurrentPage(1);
+        setSearch("");
+        fetchVoters(1);
+      }
+    }
+  }, [
+    location,
+    candidateId ?? null,
+    loadingCandidateId,
+    leaderId ?? null,
+    loadingLeaderId,
+  ]);
 
   const handleEdit = (voter) => {
     setEditingVoter(voter);

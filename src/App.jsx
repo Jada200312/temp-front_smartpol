@@ -10,7 +10,7 @@ import { useEffect } from "react";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Inicio from "./pages/Inicio";
-import Personas from "./pages/Personas";
+import Votantes from "./pages/Personas";
 import Candidatos from "./pages/Candidatos";
 import Lideres from "./pages/Lideres";
 import Digitadores from "./pages/Digitadores";
@@ -23,6 +23,7 @@ import AdminPermissions from "./pages/AdminPermissions";
 import Forbidden from "./pages/Forbidden";
 import NotFound from "./pages/NotFound";
 import PrivateRoute from "./components/PrivateRoute";
+import { usePermission } from "./hooks/usePermission";
 
 /**
  * Componente para proteger rutas que requieren rol específico
@@ -49,6 +50,29 @@ function RoleBasedRoute({ requiredRoles, children }) {
 }
 
 /**
+ * Componente para proteger rutas que requieren permisos específicos
+ */
+function PermissionBasedRoute({ requiredPermission, children }) {
+  const { user, isLoading } = useUser();
+  const { can } = usePermission();
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user || !can(requiredPermission)) {
+    return <Forbidden />;
+  }
+
+  return children;
+} /**
  * Página de login con redirección automática si ya hay sesión
  */
 function LoginPage() {
@@ -110,8 +134,8 @@ function App() {
             {/* Inicio - Todos pueden acceder */}
             <Route path="inicio" element={<Inicio />} />
 
-            {/* Personas - Superadmin, Admin campaña, Candidato, Líder, Digitador (todos) */}
-            <Route path="personas" element={<Personas />} />
+            {/* Votantes - Superadmin, Admin campaña, Candidato, Líder, Digitador (todos) */}
+            <Route path="votantes" element={<Votantes />} />
 
             {/* Candidatos - Superadmin, Admin campaña */}
             <Route
@@ -123,11 +147,11 @@ function App() {
               }
             />
 
-            {/* Líderes - Superadmin, Admin campaña */}
+            {/* Líderes - Superadmin, Admin campaña, Candidato */}
             <Route
               path="lideres"
               element={
-                <RoleBasedRoute requiredRoles={[1, 2]}>
+                <RoleBasedRoute requiredRoles={[1, 2, 3]}>
                   <Lideres />
                 </RoleBasedRoute>
               }
@@ -153,11 +177,11 @@ function App() {
               }
             />
 
-            {/* Crear Líderes - Superadmin, Admin campaña */}
+            {/* Crear Líderes - Superadmin, Admin campaña, Candidato */}
             <Route
               path="crear-lideres"
               element={
-                <RoleBasedRoute requiredRoles={[1, 2]}>
+                <RoleBasedRoute requiredRoles={[1, 2, 3]}>
                   <CreateLeaders />
                 </RoleBasedRoute>
               }
@@ -183,13 +207,13 @@ function App() {
               }
             />
 
-            {/* Reportes - Superadmin (no), Admin campaña, Candidato, Líder */}
+            {/* Reportes - Requiere permiso reports:read */}
             <Route
               path="reportes"
               element={
-                <RoleBasedRoute requiredRoles={[2, 3, 4]}>
+                <PermissionBasedRoute requiredPermission="reports:read">
                   <Reportes />
-                </RoleBasedRoute>
+                </PermissionBasedRoute>
               }
             />
 

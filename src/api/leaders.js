@@ -55,6 +55,25 @@ export async function getLeadersWithPagination(page = 1, limit = 10, search = ''
   }, 'obtener líderes con paginación');
 }
 
+export async function getLeadersByCandidateWithPagination(candidateId, page = 1, limit = 10, search = '') {
+  const params = new URLSearchParams({
+    page,
+    limit,
+  });
+  if (search) {
+    params.append('search', search);
+  }
+  return apiCall(`${API_URL}/leaders/by-candidate/${candidateId}?${params.toString()}`, {
+    headers: getAuthHeaders(),
+  }, 'obtener líderes del candidato con paginación');
+}
+
+export async function getLeaderByUserId(userId) {
+  return apiCall(`${API_URL}/leaders/by-user/${userId}`, {
+    headers: getAuthHeaders(),
+  }, 'obtener líder del usuario');
+}
+
 export async function getCandidatesByLeader(leaderId) {
   return apiCall(`${API_URL}/leaders/${leaderId}/candidates`, {
     headers: getAuthHeaders(),

@@ -18,7 +18,7 @@ export default function PrivateRoute({ children }) {
 
   // Si no hay usuario autenticado, redirigir a login
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/" replace />;
   }
 
   // Si hay usuario, renderizar los hijos

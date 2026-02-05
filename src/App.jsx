@@ -120,7 +120,7 @@ function App() {
       <UserProvider>
         <Routes>
           {/* Ruta pública - con redirección automática */}
-          <Route path="/login" element={<LoginPage />} />
+          <Route path="/" element={<LoginPage />} />
 
           {/* Rutas protegidas dentro de Dashboard */}
           <Route

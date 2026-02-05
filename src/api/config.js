@@ -1,7 +1,7 @@
 // config.js
 import { getErrorMessage } from '../utils/errorHandler';
 
-export const API_URL = 'http://localhost:3000';
+export const API_URL = 'https://smartpol-v2-api.smartpol.com.co';
 
 /**
  * Obtiene el token JWT del localStorage

@@ -1,41 +1,92 @@
-import { API_URL } from "./config";
+import { API_URL, getAuthHeaders, apiCall } from "./config";
 
 export async function getCandidates() {
-  const response = await fetch(`${API_URL}/candidates`);
-  if (!response.ok) throw new Error("Error al obtener candidatos");
-  return response.json();
+  // Obtener todos los candidatos sin paginación (con límite alto)
+  return apiCall(`${API_URL}/candidates?limit=10000`, {
+    headers: getAuthHeaders(),
+  }, "obtener candidatos");
+}
+
+export async function getAllCandidates() {
+  // Obtener todos los candidatos cargando todas las páginas
+  try {
+    let allCandidates = [];
+    let page = 1;
+    let hasMorePages = true;
+
+    while (hasMorePages) {
+      const data = await apiCall(`${API_URL}/candidates?page=${page}&limit=100`, {
+        headers: getAuthHeaders(),
+      }, "obtener candidatos página " + page);
+
+      if (Array.isArray(data?.data)) {
+        allCandidates = [...allCandidates, ...data.data];
+      } else if (Array.isArray(data)) {
+        allCandidates = [...allCandidates, ...data];
+      }
+
+      // Verificar si hay más páginas
+      if (data?.pages && page >= data.pages) {
+        hasMorePages = false;
+      } else if (!data?.pages && (!data?.data || data.data.length < 100)) {
+        hasMorePages = false;
+      } else {
+        page++;
+      }
+    }
+
+    return allCandidates;
+  } catch (error) {
+    console.error("Error loading all candidates:", error);
+    throw error;
+  }
+}
+
+export async function getCandidatesWithPagination(page = 1, limit = 10, search = '') {
+  const params = new URLSearchParams({
+    page,
+    limit,
+  });
+  if (search) {
+    params.append('search', search);
+  }
+  return apiCall(`${API_URL}/candidates?${params.toString()}`, {
+    headers: getAuthHeaders(),
+  }, "obtener candidatos con paginación");
 }
 
 export async function getCandidateById(candidateId) {
-  const response = await fetch(`${API_URL}/candidates/${candidateId}`);
-  if (!response.ok) throw new Error("Error al obtener candidato");
-  return response.json();
+  return apiCall(`${API_URL}/candidates/${candidateId}`, {
+    headers: getAuthHeaders(),
+  }, "obtener candidato");
+}
+
+export async function getCandidateByUserId(userId) {
+  return apiCall(`${API_URL}/candidates/by-user/${userId}`, {
+    headers: getAuthHeaders(),
+  }, "obtener candidato por usuario");
 }
 
 export async function createCandidate(candidate) {
-  const response = await fetch(`${API_URL}/candidates`, {
+  return apiCall(`${API_URL}/candidates`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify(candidate),
-  });
-  if (!response.ok) throw new Error("Error al crear candidato");
-  return response.json();
+  }, "crear candidato");
 }
 
 export async function updateCandidate(candidateId, candidate) {
-  const response = await fetch(`${API_URL}/candidates/${candidateId}`, {
+  return apiCall(`${API_URL}/candidates/${candidateId}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify(candidate),
-  });
-  if (!response.ok) throw new Error("Error al actualizar candidato");
-  return response.json();
+  }, "actualizar candidato");
 }
 
 export async function deleteCandidate(candidateId) {
-  const response = await fetch(`${API_URL}/candidates/${candidateId}`, {
+  return apiCall(`${API_URL}/candidates/${candidateId}`, {
     method: "DELETE",
-  });
-  if (!response.ok) throw new Error("Error al eliminar candidato");
+    headers: getAuthHeaders(),
+  }, "eliminar candidato");
   return true;
 }

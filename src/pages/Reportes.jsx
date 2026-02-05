@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { getVoterReport } from "../api/reports";
+import { getVoterReport, getVoterReportForExport } from "../api/reports";
 import ReportFilters from "../components/ReportFilters";
 import AggregationCounters from "../components/AggregationCounters";
 import VotersTable from "../components/VotersTable";
+import { ProtectedComponent } from "../components/ProtectedComponent";
 
 export default function Reportes() {
   const [voters, setVoters] = useState([]);
@@ -29,13 +30,20 @@ export default function Reportes() {
       });
 
       console.log("Reporte recibido:", response);
+      console.log("Total de votantes:", response.total);
+      console.log("Cantidad de datos:", response.data?.length);
 
-      setVoters(response.data || []);
+      const data = response.data || [];
+      setVoters(data);
       setAggregations(response.aggregations || null);
+
+      // Asegurar que el total coincida con los datos reales
+      const totalVoters = data.length > 0 ? response.total : 0;
+
       setPagination({
         page: response.page || 1,
         limit: response.limit || 50,
-        total: response.total || 0,
+        total: totalVoters,
       });
     } catch (error) {
       console.error("Error loading report:", error);
@@ -56,6 +64,17 @@ export default function Reportes() {
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
+  };
+
+  const handleExportRequest = async () => {
+    try {
+      // Obtener TODOS los datos sin paginación para la exportación
+      const response = await getVoterReportForExport(activeFilters);
+      return response.data || [];
+    } catch (error) {
+      console.error("Error al obtener datos para exportación:", error);
+      throw error;
+    }
   };
 
   const handleCounterClick = (filterType, value) => {
@@ -86,87 +105,92 @@ export default function Reportes() {
   };
 
   return (
-    <div className="space-y-6 pb-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">
-          Informe General de Votantes
-        </h1>
-        <p className="text-gray-600 mt-2">
-          Visualiza, analiza y exporta la información de votantes registrada en
-          SMARTPOL
-        </p>
-      </div>
-
-      {/* Mensaje de Error */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          <p className="font-semibold">Error al cargar los datos</p>
-          <p className="text-sm">{error}</p>
-          <p className="text-xs mt-2 text-red-600">
-            Verifica que el servidor backend esté ejecutándose en
-            http://localhost:3000
+    <ProtectedComponent
+      permission="voters:read"
+      fallback={
+        <div className="p-8 text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            Acceso denegado
+          </h2>
+          <p className="text-gray-600">
+            No tienes permiso para ver los reportes
           </p>
         </div>
-      )}
-
-      {/* Filtros Dinámicos */}
-      {!error && (
-        <ReportFilters
-          onFiltersChange={handleFiltersChange}
-          aggregations={aggregations}
-        />
-      )}
-
-      {/* Contadores Interactivos */}
-      {aggregations && !error && (
-        <AggregationCounters
-          aggregations={aggregations}
-          onCounterClick={handleCounterClick}
-        />
-      )}
-
-      {/* Filtros activos */}
-      {Object.keys(activeFilters).length > 0 && !error && (
-        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-          <p className="text-sm font-semibold text-blue-900 mb-2">
-            Filtros activos:
+      }
+    >
+      <div className="space-y-6 pb-8">
+        {/* Header */}
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Informe General de Votantes
+          </h1>
+          <p className="text-gray-600 mt-2">
+            Visualiza, analiza y exporta la información de votantes registrada
+            en SMARTPOL
           </p>
-          <div className="flex flex-wrap gap-2">
-            {Object.entries(activeFilters).map(([key, value]) => (
-              <span
-                key={key}
-                className="px-3 py-1 bg-blue-200 text-blue-900 rounded-full text-sm font-medium"
-              >
-                {key}:{" "}
-                {typeof value === "object" ? JSON.stringify(value) : value}
-              </span>
-            ))}
-            <button
-              onClick={() => {
-                setFilters({});
-                setActiveFilters({});
-                setCurrentPage(1);
-              }}
-              className="px-3 py-1 bg-red-200 text-red-900 rounded-full text-sm font-medium hover:bg-red-300 transition"
-            >
-              Limpiar filtros
-            </button>
+        </div>
+
+        {/* Mensaje de Error */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            <p className="font-semibold">Error al cargar los datos</p>
+            <p className="text-sm">{error}</p>
+            <p className="text-xs mt-2 text-red-600">
+              Verifica que el servidor backend esté ejecutándose en
+              http://localhost:3000
+            </p>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Tabla de Votantes */}
-      {!error && (
-        <VotersTable
-          voters={voters}
-          filters={activeFilters}
-          loading={loading}
-          pagination={pagination}
-          currentPageProp={currentPage}
-          onPageChange={handlePageChange}
-        />
-      )}
-    </div>
+        {/* Filtros Dinámicos */}
+        {!error && (
+          <ReportFilters
+            onFiltersChange={handleFiltersChange}
+            aggregations={aggregations}
+          />
+        )}
+
+        {/* Contadores Interactivos */}
+        {aggregations && !error && (
+          <AggregationCounters
+            aggregations={aggregations}
+            onCounterClick={handleCounterClick}
+          />
+        )}
+
+        {/* Filtros activos */}
+        {Object.keys(activeFilters).length > 0 && !error && (
+          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <p className="text-sm font-semibold text-blue-900 mb-2">
+              Filtros activos:
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(activeFilters).map(([key, value]) => (
+                <span
+                  key={key}
+                  className="px-3 py-1 bg-blue-200 text-blue-900 rounded-full text-sm font-medium"
+                >
+                  {key}:{" "}
+                  {typeof value === "object" ? JSON.stringify(value) : value}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Tabla de Votantes */}
+        {!error && (
+          <VotersTable
+            voters={voters}
+            filters={activeFilters}
+            loading={loading}
+            pagination={pagination}
+            currentPageProp={currentPage}
+            onPageChange={handlePageChange}
+            onExportRequest={handleExportRequest}
+          />
+        )}
+      </div>
+    </ProtectedComponent>
   );
 }

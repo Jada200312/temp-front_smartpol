@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 import { Workbook } from "exceljs";
 import { getVotingBooths } from "../api/votingbooths";
+import { usePermission } from "../hooks/usePermission";
 import Pagination from "./Pagination";
 
 export default function VotersTable({
@@ -12,7 +13,9 @@ export default function VotersTable({
   pagination,
   currentPageProp,
   onPageChange,
+  onExportRequest,
 }) {
+  const { can } = usePermission();
   const [enrichedVoters, setEnrichedVoters] = useState([]);
   const [boothsMap, setBoothsMap] = useState({});
   const [sortConfig, setSortConfig] = useState({
@@ -62,6 +65,9 @@ export default function VotersTable({
       enrichVoters();
     } else if (voters.length > 0) {
       setEnrichedVoters(voters);
+    } else {
+      // Limpiar cuando no hay votantes
+      setEnrichedVoters([]);
     }
   }, [voters, boothsMap]);
 
@@ -83,11 +89,26 @@ export default function VotersTable({
   };
 
   const exportToExcel = async () => {
-    const dataToExport =
-      allVotersForExport && allVotersForExport.length > 0
-        ? allVotersForExport
-        : enrichedVoters;
+    // Llamar al callback para obtener todos los datos sin paginación
+    if (onExportRequest) {
+      try {
+        const allData = await onExportRequest();
+        await performExport(allData);
+      } catch (error) {
+        console.error("Error al obtener datos para exportación:", error);
+        alert("Error al obtener datos para exportación");
+      }
+    } else {
+      // Fallback: si no hay callback, usar datos actuales
+      const dataToExport =
+        allVotersForExport && allVotersForExport.length > 0
+          ? allVotersForExport
+          : enrichedVoters;
+      await performExport(dataToExport);
+    }
+  };
 
+  const performExport = async (dataToExport) => {
     if (dataToExport.length === 0) {
       alert("No hay datos para exportar");
       return;
@@ -265,7 +286,13 @@ export default function VotersTable({
         </h2>
         <button
           onClick={exportToExcel}
-          className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition flex items-center justify-center sm:justify-start gap-2 text-sm sm:text-base"
+          disabled={!can("voters:read")}
+          title={!can("voters:read") ? "No tienes permiso para exportar" : ""}
+          className={`w-full sm:w-auto px-3 sm:px-4 py-2 rounded-md transition flex items-center justify-center sm:justify-start gap-2 text-sm sm:text-base ${
+            can("voters:read")
+              ? "bg-green-600 text-white hover:bg-green-700"
+              : "bg-gray-300 text-gray-500 cursor-not-allowed"
+          }`}
         >
           <span>📊</span> Exportar a Excel
         </button>
@@ -323,11 +350,30 @@ export default function VotersTable({
           <tbody>
             {sortedVoters.length === 0 ? (
               <tr>
-                <td
-                  colSpan="12"
-                  className="px-4 py-6 text-center text-gray-500"
-                >
-                  No hay votantes registrados con los filtros aplicados
+                <td colSpan="12" className="px-4 py-12 text-center">
+                  <div className="flex flex-col items-center justify-center">
+                    <svg
+                      className="w-12 h-12 text-gray-400 mb-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M20 21l-4.35-4.35m0 0A7.5 7.5 0 103.5 3.5a7.5 7.5 0 0013.15 13.15z"
+                      />
+                    </svg>
+                    <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                      No hay votantes
+                    </h3>
+                    <p className="text-gray-500 text-sm max-w-md">
+                      No se encontraron votantes con los filtros seleccionados.
+                      Intenta ajustar los criterios de búsqueda o limpiar los
+                      filtros.
+                    </p>
+                  </div>
                 </td>
               </tr>
             ) : (
@@ -414,8 +460,26 @@ export default function VotersTable({
       {/* Vista Móvil - Tarjetas */}
       <div className="md:hidden space-y-3 p-3 sm:p-4">
         {sortedVoters.length === 0 ? (
-          <div className="text-center py-6 text-gray-500 text-sm">
-            No hay votantes registrados con los filtros aplicados
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <svg
+              className="w-12 h-12 text-gray-400 mb-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M20 21l-4.35-4.35m0 0A7.5 7.5 0 103.5 3.5a7.5 7.5 0 0013.15 13.15z"
+              />
+            </svg>
+            <h3 className="text-base font-semibold text-gray-700 mb-1">
+              No hay votantes
+            </h3>
+            <p className="text-gray-500 text-sm">
+              No se encontraron votantes con los filtros seleccionados.
+            </p>
           </div>
         ) : (
           sortedVoters.map((voter) => (

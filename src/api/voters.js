@@ -1,77 +1,97 @@
-import { API_URL } from "./config";
+import { API_URL, getAuthHeaders, apiCall } from "./config";
 
 export async function getVoters(page = 1, limit = 20) {
-  const response = await fetch(`${API_URL}/voters?page=${page}&limit=${limit}`);
-  if (!response.ok) throw new Error("Error al obtener votantes");
-  return response.json();
+  return apiCall(`${API_URL}/voters?page=${page}&limit=${limit}`, {
+    headers: getAuthHeaders(),
+  }, "obtener votantes");
+}
+
+export async function getVotersByCandidate(candidateId, page = 1, limit = 20) {
+  return apiCall(`${API_URL}/voters/by-candidate/${candidateId}?page=${page}&limit=${limit}`, {
+    headers: getAuthHeaders(),
+  }, "obtener votantes del candidato");
+}
+
+export async function getVotersByLeader(leaderId, page = 1, limit = 20) {
+  return apiCall(`${API_URL}/voters/by-leader/${leaderId}?page=${page}&limit=${limit}`, {
+    headers: getAuthHeaders(),
+  }, "obtener votantes del líder");
 }
 
 export async function getVoterByIdentification(identification) {
-  const response = await fetch(`${API_URL}/voters/by-identification/${identification}`);
-  if (!response.ok) return null;
-  return response.json();
+  try {
+    const result = await apiCall(`${API_URL}/voters/by-identification/${identification}`, {
+      headers: getAuthHeaders(),
+    }, "obtener votante");
+    
+    // Si el resultado es null o no tiene id, no es un votante válido
+    if (!result || !result.id) {
+      return null;
+    }
+    
+    return result;
+  } catch (error) {
+    // Si no existe el votante o hay error, retornar null
+    // No lanzar el error para que la validación sea silenciosa
+    return null;
+  }
 }
 
 export async function createVoter(voter) {
-  const response = await fetch(`${API_URL}/voters`, {
+  return apiCall(`${API_URL}/voters`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify(voter),
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: "Error al crear votante" }));
-    const err = new Error(error.message || "Error al crear votante");
-    err.response = { data: error };
-    throw err;
-  }
-  return response.json();
+  }, "crear votante");
 }
 
 export async function updateVoter(voterId, voter) {
-  const response = await fetch(`${API_URL}/voters/${voterId}`, {
+  return apiCall(`${API_URL}/voters/${voterId}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify(voter),
-  });
-  if (!response.ok) throw new Error("Error al actualizar votante");
-  return response.json();
+  }, "actualizar votante");
 }
 
 export async function deleteVoter(voterId) {
-  const response = await fetch(`${API_URL}/voters/${voterId}`, {
+  return apiCall(`${API_URL}/voters/${voterId}`, {
     method: 'DELETE',
-  });
-  if (!response.ok) throw new Error('Error al eliminar votante');
-  return true;
+    headers: getAuthHeaders(),
+  }, "eliminar votante");
 }
+
 export async function getAssignedCandidates(voterId) {
-  const response = await fetch(`${API_URL}/voters/${voterId}/assign-candidate`);
-  if (!response.ok) return [];
-  return response.json();
+  try {
+    return await apiCall(`${API_URL}/voters/${voterId}/assign-candidate`, {
+      headers: getAuthHeaders(),
+    }, "obtener candidatos asignados");
+  } catch (error) {
+    // Si no hay candidatos asignados, retornar array vacío
+    if (error.response?.status === 404) {
+      return [];
+    }
+    throw error;
+  }
 }
 
 export async function assignCandidatesToVoter(voterId, candidateIds, leaderId) {
-  const response = await fetch(`${API_URL}/voters/${voterId}/assign-candidate`, {
+  return apiCall(`${API_URL}/voters/${voterId}/assign-candidate`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify({ 
       candidate_ids: candidateIds,
       leader_id: leaderId,
     }),
-  });
-  if (!response.ok) throw new Error("Error al asignar candidatos al votante");
-  return response.json();
+  }, "asignar candidatos al votante");
 }
 
 export async function updateAssignedCandidates(voterId, candidateIds, leaderId) {
-  const response = await fetch(`${API_URL}/voters/${voterId}/assign-candidate`, {
+  return apiCall(`${API_URL}/voters/${voterId}/assign-candidate`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify({ 
       candidate_ids: candidateIds,
       leader_id: leaderId,
     }),
-  });
-  if (!response.ok) throw new Error("Error al actualizar candidatos asignados");
-  return response.json();
+  }, "actualizar candidatos asignados");
 }

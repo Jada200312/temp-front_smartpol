@@ -1,9 +1,14 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useUser } from "../context/UserContext";
 
-export default function Navbar({ email, onLogout, onMenuClick }) {
+export default function Navbar({ onMenuClick }) {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef(null);
   const buttonRef = useRef(null);
+  const navigate = useNavigate();
+  const { user, logout } = useUser();
+  const email = user?.email || "Usuario";
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -19,6 +24,11 @@ export default function Navbar({ email, onLogout, onMenuClick }) {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   return (
     <header className="h-16 bg-white border-b border-gray-100 px-4 sm:px-6 flex items-center justify-between relative">
@@ -88,7 +98,7 @@ export default function Navbar({ email, onLogout, onMenuClick }) {
 
           <div className="p-2">
             <button
-              onClick={onLogout}
+              onClick={handleLogout}
               className="w-full flex items-center justify-center gap-2
                          px-4 py-2 rounded-xl
                          bg-orange-500 text-white text-sm font-medium

@@ -1,9 +1,46 @@
 import { Link, useLocation } from "react-router-dom";
+import { useState } from "react";
 import Logo from "../assets/logo.png";
+import { useUser } from "../context/UserContext";
+import { usePermission } from "../hooks/usePermission";
 
 export default function Sidebar({ isOpen, onClose }) {
   const location = useLocation();
+  const { user } = useUser();
+  const { can } = usePermission();
+  const [expandedMenu, setExpandedMenu] = useState(null);
   const isActive = (path) => location.pathname.startsWith(path);
+
+  // Definir acceso por rol
+  // roleId: 1 = Superadmin, 2 = Admin campaña, 3 = Candidato, 4 = Líder, 5 = Digitador
+  const canAccess = (roleId) => {
+    if (!user) return false;
+    return (
+      user.roleId === roleId ||
+      (Array.isArray(roleId) && roleId.includes(user.roleId))
+    );
+  };
+
+  const isSuperadmin = user?.roleId === 1;
+  const isAdminCampaign = user?.roleId === 2;
+  const isCandidate = user?.roleId === 3;
+  const isLeader = user?.roleId === 4;
+  const isDigitador = user?.roleId === 5;
+
+  // Roles que pueden ver inicio: todos
+  const canSeeInicio = true;
+
+  // Roles que pueden ver votantes: todos
+  const canSeePersonas = true;
+
+  // Roles que pueden crear: Superadmin y Admin de campaña
+  const canCreate = isSuperadmin || isAdminCampaign;
+
+  // Roles que pueden ver reportes: verifica permiso en lugar de solo roleId
+  const canSeeReportes = can("reports:read");
+
+  // Roles que pueden ver admin de permisos: solo Superadmin
+  const canSeeAdminPermisos = isSuperadmin;
 
   return (
     <>
@@ -37,34 +74,198 @@ export default function Sidebar({ isOpen, onClose }) {
         {/* Navegación */}
         <nav className="flex-1 px-4 py-6">
           <ul className="space-y-2">
-            <li>
-              <Link
-                to="/app/personas"
-                onClick={onClose}
-                className={`flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all
-                  ${
-                    isActive("/app/personas")
-                      ? "bg-orange-500 text-white shadow-md"
-                      : "text-gray-600 hover:bg-orange-100 hover:text-orange-600"
-                  }`}
-              >
-                <span className="ml-3">Personas</span>
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/app/reportes"
-                onClick={onClose}
-                className={`flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all
-                  ${
-                    isActive("/app/reportes")
-                      ? "bg-orange-500 text-white shadow-md"
-                      : "text-gray-600 hover:bg-orange-100 hover:text-orange-600"
-                  }`}
-              >
-                <span className="ml-3">Informes</span>
-              </Link>
-            </li>
+            {/* Inicio - Solo Superadmin */}
+            {canSeeInicio && (
+              <li>
+                <Link
+                  to="/app/inicio"
+                  onClick={onClose}
+                  className={`flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all
+                    ${
+                      isActive("/app/inicio")
+                        ? "bg-orange-500 text-white shadow-md"
+                        : "text-gray-600 hover:bg-orange-100 hover:text-orange-600"
+                    }`}
+                >
+                  <span className="ml-3">Inicio</span>
+                </Link>
+              </li>
+            )}
+
+            {/* Votantes - Todos */}
+            {canSeePersonas && (
+              <li>
+                <Link
+                  to="/app/votantes"
+                  onClick={onClose}
+                  className={`flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all
+                    ${
+                      isActive("/app/votantes")
+                        ? "bg-orange-500 text-white shadow-md"
+                        : "text-gray-600 hover:bg-orange-100 hover:text-orange-600"
+                    }`}
+                >
+                  <span className="ml-3">Votantes</span>
+                </Link>
+              </li>
+            )}
+
+            {/* Submenu Gestión - Agrupa Candidatos, Líderes, Digitadores y Asignar Candidatos */}
+            {(canCreate || isSuperadmin || isAdminCampaign || isCandidate) && (
+              <li>
+                <button
+                  onClick={() =>
+                    setExpandedMenu(
+                      expandedMenu === "gestion" ? null : "gestion",
+                    )
+                  }
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all
+                    ${
+                      expandedMenu === "gestion" ||
+                      isActive("/app/digitadores") ||
+                      isActive("/app/candidatos") ||
+                      isActive("/app/lideres") ||
+                      isActive("/app/asignar-candidatos")
+                        ? "bg-orange-100 text-orange-600"
+                        : "text-gray-600 hover:bg-orange-50 hover:text-orange-600"
+                    }`}
+                >
+                  <span className="ml-3">Gestión</span>
+                  <svg
+                    className={`w-4 h-4 transition-transform duration-300 ${
+                      expandedMenu === "gestion" ? "rotate-180" : ""
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                    />
+                  </svg>
+                </button>
+
+                {/* Submenu items */}
+                {expandedMenu === "gestion" && (
+                  <ul className="space-y-1 mt-2 pl-4">
+                    {/* Candidatos */}
+                    {canCreate && (
+                      <li>
+                        <Link
+                          to="/app/candidatos"
+                          onClick={onClose}
+                          className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all
+                            ${
+                              isActive("/app/candidatos")
+                                ? "bg-orange-500 text-white shadow-md"
+                                : "text-gray-600 hover:bg-orange-100 hover:text-orange-600"
+                            }`}
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-current mr-3"></span>
+                          <span>Candidatos</span>
+                        </Link>
+                      </li>
+                    )}
+
+                    {/* Líderes */}
+                    {(canCreate || isCandidate) && (
+                      <li>
+                        <Link
+                          to="/app/lideres"
+                          onClick={onClose}
+                          className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all
+                            ${
+                              isActive("/app/lideres")
+                                ? "bg-orange-500 text-white shadow-md"
+                                : "text-gray-600 hover:bg-orange-100 hover:text-orange-600"
+                            }`}
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-current mr-3"></span>
+                          <span>Líderes</span>
+                        </Link>
+                      </li>
+                    )}
+
+                    {/* Digitadores */}
+                    {(isSuperadmin || isAdminCampaign) && (
+                      <li>
+                        <Link
+                          to="/app/digitadores"
+                          onClick={onClose}
+                          className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all
+                            ${
+                              isActive("/app/digitadores")
+                                ? "bg-orange-500 text-white shadow-md"
+                                : "text-gray-600 hover:bg-orange-100 hover:text-orange-600"
+                            }`}
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-current mr-3"></span>
+                          <span>Digitadores</span>
+                        </Link>
+                      </li>
+                    )}
+
+                    {/* Asignar Candidatos */}
+                    {canCreate && (
+                      <li>
+                        <Link
+                          to="/app/asignar-candidatos"
+                          onClick={onClose}
+                          className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all
+                            ${
+                              isActive("/app/asignar-candidatos")
+                                ? "bg-orange-500 text-white shadow-md"
+                                : "text-gray-600 hover:bg-orange-100 hover:text-orange-600"
+                            }`}
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-current mr-3"></span>
+                          <span>Asignar Candidatos</span>
+                        </Link>
+                      </li>
+                    )}
+                  </ul>
+                )}
+              </li>
+            )}
+
+            {/* Reportes - Admin campaña, Candidato, Líder (NO Superadmin, NO Digitador) */}
+            {canSeeReportes && (
+              <li>
+                <Link
+                  to="/app/reportes"
+                  onClick={onClose}
+                  className={`flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all
+                    ${
+                      isActive("/app/reportes")
+                        ? "bg-orange-500 text-white shadow-md"
+                        : "text-gray-600 hover:bg-orange-100 hover:text-orange-600"
+                    }`}
+                >
+                  <span className="ml-3">Reportes</span>
+                </Link>
+              </li>
+            )}
+
+            {/* Admin Permisos - Solo Superadmin */}
+            {canSeeAdminPermisos && (
+              <li>
+                <Link
+                  to="/app/admin-permisos"
+                  onClick={onClose}
+                  className={`flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all
+                    ${
+                      isActive("/app/admin-permisos")
+                        ? "bg-orange-500 text-white shadow-md"
+                        : "text-gray-600 hover:bg-orange-100 hover:text-orange-600"
+                    }`}
+                >
+                  <span className="ml-3">Admin Permisos</span>
+                </Link>
+              </li>
+            )}
           </ul>
         </nav>
 

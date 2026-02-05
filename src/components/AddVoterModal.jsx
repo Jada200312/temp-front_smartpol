@@ -10,9 +10,13 @@ import {
 } from "../api/voters";
 import { getLeaders, getCandidatesByLeader } from "../api/leaders";
 import { getVotingBooths } from "../api/votingbooths";
+import { usePermission } from "../hooks/usePermission";
+import { useAlert } from "../hooks/useAlert";
 import { XMarkIcon } from "@heroicons/react/24/solid";
 
 export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
+  const { can } = usePermission();
+  const alert = useAlert();
   const [form, setForm] = useState({
     firstName: voter?.firstName || "",
     lastName: voter?.lastName || "",
@@ -47,8 +51,21 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
   const [initialLeaderId, setInitialLeaderId] = useState(null);
 
   useEffect(() => {
+    const loadData = async () => {
+      try {
+        const leadersData = await getLeaders();
+        // Extraer array del objeto de paginación
+        const leadersList = Array.isArray(leadersData)
+          ? leadersData
+          : leadersData?.data || [];
+        setLeaders(leadersList);
+      } catch (err) {
+        console.error("Error loading leaders:", err);
+      }
+    };
+
     getDepartments().then(setDepartments);
-    getLeaders().then(setLeaders);
+    loadData();
     getVotingBooths().then(setVotingBooths);
 
     // Si es edición, obtener datos de asignación actual
@@ -145,11 +162,13 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
 
   // Validar identificación en tiempo real
   useEffect(() => {
+    // Solo validar duplicados si estamos creando nuevo (no editando) y la identificación cambió
     if (form.identification && form.identification.trim() && !voter) {
       const validateId = async () => {
         try {
           const existing = await getVoterByIdentification(form.identification);
-          if (existing) {
+          // Verificar que existing sea un objeto válido con un id
+          if (existing && typeof existing === "object" && existing.id) {
             // Obtener información del líder asignado al usuario duplicado
             let leaderInfo = "";
             try {
@@ -158,44 +177,30 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
                 const leaderName =
                   assignedData[0].leader?.name || assignedData[0].leader_name;
                 if (leaderName) {
-                  leaderInfo = ` Está asignado al líder: ${leaderName}`;
+                  leaderInfo = `\n\nEstá asignado al líder: ${leaderName}`;
                 }
               }
             } catch (error) {
               console.error("Error obtiendo información del líder:", error);
             }
 
-            alert(
-              `La identificación ${form.identification} ya está registrada.${leaderInfo} Se limpiarán todos los campos.`,
+            alert.warning(
+              `La identificación ${form.identification} ya está registrada.${leaderInfo}`,
+              "Duplicación detectada",
             );
-            setForm({
-              firstName: "",
-              lastName: "",
+            // Solo limpiar el campo de identificación, no todo el formulario
+            setForm((prev) => ({
+              ...prev,
               identification: "",
-              gender: "",
-              departmentId: "",
-              municipalityId: "",
-              votingBoothId: "",
-              votingTableId: "",
-              leaderId: "",
-              candidateIds: [],
-              bloodType: "",
-              birthDate: "",
-              phone: "",
-              address: "",
-              neighborhood: "",
-              email: "",
-              occupation: "",
-              politicalStatus: "",
-            });
+            }));
           }
         } catch (error) {
-          // Error silencioso en validación
+          // Error silencioso en validación - no mostrar alertas de error
           console.error("Error validando identificación:", error);
         }
       };
 
-      const timer = setTimeout(validateId, 500);
+      const timer = setTimeout(validateId, 300);
       return () => clearTimeout(timer);
     }
   }, [form.identification, voter]);
@@ -226,19 +231,22 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
 
     for (const [field, label] of Object.entries(requiredFields)) {
       if (!form[field]) {
-        setError(`${label} es requerido`);
+        alert.warning(`${label} es requerido`, "Campo incompleto");
         return false;
       }
     }
 
     // Validar que votingTableId (mesa) sea válido si hay un votingBoothId
     if (form.votingBoothId && !form.votingTableId) {
-      setError("Mesa de votación es requerida");
+      alert.warning("Mesa de votación es requerida", "Información incompleta");
       return false;
     }
 
     if (form.candidateIds.length === 0) {
-      setError("Debe seleccionar al menos un candidato");
+      alert.warning(
+        "Debe seleccionar al menos un candidato",
+        "Selección requerida",
+      );
       return false;
     }
 
@@ -311,16 +319,18 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
         }
       }
 
+      alert.success(
+        voter
+          ? "Votante actualizado exitosamente"
+          : "Votante creado exitosamente",
+        "¡Éxito!",
+      );
       onVoterAdded();
       onClose();
     } catch (err) {
       console.error("Error completo:", err);
-      const errorMsg =
-        err.response?.data?.message ||
-        err.message ||
-        "Error al guardar la información.";
-      console.error("Mensaje de error:", errorMsg);
-      setError(errorMsg);
+      alert.apiError(err, "Error al guardar la información del votante");
+      setError("Error al guardar la información");
     } finally {
       setLoading(false);
     }
@@ -575,8 +585,25 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
             </button>
             <button
               type="submit"
-              disabled={loading}
-              className="px-6 py-2 rounded-lg bg-orange-500 text-white font-semibold hover:bg-orange-600"
+              disabled={
+                loading ||
+                (voter && !can("voters:update")) ||
+                (!voter && !can("voters:create"))
+              }
+              title={
+                voter && !can("voters:update")
+                  ? "No tienes permiso para actualizar votantes"
+                  : !voter && !can("voters:create")
+                    ? "No tienes permiso para crear votantes"
+                    : ""
+              }
+              className={`px-6 py-2 rounded-lg font-semibold transition ${
+                loading ||
+                (voter && !can("voters:update")) ||
+                (!voter && !can("voters:create"))
+                  ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  : "bg-orange-500 text-white hover:bg-orange-600"
+              }`}
             >
               {loading ? "Guardando..." : "Guardar"}
             </button>

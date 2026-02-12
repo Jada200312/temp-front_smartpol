@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 import { Workbook } from "exceljs";
 import { getVotingBooths } from "../api/votingbooths";
+import { getDepartments, getMunicipalities } from "../api/departments";
 import { usePermission } from "../hooks/usePermission";
 import Pagination from "./Pagination";
 
@@ -18,35 +19,47 @@ export default function VotersTable({
   const { can } = usePermission();
   const [enrichedVoters, setEnrichedVoters] = useState([]);
   const [boothsMap, setBoothsMap] = useState({});
+  const [departmentsMap, setDepartmentsMap] = useState({});
+  const [municipalitiesMap, setMunicipalitiesMap] = useState({});
   const [sortConfig, setSortConfig] = useState({
     key: "id",
     direction: "asc",
   });
 
-  // Cargar todos los centros de votación una sola vez
+  // Cargar datos base: centros de votación y departamentos
   useEffect(() => {
     const loadData = async () => {
       try {
+        // Cargar centros de votación
         const booths = await getVotingBooths();
         const boothsMapTemp = {};
         booths.forEach((booth) => {
           boothsMapTemp[booth.id] = booth;
         });
         setBoothsMap(boothsMapTemp);
+
+        // Cargar departamentos
+        const departments = await getDepartments();
+        const deptMapTemp = {};
+        departments.forEach((dept) => {
+          deptMapTemp[dept.id] = dept;
+        });
+        setDepartmentsMap(deptMapTemp);
       } catch (err) {
-        console.error("Error al obtener datos:", err);
+        console.error("Error al obtener datos base:", err);
       }
     };
 
     loadData();
   }, []);
 
-  // Enriquecer votantes con datos del centro y mesa
+  // Enriquecer votantes con datos de departamentos, municipios y centros
   useEffect(() => {
     const enrichVoters = () => {
       const enriched = voters.map((voter) => {
         let enrichedVoter = { ...voter };
 
+        // Enriquecer con centro de votación
         if (
           voter.votingBoothId &&
           !voter.votingBooth &&
@@ -55,21 +68,44 @@ export default function VotersTable({
           enrichedVoter.votingBooth = boothsMap[voter.votingBoothId];
         }
 
+        // Enriquecer con departamento
+        if (
+          voter.departmentId &&
+          !voter.department &&
+          departmentsMap[voter.departmentId]
+        ) {
+          enrichedVoter.department = departmentsMap[voter.departmentId];
+        }
+
+        // Para municipios, si no existe, intentar obtenerlo del array de departamentos
+        if (voter.municipalityId && !voter.municipality && voter.departmentId) {
+          const dept = departmentsMap[voter.departmentId];
+          if (
+            dept &&
+            dept.municipalities &&
+            Array.isArray(dept.municipalities)
+          ) {
+            const mun = dept.municipalities.find(
+              (m) => m.id === voter.municipalityId,
+            );
+            if (mun) {
+              enrichedVoter.municipality = mun;
+            }
+          }
+        }
+
         return enrichedVoter;
       });
 
       setEnrichedVoters(enriched);
     };
 
-    if (voters.length > 0 && Object.keys(boothsMap).length > 0) {
+    if (voters.length > 0) {
       enrichVoters();
-    } else if (voters.length > 0) {
-      setEnrichedVoters(voters);
     } else {
-      // Limpiar cuando no hay votantes
       setEnrichedVoters([]);
     }
-  }, [voters, boothsMap]);
+  }, [voters, boothsMap, departmentsMap, municipalitiesMap]);
 
   const sortedVoters = [...enrichedVoters].sort((a, b) => {
     const aValue = a[sortConfig.key];
@@ -129,8 +165,6 @@ export default function VotersTable({
       { header: "Municipio", key: "Municipio", width: 16 },
       { header: "Barrio", key: "Barrio", width: 16 },
       { header: "Centro de Votación", key: "CentroVotacion", width: 20 },
-      { header: "Candidatos", key: "Candidatos", width: 45 },
-      { header: "Líderes", key: "Líderes", width: 30 },
     ];
 
     const headerFill = {
@@ -191,13 +225,6 @@ export default function VotersTable({
     };
 
     dataToExport.forEach((voter, rowIndex) => {
-      const candidatosFormateados =
-        voter.candidates?.map((c) => `• ${c.name} (${c.party})`).join("\n") ||
-        "N/A";
-
-      const lideresFormateados =
-        voter.leaders?.map((l) => `• ${l.name}`).join("\n") || "N/A";
-
       const rowData = {
         ID: voter.id,
         Nombre: voter.firstName || "N/A",
@@ -218,8 +245,6 @@ export default function VotersTable({
           voter.votingBooth?.name && voter.votingTableId
             ? `${voter.votingBooth.name} - ${voter.votingTableId}`
             : voter.votingBooth?.name || "N/A",
-        Candidatos: candidatosFormateados,
-        Líderes: lideresFormateados,
       };
 
       const row = worksheet.addRow(rowData);

@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import {
-  getVoters,
-  getVotersByCandidate,
-  getVotersByLeader,
+  getVotersWithAssignments,
+  getVotersByCandidateWithAssignments,
+  getVotersByLeaderWithAssignments,
   deleteVoter,
-  getAssignedCandidates,
+  getAllVotersWithAssignments,
 } from "../api/voters";
 import { getCandidateByUserId } from "../api/candidates";
 import { getLeaderByUserId } from "../api/leaders";
@@ -112,37 +112,42 @@ export default function Personas() {
       // Si es candidato, usar endpoint específico; si es líder, usar endpoint de líder
       const data =
         user?.roleId === 3 && candidateId
-          ? await getVotersByCandidate(candidateId, page, ITEMS_PER_PAGE)
+          ? await getVotersByCandidateWithAssignments(
+              candidateId,
+              page,
+              ITEMS_PER_PAGE,
+            )
           : user?.roleId === 4 && leaderId
-            ? await getVotersByLeader(leaderId, page, ITEMS_PER_PAGE)
-            : await getVoters(page, ITEMS_PER_PAGE);
+            ? await getVotersByLeaderWithAssignments(
+                leaderId,
+                page,
+                ITEMS_PER_PAGE,
+              )
+            : await getVotersWithAssignments(page, ITEMS_PER_PAGE);
 
       setVoters(data.data);
       setCurrentPage(data.page);
       setTotalPages(data.pages);
       setTotalVoters(data.total);
 
-      // Cargar candidatos asignados para cada votante
+      // Extraer candidatos y líderes de la respuesta
       const candidatesMap = {};
       const leadersMap = {};
-      for (const voter of data.data) {
-        try {
-          const assignedData = await getAssignedCandidates(voter.id);
-          if (Array.isArray(assignedData) && assignedData.length > 0) {
-            candidatesMap[voter.id] = assignedData
-              .map((d) => d.candidate?.name || d.candidateName)
-              .filter(Boolean);
-            // Extraer el nombre del líder
-            const leaderName =
-              assignedData[0].leader?.name || assignedData[0].leader_name;
-            if (leaderName) {
-              leadersMap[voter.id] = leaderName;
-            }
-          }
-        } catch {
-          // Ignorar si no hay candidatos asignados
+
+      data.data.forEach((voter) => {
+        // Mapear candidatos
+        if (voter.candidates && voter.candidates.length > 0) {
+          candidatesMap[voter.id] = voter.candidates
+            .map((c) => c.name)
+            .filter(Boolean);
         }
-      }
+
+        // Mapear líderes (tomar el primero)
+        if (voter.leaders && voter.leaders.length > 0) {
+          leadersMap[voter.id] = voter.leaders[0].name;
+        }
+      });
+
       setVoterCandidates(candidatesMap);
       setVoterLeaders(leadersMap);
     } catch {
@@ -154,54 +159,33 @@ export default function Personas() {
 
   const fetchAllVoters = async () => {
     try {
-      let allVotersData = [];
-      let page = 1;
-      let hasMorePages = true;
-
-      // Cargar todas las páginas
-      while (hasMorePages) {
-        // Si es candidato, usar endpoint específico; si es líder, usar endpoint de líder
-        const data =
-          user?.roleId === 3 && candidateId
-            ? await getVotersByCandidate(candidateId, page, 100)
-            : user?.roleId === 4 && leaderId
-              ? await getVotersByLeader(leaderId, page, 100)
-              : await getVoters(page, 100); // Máximo permitido por el servidor
-        allVotersData = [...allVotersData, ...data.data];
-
-        if (page >= data.pages) {
-          hasMorePages = false;
-        } else {
-          page++;
-        }
-      }
+      // Obtener todos los votantes con sus asignaciones en una única request
+      const allVotersData = await getAllVotersWithAssignments(
+        user?.roleId,
+        user?.roleId === 3 ? candidateId : undefined,
+        user?.roleId === 4 ? leaderId : undefined,
+      );
 
       setAllVoters(allVotersData);
 
-      // Cargar candidatos asignados para cada votante EN PARALELO
+      // Extraer candidatos y líderes de la response
       const candidatesMap = {};
       const leadersMap = {};
 
-      const assignmentPromises = allVotersData.map(async (voter) => {
-        try {
-          const assignedData = await getAssignedCandidates(voter.id);
-          if (Array.isArray(assignedData) && assignedData.length > 0) {
-            candidatesMap[voter.id] = assignedData
-              .map((d) => d.candidate?.name || d.candidateName)
-              .filter(Boolean);
-            // Extraer el nombre del líder
-            const leaderName =
-              assignedData[0].leader?.name || assignedData[0].leader_name;
-            if (leaderName) {
-              leadersMap[voter.id] = leaderName;
-            }
-          }
-        } catch {
-          // Ignorar si no hay candidatos asignados
+      allVotersData.forEach((voter) => {
+        // Mapear candidatos
+        if (voter.candidates && voter.candidates.length > 0) {
+          candidatesMap[voter.id] = voter.candidates
+            .map((c) => c.name)
+            .filter(Boolean);
+        }
+
+        // Mapear líderes (tomar el primero)
+        if (voter.leaders && voter.leaders.length > 0) {
+          leadersMap[voter.id] = voter.leaders[0].name;
         }
       });
 
-      await Promise.all(assignmentPromises);
       setVoterCandidates(candidatesMap);
       setVoterLeaders(leadersMap);
     } catch {

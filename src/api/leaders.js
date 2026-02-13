@@ -55,17 +55,75 @@ export async function getLeadersWithPagination(page = 1, limit = 10, search = ''
   }, 'obtener líderes con paginación');
 }
 
-export async function getLeadersByCandidateWithPagination(candidateId, page = 1, limit = 10, search = '') {
+// ✅ ACTUALIZADO: Para candidatos con paginación
+export async function getLeadersByCandidateWithPagination(
+  candidateId,
+  page = 1,
+  limit = 10,
+  search = '',
+) {
+  if (!candidateId || isNaN(candidateId)) {
+    throw new Error('candidateId debe ser un número válido');
+  }
+
   const params = new URLSearchParams({
-    page,
-    limit,
+    page: String(page),
+    limit: String(limit),
   });
   if (search) {
     params.append('search', search);
   }
-  return apiCall(`${API_URL}/leaders/by-candidate/${candidateId}?${params.toString()}`, {
-    headers: getAuthHeaders(),
-  }, 'obtener líderes del candidato con paginación');
+
+  return apiCall(
+    `${API_URL}/leaders/by-candidate/${Number(candidateId)}?${params.toString()}`,
+    {
+      headers: getAuthHeaders(),
+    },
+    'obtener líderes del candidato con paginación',
+  );
+}
+
+// ✅ NUEVO: Para admin/coordinador por campaña
+export async function getLeadersByCampaignWithPagination(
+  campaignId,
+  page = 1,
+  limit = 10,
+  search = '',
+) {
+  if (!campaignId || isNaN(campaignId)) {
+    throw new Error('campaignId debe ser un número válido');
+  }
+
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+  if (search) {
+    params.append('search', search);
+  }
+
+  return apiCall(
+    `${API_URL}/leaders/by-campaign/${Number(campaignId)}?${params.toString()}`,
+    {
+      headers: getAuthHeaders(),
+    },
+    'obtener líderes por campaña con paginación',
+  );
+}
+
+// ✅ NUEVO: Sin paginación por si se necesita
+export async function getLeadersByCampaign(campaignId) {
+  if (!campaignId || isNaN(campaignId)) {
+    throw new Error('campaignId debe ser un número válido');
+  }
+
+  return apiCall(
+    `${API_URL}/leaders/by-campaign/${Number(campaignId)}`,
+    {
+      headers: getAuthHeaders(),
+    },
+    'obtener líderes por campaña',
+  );
 }
 
 export async function getLeaderByUserId(userId) {

@@ -1,16 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
-  getLeadersWithPagination,
-  getLeadersByCandidateWithPagination,
-  updateLeader,
-  deleteLeader,
-} from "../api/leaders";
-import { getCandidateByUserId } from "../api/candidates";
-import { getAllCampaigns } from "../api/campaigns";
+  getCampaignsWithPagination,
+  deleteCampaign,
+  updateCampaign,
+} from "../api/campaigns";
 import { usePermission } from "../hooks/usePermission";
 import { useAlert } from "../hooks/useAlert";
-import { useUser } from "../context/UserContext";
 import Pagination from "../components/Pagination";
 import {
   PlusIcon,
@@ -18,171 +14,89 @@ import {
   TrashIcon,
 } from "@heroicons/react/24/outline";
 
-export default function Lideres() {
+export default function Campanas() {
   const { can } = usePermission();
-  const { user } = useUser();
   const navigate = useNavigate();
   const location = useLocation();
   const alert = useAlert();
-  const [leaders, setLeaders] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [editingLeader, setEditingLeader] = useState(null);
+  const [editingCampaign, setEditingCampaign] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [itemsPerPage] = useState(10);
-  const [candidateId, setCandidateId] = useState(null);
-  const [loadingCandidateId, setLoadingCandidateId] = useState(
-    user?.roleId === 3,
-  );
   const [formData, setFormData] = useState({
     name: "",
-    document: "",
-    municipality: "",
-    phone: "",
-    campaignId: "",
+    description: "",
+    startDate: "",
+    endDate: "",
+    status: true,
   });
 
-  // Cargar campañas
-  useEffect(() => {
-    const loadCampaigns = async () => {
-      try {
-        const data = await getAllCampaigns();
-        setCampaigns(Array.isArray(data) ? data : []);
-      } catch (err) {
-        console.error("Error loading campaigns:", err);
-      }
-    };
-
-    loadCampaigns();
-  }, []);
-
-  // Cargar candidateId si es candidato
-  useEffect(() => {
-    const loadData = async () => {
-      if (user?.roleId === 3) {
-        try {
-          const candidate = await getCandidateByUserId(user.id);
-          if (candidate?.id) {
-            setCandidateId(candidate.id);
-          } else {
-            setError("No se pudo obtener tu información de candidato");
-          }
-        } catch (err) {
-          console.error("Error loading candidate:", err);
-          setError("Error al cargar datos del candidato");
-        } finally {
-          setLoadingCandidateId(false);
-        }
-      } else {
-        setCandidateId(null);
-        setLoadingCandidateId(false);
-      }
-    };
-
-    if (user) {
-      loadData();
-    }
-  }, [user]);
-
-  // Cargar líderes con paginación
-  const fetchLeaders = async (page = 1, searchTerm = "") => {
+  // Cargar campañas con paginación
+  const fetchCampaigns = async (page = 1, searchTerm = "") => {
     setLoading(true);
     setError("");
     try {
-      let data;
+      const data = await getCampaignsWithPagination(
+        page,
+        itemsPerPage,
+        searchTerm,
+      );
 
-      if (user?.roleId === 3) {
-        // Es CANDIDATO: buscar por candidateId
-        if (!candidateId || isNaN(candidateId)) {
-          throw new Error("candidateId no válido");
-        }
-        data = await getLeadersByCandidateWithPagination(
-          candidateId,
-          page,
-          itemsPerPage,
-          searchTerm,
-        );
-      } else {
-        // Es ADMIN/COORDINADOR: cargar todos los líderes
-        data = await getLeadersWithPagination(page, itemsPerPage, searchTerm);
-      }
+      // Asegurar que siempre obtenemos un array
+      const campanias = Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []);
 
-      const leadersList = Array.isArray(data.data) ? data.data : [];
-      setLeaders(leadersList);
-      setCurrentPage(data.page);
-      setTotalPages(data.pages);
-      setTotalItems(data.total);
+      setCampaigns(campanias);
+      setCurrentPage(data.page || page);
+      setTotalPages(data.pages || 1);
+      setTotalItems(data.total || campanias.length);
     } catch (err) {
-      const errorMsg = err.message || "No se pudieron cargar los líderes";
-      setError(errorMsg);
-      alert.apiError(err, "Error al cargar líderes");
+      setError("No se pudieron cargar las campañas");
+      console.error("Error:", err);
+      alert.apiError(err, "No se pudieron cargar las campañas");
     } finally {
       setLoading(false);
     }
   };
 
-  // EFECTO PRINCIPAL: Cargar líderes solo cuando está todo listo
   useEffect(() => {
-    // Si es candidato y aún está cargando candidateId, esperar
-    if (user?.roleId === 3 && loadingCandidateId) {
-      setLoading(true);
-      return;
-    }
-
-    // Si es candidato pero no tiene candidateId válido, mostrar error
-    if (user?.roleId === 3 && (!candidateId || isNaN(candidateId))) {
-      setLoading(false);
-      setError("No se pudo cargar tu información de candidato");
-      return;
-    }
-
-    // Si todo está ok, cargar líderes
-    fetchLeaders(currentPage, search);
-  }, [currentPage, search, candidateId, loadingCandidateId, user?.roleId]);
+    fetchCampaigns(currentPage, search);
+  }, [currentPage, search]);
 
   // Refrescar cuando se llega desde la creación
   useEffect(() => {
     if (location.state?.refresh) {
-      // Si es candidato, esperar a que candidateId esté cargado
-      if (user?.roleId === 3) {
-        if (!loadingCandidateId && candidateId && !isNaN(candidateId)) {
-          setCurrentPage(1);
-          setSearch("");
-          fetchLeaders(1, "");
-        }
-      } else {
-        setCurrentPage(1);
-        setSearch("");
-        fetchLeaders(1, "");
-      }
+      setCurrentPage(1);
+      setSearch("");
+      fetchCampaigns(1, "");
     }
-  }, [location, candidateId, loadingCandidateId, user?.roleId]);
+  }, [location]);
 
   const handleSearchChange = (value) => {
     setSearch(value);
-    setCurrentPage(1);
+    setCurrentPage(1); // Reset a página 1 cuando cambia la búsqueda
   };
 
-  const handleEdit = (leader) => {
-    setEditingLeader(leader);
+  const handleEdit = (campaign) => {
+    setEditingCampaign(campaign);
     setFormData({
-      name: leader.name,
-      document: leader.document,
-      municipality: leader.municipality,
-      phone: leader.phone,
-      campaignId: leader.campaignId || "",
+      name: campaign.name,
+      description: campaign.description || "",
+      startDate: campaign.startDate ? campaign.startDate.split("T")[0] : "",
+      endDate: campaign.endDate ? campaign.endDate.split("T")[0] : "",
+      status: campaign.status,
     });
     setShowModal(true);
   };
 
-  const handleDelete = async (leaderId) => {
+  const handleDelete = async (campaignId) => {
     const result = await alert.confirm(
-      "¿Estás seguro de que deseas eliminar este líder?",
+      "¿Estás seguro de que deseas eliminar esta campaña?",
       "Confirmar eliminación",
       "Sí, eliminar",
       "Cancelar",
@@ -190,46 +104,36 @@ export default function Lideres() {
     if (!result.isConfirmed) return;
 
     try {
-      await deleteLeader(leaderId);
-      alert.success("Líder eliminado exitosamente");
+      await deleteCampaign(campaignId);
+      alert.success("Campaña eliminada exitosamente");
       setTimeout(() => {
         window.location.reload();
       }, 1500);
     } catch (err) {
-      alert.apiError(err, "Error al eliminar líder");
+      alert.apiError(err, "Error al eliminar campaña");
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!editingLeader) return;
+    if (!editingCampaign) return;
 
     try {
-      const updateData = {
-        name: formData.name,
-        document: formData.document,
-        municipality: formData.municipality,
-        phone: formData.phone,
-        ...(formData.campaignId && {
-          campaignId: parseInt(formData.campaignId),
-        }),
-      };
-
-      await updateLeader(editingLeader.id, updateData);
+      await updateCampaign(editingCampaign.id, formData);
       setShowModal(false);
-      setEditingLeader(null);
-      alert.success("Líder actualizado exitosamente");
-      fetchLeaders(currentPage, search);
+      setEditingCampaign(null);
+      alert.success("Campaña actualizada exitosamente");
+      fetchCampaigns(currentPage, search);
     } catch (err) {
-      alert.apiError(err, "Error al actualizar líder");
+      alert.apiError(err, "Error al actualizar campaña");
     }
   };
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: type === "checkbox" ? checked : value,
     }));
   };
 
@@ -237,14 +141,7 @@ export default function Lideres() {
     setCurrentPage(newPage);
   };
 
-  const filteredLeaders = leaders;
-
-  // Función auxiliar para obtener nombre de campaña
-  const getCampaignName = (campaignId) => {
-    if (!campaignId) return "Sin asignar";
-    const campaign = campaigns.find((c) => c.id === campaignId);
-    return campaign ? campaign.name : "Campaña desconocida";
-  };
+  const filteredCampaigns = campaigns;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-50 to-white p-4 sm:p-6 lg:p-8">
@@ -252,29 +149,29 @@ export default function Lideres() {
       <div className="flex flex-col sm:flex-row justify-between gap-4 mb-8">
         <div>
           <h2 className="text-3xl font-extrabold text-gray-900">
-            Listado de Líderes
+            Listado de Campañas
           </h2>
           <p className="text-gray-500 text-sm mt-2 max-w-xl">
-            Gestión de líderes comunitarios registrados en la plataforma
+            Gestión de campañas políticas registradas en la plataforma
           </p>
         </div>
 
         <button
-          onClick={() => navigate("/app/crear-lideres")}
-          disabled={!can("leaders:create")}
+          onClick={() => navigate("/app/crear-campanas")}
+          disabled={!can("campaigns:create")}
           title={
-            !can("leaders:create")
-              ? "No tienes permiso para crear líderes"
+            !can("campaigns:create")
+              ? "No tienes permiso para crear campañas"
               : ""
           }
           className={`flex items-center gap-2 px-6 py-3 rounded-xl shadow-md transition ${
-            can("leaders:create")
+            can("campaigns:create")
               ? "bg-orange-500 text-white shadow-orange-500/20 hover:bg-orange-600"
               : "bg-gray-300 text-gray-500 cursor-not-allowed"
           }`}
         >
           <PlusIcon className="w-5 h-5" />
-          Agregar líder
+          Agregar campaña
         </button>
       </div>
 
@@ -282,7 +179,7 @@ export default function Lideres() {
       <div className="mb-8">
         <input
           type="text"
-          placeholder="Buscar por nombre, documento o municipio..."
+          placeholder="Buscar por nombre o descripción..."
           value={search}
           onChange={(e) => handleSearchChange(e.target.value)}
           className="w-full sm:w-96 px-4 py-3 rounded-xl border border-gray-200 bg-white shadow-sm focus:ring-2 focus:ring-orange-500/30 focus:outline-none"
@@ -290,11 +187,13 @@ export default function Lideres() {
       </div>
 
       {/* Modal de edición */}
-      {showModal && editingLeader && (
+      {showModal && editingCampaign && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 max-h-screen overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-gray-900">Editar Líder</h3>
+              <h3 className="text-lg font-bold text-gray-900">
+                Editar Campaña
+              </h3>
               <button
                 onClick={() => setShowModal(false)}
                 className="text-gray-400 hover:text-gray-600"
@@ -320,60 +219,57 @@ export default function Lideres() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Documento
+                  Descripción
                 </label>
-                <input
-                  type="text"
-                  name="document"
-                  value={formData.document}
+                <textarea
+                  name="description"
+                  value={formData.description}
                   onChange={handleInputChange}
+                  rows="2"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Municipio
+                  Fecha de Inicio *
                 </label>
                 <input
-                  type="text"
-                  name="municipality"
-                  value={formData.municipality}
+                  type="date"
+                  name="startDate"
+                  value={formData.startDate}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                  required
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Teléfono
+                  Fecha de Finalización *
                 </label>
                 <input
-                  type="text"
-                  name="phone"
-                  value={formData.phone}
+                  type="date"
+                  name="endDate"
+                  value={formData.endDate}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                  required
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Campaña
-                </label>
-                <select
-                  name="campaignId"
-                  value={formData.campaignId}
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="status"
+                  name="status"
+                  checked={formData.status}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
-                >
-                  <option value="">Sin asignar</option>
-                  {campaigns.map((campaign) => (
-                    <option key={campaign.id} value={campaign.id}>
-                      {campaign.name}
-                    </option>
-                  ))}
-                </select>
+                  className="w-4 h-4 text-orange-500 rounded focus:ring-orange-500"
+                />
+                <label htmlFor="status" className="ml-2 text-sm text-gray-700">
+                  Campaña activa
+                </label>
               </div>
 
               <div className="flex gap-3 pt-4 border-t">
@@ -399,24 +295,18 @@ export default function Lideres() {
       {/* Estados */}
       {loading && (
         <div className="bg-white p-6 rounded-xl shadow-sm">
-          ⏳ Cargando líderes...
+          Cargando campañas...
         </div>
       )}
 
-      {error && (
-        <div className="bg-white p-6 rounded-xl text-red-600">
-          ❌ {error}
-        </div>
-      )}
-
-      {!loading && !error && filteredLeaders.length === 0 && (
+      {!loading && filteredCampaigns.length === 0 && (
         <div className="bg-white p-6 rounded-xl text-gray-500">
           No se encontraron resultados
         </div>
       )}
 
       {/* ===== TABLA DESKTOP ===== */}
-      {!loading && !error && filteredLeaders.length > 0 && (
+      {!loading && filteredCampaigns.length > 0 && (
         <div className="hidden md:block bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full table-auto">
@@ -424,10 +314,10 @@ export default function Lideres() {
                 <tr>
                   {[
                     "Nombre",
-                    "Documento",
-                    "Municipio",
-                    "Teléfono",
-                    "Campaña",
+                    "Organización",
+                    "Inicio",
+                    "Fin",
+                    "Estado",
                     "Acciones",
                   ].map((h) => (
                     <th
@@ -441,54 +331,62 @@ export default function Lideres() {
               </thead>
 
               <tbody className="divide-y divide-gray-100">
-                {filteredLeaders.map((leader) => (
+                {filteredCampaigns.map((campaign) => (
                   <tr
-                    key={leader.id}
+                    key={campaign.id}
                     className="hover:bg-gray-50 transition-colors"
                   >
                     <td className="px-6 py-4 text-sm font-semibold text-gray-900">
-                      {leader.name}
-                    </td>
-
-                    <td className="px-6 py-4 text-sm text-gray-700 font-medium">
-                      {leader.document || "No registrado"}
+                      {campaign.name}
                     </td>
 
                     <td className="px-6 py-4 text-sm text-gray-700">
-                      {leader.municipality || "No registrado"}
+                      {campaign.organization?.name || "No asignada"}
                     </td>
 
                     <td className="px-6 py-4 text-sm text-gray-700">
-                      {leader.phone || "No registrado"}
+                      {new Date(campaign.startDate).toLocaleDateString(
+                        "es-ES",
+                      )}
                     </td>
 
                     <td className="px-6 py-4 text-sm text-gray-700">
-                      <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
-                        {getCampaignName(leader.campaignId)}
+                      {new Date(campaign.endDate).toLocaleDateString("es-ES")}
+                    </td>
+
+                    <td className="px-6 py-4 text-sm">
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          campaign.status
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {campaign.status ? "Activa" : "Inactiva"}
                       </span>
                     </td>
 
                     <td className="px-6 py-4 flex gap-4">
-                      {can("leaders:update") && (
+                      {can("campaigns:update") && (
                         <button
-                          onClick={() => handleEdit(leader)}
+                          onClick={() => handleEdit(campaign)}
                           className="text-gray-400 hover:text-orange-500 transition"
                           title="Editar"
                         >
                           <PencilSquareIcon className="w-5 h-5" />
                         </button>
                       )}
-                      {can("leaders:delete") && (
+                      {can("campaigns:delete") && (
                         <button
-                          onClick={() => handleDelete(leader.id)}
+                          onClick={() => handleDelete(campaign.id)}
                           className="text-gray-400 hover:text-red-500 transition"
                           title="Eliminar"
                         >
                           <TrashIcon className="w-5 h-5" />
                         </button>
                       )}
-                      {!can("leaders:update") &&
-                        !can("leaders:delete") && (
+                      {!can("campaigns:update") &&
+                        !can("campaigns:delete") && (
                           <span className="text-gray-300 text-sm">
                             Sin acceso
                           </span>
@@ -512,63 +410,58 @@ export default function Lideres() {
       )}
 
       {/* ===== MOBILE ===== */}
-      {!loading && !error && (
+      {!loading && (
         <div className="md:hidden space-y-4">
-          {filteredLeaders.map((leader) => (
+          {filteredCampaigns.map((campaign) => (
             <div
-              key={leader.id}
+              key={campaign.id}
               className="bg-white rounded-xl shadow-md p-4 border border-gray-200"
             >
               <div className="font-bold text-gray-900 text-lg mb-2">
-                {leader.name}
+                {campaign.name}
               </div>
 
               <div className="space-y-2 text-sm text-gray-600 mb-4">
-                {leader.document && (
-                  <div>
-                    <span className="font-semibold text-gray-900">
-                      Documento:
-                    </span>{" "}
-                    {leader.document}
-                  </div>
-                )}
-                {leader.municipality && (
-                  <div>
-                    <span className="font-semibold text-gray-900">
-                      Municipio:
-                    </span>{" "}
-                    {leader.municipality}
-                  </div>
-                )}
-                {leader.phone && (
-                  <div>
-                    <span className="font-semibold text-gray-900">
-                      Teléfono:
-                    </span>{" "}
-                    {leader.phone}
-                  </div>
-                )}
                 <div>
-                  <span className="font-semibold text-gray-900">Campaña:</span>{" "}
-                  <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
-                    {getCampaignName(leader.campaignId)}
+                  <span className="font-semibold text-gray-900">
+                    Organización:
+                  </span>{" "}
+                  {campaign.organization?.name || "No asignada"}
+                </div>
+                <div>
+                  <span className="font-semibold text-gray-900">Inicio:</span>{" "}
+                  {new Date(campaign.startDate).toLocaleDateString("es-ES")}
+                </div>
+                <div>
+                  <span className="font-semibold text-gray-900">Fin:</span>{" "}
+                  {new Date(campaign.endDate).toLocaleDateString("es-ES")}
+                </div>
+                <div>
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      campaign.status
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    {campaign.status ? "Activa" : "Inactiva"}
                   </span>
                 </div>
               </div>
 
               <div className="flex gap-4 pt-3 border-t">
-                {can("leaders:update") && (
+                {can("campaigns:update") && (
                   <button
-                    onClick={() => handleEdit(leader)}
+                    onClick={() => handleEdit(campaign)}
                     className="flex items-center gap-2 text-orange-500 hover:text-orange-600 flex-1 justify-center py-2 rounded-lg hover:bg-orange-50"
                   >
                     <PencilSquareIcon className="w-4 h-4" />
                     Editar
                   </button>
                 )}
-                {can("leaders:delete") && (
+                {can("campaigns:delete") && (
                   <button
-                    onClick={() => handleDelete(leader.id)}
+                    onClick={() => handleDelete(campaign.id)}
                     className="flex items-center gap-2 text-red-500 hover:text-red-600 flex-1 justify-center py-2 rounded-lg hover:bg-red-50"
                   >
                     <TrashIcon className="w-4 h-4" />

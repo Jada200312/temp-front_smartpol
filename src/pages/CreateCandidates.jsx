@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import { getCorporations } from "../api/corporations";
+import { getAllCampaigns } from "../api/campaigns";
 import { createUser } from "../api/users";
 import { createCandidate } from "../api/candidates";
 import { useAlert } from "../hooks/useAlert";
@@ -11,7 +12,9 @@ export default function CreateCandidates() {
   const navigate = useNavigate();
   const alert = useAlert();
   const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
   const [corporations, setCorporations] = useState([]);
+  const [campaigns, setCampaigns] = useState([]);
   const [formErrors, setFormErrors] = useState({});
   const [formData, setFormData] = useState({
     email: "",
@@ -21,6 +24,7 @@ export default function CreateCandidates() {
     party: "",
     number: "",
     corporation_id: "",
+    campaignId: "",
   });
 
   // Reglas de validación del formulario
@@ -33,20 +37,26 @@ export default function CreateCandidates() {
     corporation_id: [ValidationRules.required],
   };
 
-  // Cargar corporaciones al montar el componente
+  // Cargar corporaciones y campañas al montar el componente
   useEffect(() => {
-    const loadCorporations = async () => {
+    const loadData = async () => {
       try {
-        const data = await getCorporations();
-        setCorporations(data);
+        const [corporationsData, campaignsData] = await Promise.all([
+          getCorporations(),
+          getAllCampaigns(),
+        ]);
+        setCorporations(corporationsData);
+        setCampaigns(Array.isArray(campaignsData) ? campaignsData : []);
       } catch (err) {
         alert.error(
-          err.message || "No se pudieron cargar las corporaciones",
+          err.message || "Error al cargar los datos",
           "Error al cargar",
         );
+      } finally {
+        setLoadingData(false);
       }
     };
-    loadCorporations();
+    loadData();
   }, []);
 
   const handleInputChange = (e) => {
@@ -100,6 +110,7 @@ export default function CreateCandidates() {
         number: parseInt(formData.number) || 0,
         corporation_id: parseInt(formData.corporation_id),
         userId: userResponse.id,
+        ...(formData.campaignId && { campaignId: parseInt(formData.campaignId) }),
       };
 
       await createCandidate(candidateData);
@@ -116,6 +127,7 @@ export default function CreateCandidates() {
         party: "",
         number: "",
         corporation_id: "",
+        campaignId: "",
       });
       setFormErrors({});
 
@@ -304,7 +316,7 @@ export default function CreateCandidates() {
             </div>
 
             {/* Partido y Número */}
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 mb-4">
               <div>
                 <label
                   htmlFor="party"
@@ -349,6 +361,33 @@ export default function CreateCandidates() {
                 />
               </div>
             </div>
+
+            {/* Campaña */}
+            <div>
+              <label
+                htmlFor="campaignId"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Campaña (Opcional)
+              </label>
+              <select
+                name="campaignId"
+                id="campaignId"
+                value={formData.campaignId}
+                onChange={handleInputChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm border p-2"
+              >
+                <option value="">Seleccionar campaña (opcional)</option>
+                {campaigns.map((campaign) => (
+                  <option key={campaign.id} value={campaign.id}>
+                    {campaign.name} {campaign.status ? "✓" : "✗"}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Puedes asignar al candidato a una campaña ahora o hacerlo después
+              </p>
+            </div>
           </div>
 
           {/* Botones de acción */}
@@ -362,7 +401,7 @@ export default function CreateCandidates() {
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || loadingData}
               className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Guardando..." : "Crear Candidato"}

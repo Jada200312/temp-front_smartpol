@@ -24,6 +24,10 @@ import Forbidden from "./pages/Forbidden";
 import NotFound from "./pages/NotFound";
 import PrivateRoute from "./components/PrivateRoute";
 import { usePermission } from "./hooks/usePermission";
+import Organizaciones from "./pages/Organizaciones";
+import CreateOrganizaciones from "./pages/CreateOrganizaciones";
+import Campanas from "./pages/Campanas";
+import CreateCampanas from "./pages/CreateCampanas";
 
 /**
  * Componente para proteger rutas que requieren rol específico
@@ -72,7 +76,9 @@ function PermissionBasedRoute({ requiredPermission, children }) {
   }
 
   return children;
-} /**
+}
+
+/**
  * Página de login con redirección automática si ya hay sesión
  */
 function LoginPage() {
@@ -82,7 +88,7 @@ function LoginPage() {
   useEffect(() => {
     // Si hay usuario y ya termina de cargar, redirigir
     if (!isLoading && user) {
-      navigate("/app/inicio", { replace: true });
+      navigate("/app/dashboard", { replace: true });
     }
   }, [user, isLoading, navigate]);
 
@@ -131,11 +137,54 @@ function App() {
               </PrivateRoute>
             }
           >
+            {/* Dashboard - Ruta /app/dashboard - renderiza gráficos en Dashboard.jsx */}
+            <Route path="dashboard" element={null} />
+
             {/* Inicio - Todos pueden acceder */}
             <Route path="inicio" element={<Inicio />} />
 
             {/* Votantes - Superadmin, Admin campaña, Candidato, Líder, Digitador (todos) */}
             <Route path="votantes" element={<Votantes />} />
+
+            {/* Organizaciones - Solo Superadmin */}
+            <Route
+              path="organizaciones"
+              element={
+                <RoleBasedRoute requiredRoles={[1]}>
+                  <Organizaciones />
+                </RoleBasedRoute>
+              }
+            />
+
+            {/* Crear Organizaciones - Solo Superadmin */}
+            <Route
+              path="crear-organizaciones"
+              element={
+                <RoleBasedRoute requiredRoles={[1]}>
+                  <CreateOrganizaciones />
+                </RoleBasedRoute>
+              }
+            />
+
+            {/* Campañas - Superadmin y Admin de Organización */}
+            <Route
+              path="campanas"
+              element={
+                <RoleBasedRoute requiredRoles={[1, 2]}>
+                  <Campanas />
+                </RoleBasedRoute>
+              }
+            />
+
+            {/* Crear Campañas - Superadmin y Admin de Organización */}
+            <Route
+              path="crear-campanas"
+              element={
+                <RoleBasedRoute requiredRoles={[1, 2]}>
+                  <CreateCampanas />
+                </RoleBasedRoute>
+              }
+            />
 
             {/* Candidatos - Superadmin, Admin campaña */}
             <Route
@@ -227,8 +276,8 @@ function App() {
               }
             />
 
-            {/* Ruta por defecto dentro de Dashboard */}
-            <Route index element={<Navigate to="inicio" replace />} />
+            {/* Ruta por defecto dentro de Dashboard - redirigir a dashboard */}
+            <Route index element={<Navigate to="dashboard" replace />} />
           </Route>
 
           {/* Ruta de acceso denegado */}

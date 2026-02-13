@@ -74,6 +74,36 @@ export default function Sidebar({ isOpen, onClose }) {
         {/* Navegación */}
         <nav className="flex-1 px-4 py-6">
           <ul className="space-y-2">
+
+            {/* Dashboard */}
+            <li>
+              <Link
+                to="/app/dashboard"
+                onClick={onClose}
+                className={`flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all
+                  ${
+                    isActive("/app/dashboard") || location.pathname === "/app"
+                      ? "bg-orange-500 text-white shadow-md"
+                      : "text-gray-600 hover:bg-orange-100 hover:text-orange-600"
+                  }`}
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                  />
+                </svg>
+                <span className="ml-3">Dashboard</span>
+              </Link>
+            </li>
+            
             {/* Inicio - Solo Superadmin */}
             {canSeeInicio && (
               <li>
@@ -151,6 +181,43 @@ export default function Sidebar({ isOpen, onClose }) {
                 {/* Submenu items */}
                 {expandedMenu === "gestion" && (
                   <ul className="space-y-1 mt-2 pl-4">
+                    {/* Organizaciones - Solo Superadmin */}
+                {isSuperadmin && (
+                  <li>
+                    <Link
+                      to="/app/organizaciones"
+                      onClick={onClose}
+                      className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all
+                        ${
+                          isActive("/app/organizaciones")
+                            ? "bg-orange-500 text-white shadow-md"
+                            : "text-gray-600 hover:bg-orange-100 hover:text-orange-600"
+                        }`}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-current mr-3"></span>
+                      <span>Organizaciones</span>
+                    </Link>
+                  </li>
+                  )}
+
+                  {/* Campañas - Superadmin y Admin de campaña */}
+                {(isSuperadmin || isAdminCampaign) && (
+                  <li>
+                    <Link
+                      to="/app/campanas"
+                      onClick={onClose}
+                      className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all
+                        ${
+                          isActive("/app/campanas")
+                            ? "bg-orange-500 text-white shadow-md"
+                            : "text-gray-600 hover:bg-orange-100 hover:text-orange-600"
+                        }`}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-current mr-3"></span>
+                      <span>Campañas</span>
+                    </Link>
+                  </li>
+                )}
                     {/* Candidatos */}
                     {canCreate && (
                       <li>

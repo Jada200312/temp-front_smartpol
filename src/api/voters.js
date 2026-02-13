@@ -95,3 +95,31 @@ export async function updateAssignedCandidates(voterId, candidateIds, leaderId) 
     }),
   }, "actualizar candidatos asignados");
 }
+export async function getAllVotersWithAssignments(roleId, candidateId, leaderId) {
+  const params = new URLSearchParams();
+  if (roleId) params.append('roleId', roleId);
+  if (candidateId) params.append('candidateId', candidateId);
+  if (leaderId) params.append('leaderId', leaderId);
+  
+  return apiCall(`${API_URL}/voters/search/all-with-assignments?${params.toString()}`, {
+    headers: getAuthHeaders(),
+  }, "obtener todos los votantes con asignaciones");
+}
+
+export async function getVotersWithAssignments(page = 1, limit = 20) {
+  return apiCall(`${API_URL}/voters?page=${page}&limit=${limit}`, {
+    headers: getAuthHeaders(),
+  }, "obtener votantes con asignaciones");
+}
+
+export async function getVotersByCandidateWithAssignments(candidateId, page = 1, limit = 20) {
+  return apiCall(`${API_URL}/voters/by-candidate/${candidateId}?page=${page}&limit=${limit}`, {
+    headers: getAuthHeaders(),
+  }, "obtener votantes del candidato con asignaciones");
+}
+
+export async function getVotersByLeaderWithAssignments(leaderId, page = 1, limit = 20) {
+  return apiCall(`${API_URL}/voters/by-leader/${leaderId}?page=${page}&limit=${limit}`, {
+    headers: getAuthHeaders(),
+  }, "obtener votantes del líder con asignaciones");
+}

@@ -14,6 +14,9 @@ import {
   TrashIcon,
 } from "@heroicons/react/24/outline";
 
+const ROLE_SUPER_ADMIN = 1;
+const ROLE_ORG_ADMIN = 2;
+
 export default function Campanas() {
   const { can } = usePermission();
   const navigate = useNavigate();
@@ -29,6 +32,8 @@ export default function Campanas() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [itemsPerPage] = useState(10);
+  const [userRole, setUserRole] = useState(null);
+  const [userOrgId, setUserOrgId] = useState(null);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -36,6 +41,21 @@ export default function Campanas() {
     endDate: "",
     status: true,
   });
+
+  // Obtener información del usuario al montar
+  useEffect(() => {
+    try {
+      const roleId = localStorage.getItem('roleId');
+      const organizationId = localStorage.getItem('organizationId');
+      
+      setUserRole(parseInt(roleId));
+      if (organizationId) {
+        setUserOrgId(parseInt(organizationId));
+      }
+    } catch (err) {
+      console.error('Error al obtener info del usuario:', err);
+    }
+  }, []);
 
   // Cargar campañas con paginación
   const fetchCampaigns = async (page = 1, searchTerm = "") => {
@@ -49,7 +69,14 @@ export default function Campanas() {
       );
 
       // Asegurar que siempre obtenemos un array
-      const campanias = Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []);
+      let campanias = Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []);
+
+      // Filtrar por organización si es Org Admin
+      if (userRole === ROLE_ORG_ADMIN && userOrgId) {
+        campanias = campanias.filter(
+          (campaign) => campaign.organizationId === userOrgId
+        );
+      }
 
       setCampaigns(campanias);
       setCurrentPage(data.page || page);
@@ -65,8 +92,11 @@ export default function Campanas() {
   };
 
   useEffect(() => {
-    fetchCampaigns(currentPage, search);
-  }, [currentPage, search]);
+    // Solo cargar si tenemos definido el rol
+    if (userRole !== null) {
+      fetchCampaigns(currentPage, search);
+    }
+  }, [currentPage, search, userRole, userOrgId]);
 
   // Refrescar cuando se llega desde la creación
   useEffect(() => {

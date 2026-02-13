@@ -88,6 +88,15 @@ export async function createOrganization(organization) {
   }, "crear organización");
 }
 
+// NUEVO: Crear organización con administrador
+export async function createOrganizationWithAdmin(organizationData) {
+  return apiCall(`${API_URL}/organizations/with-admin`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(organizationData),
+  }, "crear organización con administrador");
+}
+
 export async function updateOrganization(organizationId, organization) {
   return apiCall(`${API_URL}/organizations/${organizationId}`, {
     method: "PATCH",

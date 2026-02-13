@@ -1,75 +1,147 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { createCampaign } from "../api/campaigns";
+import { createCampaign, getAllCampaigns } from "../api/campaigns";
 import { getAllOrganizations } from "../api/organizations";
 import { useAlert } from "../hooks/useAlert";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 
+const ROLE_SUPER_ADMIN = 1;
+const ROLE_ORG_ADMIN = 2;
+
 export default function CreateCampanas() {
   const navigate = useNavigate();
   const alert = useAlert();
-  const [loading, setLoading] = useState(false);
-  const [loadingOrganizations, setLoadingOrganizations] = useState(true);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [organizationName, setOrganizationName] = useState("");
   const [organizations, setOrganizations] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [loadingOrgs, setLoadingOrgs] = useState(true);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     startDate: "",
     endDate: "",
-    organizationId: "",
     status: true,
+    organizationId: "",
   });
 
-  // Cargar organizaciones
+  // Obtener usuario al montar el componente
   useEffect(() => {
-    const fetchOrganizations = async () => {
-      try {
-        const data = await getAllOrganizations();
-        setOrganizations(Array.isArray(data) ? data : []);
-      } catch (err) {
-        alert.error("Error al cargar las organizaciones");
-        console.error("Error:", err);
-      } finally {
-        setLoadingOrganizations(false);
-      }
-    };
+    try {
+      const userId = localStorage.getItem('user_id');
+      const userEmail = localStorage.getItem('user_email');
+      const roleId = localStorage.getItem('roleId');
+      const organizationId = localStorage.getItem('organizationId');
+      const orgName = localStorage.getItem('organizationName');
+      
+      if (userId) {
+        const user = {
+          id: parseInt(userId),
+          email: userEmail,
+          roleId: parseInt(roleId),
+          organizationId: organizationId ? parseInt(organizationId) : null,
+        };
+        console.log("Usuario construido:", user);
+        setCurrentUser(user);
 
-    fetchOrganizations();
+        // Si es admin de organización (roleId === 2)
+        if (parseInt(roleId) === ROLE_ORG_ADMIN) {
+          setOrganizationName(orgName || "Organización");
+          if (organizationId) {
+            setFormData((prev) => ({
+              ...prev,
+              organizationId: parseInt(organizationId),
+            }));
+          }
+          setLoadingOrgs(false);
+        }
+      } else {
+        console.log("No hay user_id en localStorage");
+        setCurrentUser({});
+        setLoadingOrgs(false);
+      }
+    } catch (err) {
+      console.error('Error al obtener usuario:', err);
+      alert.error("Error al cargar información del usuario");
+      setLoadingOrgs(false);
+    }
   }, []);
+
+  // Cargar organizaciones solo si es super admin
+  useEffect(() => {
+    if (currentUser && parseInt(currentUser.roleId) === ROLE_SUPER_ADMIN) {
+      loadOrganizations();
+    }
+  }, [currentUser]);
+
+  const loadOrganizations = async () => {
+    setLoadingOrgs(true);
+    try {
+      let orgsData = null;
+      try {
+        orgsData = await getAllOrganizations();
+      } catch (err) {
+        console.warn("Usando campañas como fallback...");
+        const campaigns = await getAllCampaigns();
+        const uniqueOrgs = new Map();
+        if (Array.isArray(campaigns)) {
+          campaigns.forEach((campaign) => {
+            if (campaign.organization && campaign.organization.id) {
+              uniqueOrgs.set(campaign.organization.id, campaign.organization);
+            }
+          });
+        }
+        orgsData = Array.from(uniqueOrgs.values());
+      }
+      
+      const orgsArray = Array.isArray(orgsData) ? orgsData : (orgsData?.data || []);
+      console.log("Organizaciones cargadas:", orgsArray);
+      setOrganizations(orgsArray);
+      
+      if (orgsArray.length > 0) {
+        setFormData((prev) => ({
+          ...prev,
+          organizationId: orgsArray[0].id,
+        }));
+      }
+    } catch (err) {
+      console.error("Error al cargar organizaciones:", err);
+      setOrganizations([]);
+    } finally {
+      setLoadingOrgs(false);
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: type === "checkbox" ? checked : (name === "organizationId" ? parseInt(value) || "" : value),
     }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validaciones
     if (!formData.name.trim()) {
       alert.error("El nombre de la campaña es obligatorio");
       return;
     }
 
-    if (!formData.organizationId) {
+    if (!formData.startDate || !formData.endDate) {
+      alert.error("Las fechas son obligatorias");
+      return;
+    }
+
+    if (parseInt(currentUser.roleId) === ROLE_SUPER_ADMIN && !formData.organizationId) {
       alert.error("Debes seleccionar una organización");
       return;
     }
 
-    if (!formData.startDate) {
-      alert.error("La fecha de inicio es obligatoria");
-      return;
-    }
-
-    if (!formData.endDate) {
-      alert.error("La fecha de finalización es obligatoria");
-      return;
-    }
-
-    if (new Date(formData.startDate) >= new Date(formData.endDate)) {
+    const startDate = new Date(formData.startDate);
+    const endDate = new Date(formData.endDate);
+    
+    if (startDate >= endDate) {
       alert.error("La fecha de inicio debe ser anterior a la fecha de fin");
       return;
     }
@@ -77,17 +149,41 @@ export default function CreateCampanas() {
     setLoading(true);
 
     try {
-      await createCampaign({
-        ...formData,
-        organizationId: parseInt(formData.organizationId),
-      });
+      const dataToSend = {
+        name: formData.name.trim(),
+        description: formData.description.trim(),
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        status: formData.status,
+      };
+
+      if (parseInt(currentUser.roleId) === ROLE_ORG_ADMIN) {
+        const orgId = localStorage.getItem('organizationId');
+        if (orgId) {
+          dataToSend.organizationId = parseInt(orgId);
+        }
+      } else if (parseInt(currentUser.roleId) === ROLE_SUPER_ADMIN) {
+        dataToSend.organizationId = formData.organizationId;
+      }
+
+      console.log("Datos a enviar:", dataToSend);
+      const response = await createCampaign(dataToSend);
+      console.log("Respuesta del servidor:", response);
+
       alert.success("Campaña creada exitosamente");
 
       setTimeout(() => {
         navigate("/app/campanas", { state: { refresh: true } });
       }, 1500);
     } catch (err) {
-      alert.apiError(err, "Error al crear la campaña");
+      console.error("Error:", err);
+      let errorMsg = "Error al crear la campaña";
+      if (err.response?.data?.message) {
+        errorMsg = err.response.data.message;
+      } else if (err.message) {
+        errorMsg = err.message;
+      }
+      alert.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -97,9 +193,19 @@ export default function CreateCampanas() {
     navigate("/app/campanas");
   };
 
+  if (currentUser === null || loadingOrgs) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-50 to-white p-4 sm:p-6 lg:p-8">
+        <div className="text-center text-gray-500">Cargando información...</div>
+      </div>
+    );
+  }
+
+  const isSuperAdmin = parseInt(currentUser.roleId) === ROLE_SUPER_ADMIN;
+  const isOrgAdmin = parseInt(currentUser.roleId) === ROLE_ORG_ADMIN;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-50 to-white p-4 sm:p-6 lg:p-8">
-      {/* Header */}
       <div className="flex items-center gap-4 mb-8">
         <button
           onClick={handleCancel}
@@ -118,13 +224,59 @@ export default function CreateCampanas() {
         </div>
       </div>
 
-      {/* Formulario */}
       <div className="max-w-2xl">
         <form
           onSubmit={handleSubmit}
           className="bg-white rounded-xl shadow-md border border-gray-200 p-6 sm:p-8"
         >
-          {/* Nombre */}
+          {isOrgAdmin && (
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <label className="block text-sm font-semibold text-gray-900 mb-2">
+                Organización Asignada
+              </label>
+              <p className="text-sm text-gray-700 font-medium">
+                {organizationName}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                La campaña se creará automáticamente en tu organización.
+              </p>
+            </div>
+          )}
+
+          {isSuperAdmin && organizations.length > 0 && (
+            <div className="mb-6">
+              <label
+                htmlFor="organizationId"
+                className="block text-sm font-semibold text-gray-900 mb-2"
+              >
+                Organización *
+              </label>
+              <select
+                id="organizationId"
+                name="organizationId"
+                value={formData.organizationId}
+                onChange={handleInputChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500/30 focus:outline-none transition"
+                required
+              >
+                <option value="">Selecciona una organización</option>
+                {organizations.map((org) => (
+                  <option key={org.id} value={org.id}>
+                    {org.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {isSuperAdmin && organizations.length === 0 && (
+            <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-800">
+                <strong>Nota:</strong> No hay organizaciones disponibles.
+              </p>
+            </div>
+          )}
+
           <div className="mb-6">
             <label
               htmlFor="name"
@@ -142,46 +294,8 @@ export default function CreateCampanas() {
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500/30 focus:outline-none transition"
               required
             />
-            <p className="text-xs text-gray-500 mt-1">
-              Campo obligatorio. Máximo 255 caracteres.
-            </p>
           </div>
 
-          {/* Organización */}
-          <div className="mb-6">
-            <label
-              htmlFor="organizationId"
-              className="block text-sm font-semibold text-gray-900 mb-2"
-            >
-              Organización *
-            </label>
-            <select
-              id="organizationId"
-              name="organizationId"
-              value={formData.organizationId}
-              onChange={handleInputChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500/30 focus:outline-none transition"
-              required
-            >
-              <option value="">Selecciona una organización</option>
-              {loadingOrganizations ? (
-                <option disabled>Cargando organizaciones...</option>
-              ) : organizations.length > 0 ? (
-                organizations.map((org) => (
-                  <option key={org.id} value={org.id}>
-                    {org.name}
-                  </option>
-                ))
-              ) : (
-                <option disabled>No hay organizaciones disponibles</option>
-              )}
-            </select>
-            <p className="text-xs text-gray-500 mt-1">
-              Campo obligatorio. Selecciona la organización responsable.
-            </p>
-          </div>
-
-          {/* Descripción */}
           <div className="mb-6">
             <label
               htmlFor="description"
@@ -198,12 +312,8 @@ export default function CreateCampanas() {
               rows="4"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500/30 focus:outline-none transition resize-none"
             />
-            <p className="text-xs text-gray-500 mt-1">
-              Campo opcional. Proporciona información adicional sobre la campaña.
-            </p>
           </div>
 
-          {/* Fechas */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
             <div>
               <label
@@ -242,7 +352,6 @@ export default function CreateCampanas() {
             </div>
           </div>
 
-          {/* Estado */}
           <div className="mb-8 flex items-center">
             <input
               type="checkbox"
@@ -257,7 +366,6 @@ export default function CreateCampanas() {
             </label>
           </div>
 
-          {/* Botones */}
           <div className="flex gap-4">
             <button
               type="button"
@@ -268,9 +376,9 @@ export default function CreateCampanas() {
             </button>
             <button
               type="submit"
-              disabled={loading || loadingOrganizations}
+              disabled={loading || (isSuperAdmin && organizations.length === 0)}
               className={`flex-1 px-6 py-3 font-semibold rounded-lg text-white transition ${
-                loading || loadingOrganizations
+                loading || (isSuperAdmin && organizations.length === 0)
                   ? "bg-gray-400 cursor-not-allowed"
                   : "bg-orange-500 hover:bg-orange-600 shadow-orange-500/20 shadow-md"
               }`}
@@ -279,13 +387,6 @@ export default function CreateCampanas() {
             </button>
           </div>
         </form>
-
-        {/* Info box */}
-        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p className="text-sm text-blue-900">
-            <strong>Nota:</strong> Una vez creada la campaña, podrás asignar candidatos, líderes y usuarios.
-          </p>
-        </div>
       </div>
     </div>
   );

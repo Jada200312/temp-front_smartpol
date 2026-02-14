@@ -15,6 +15,9 @@ import {
   TrashIcon,
 } from "@heroicons/react/24/outline";
 
+const ROLE_SUPER_ADMIN = 1;
+const ROLE_ORG_ADMIN = 2;
+
 export default function Candidatos() {
   const { can } = usePermission();
   const navigate = useNavigate();
@@ -31,6 +34,8 @@ export default function Candidatos() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [itemsPerPage] = useState(10);
+  const [userRole, setUserRole] = useState(null);
+  const [userOrgId, setUserOrgId] = useState(null);
   const [formData, setFormData] = useState({
     name: "",
     party: "",
@@ -38,33 +43,74 @@ export default function Candidatos() {
     campaignId: "",
   });
 
+  // Obtener información del usuario al montar
+  useEffect(() => {
+    try {
+      const roleId = localStorage.getItem('roleId');
+      const organizationId = localStorage.getItem('organizationId');
+      
+      setUserRole(parseInt(roleId));
+      if (organizationId) {
+        setUserOrgId(parseInt(organizationId));
+      }
+    } catch (err) {
+      console.error('Error al obtener info del usuario:', err);
+    }
+  }, []);
+
   // Cargar campañas
   useEffect(() => {
     const loadCampaigns = async () => {
       try {
         const data = await getAllCampaigns();
-        setCampaigns(Array.isArray(data) ? data : []);
+        let campanias = Array.isArray(data) ? data : [];
+
+        // Filtrar por organización si es Org Admin
+        if (userRole === ROLE_ORG_ADMIN && userOrgId) {
+          campanias = campanias.filter(
+            (campaign) => campaign.organizationId === userOrgId
+          );
+        }
+
+        setCampaigns(campanias);
       } catch (err) {
         console.error("Error loading campaigns:", err);
       }
     };
-    loadCampaigns();
-  }, []);
+
+    if (userRole !== null) {
+      loadCampaigns();
+    }
+  }, [userRole, userOrgId]);
 
   // Cargar candidatos con paginación
   const fetchCandidates = async (page = 1, searchTerm = "") => {
     setLoading(true);
     setError("");
     try {
+      // Pasar organizationId al backend si es Org Admin
+      const orgIdToFilter = userRole === ROLE_ORG_ADMIN ? userOrgId : null;
+      
       const data = await getCandidatesWithPagination(
         page,
         itemsPerPage,
         searchTerm,
+        orgIdToFilter
       );
-      setCandidates(Array.isArray(data.data) ? data.data : []);
-      setCurrentPage(data.page);
-      setTotalPages(data.pages);
-      setTotalItems(data.total);
+
+      let candidatesList = Array.isArray(data.data) ? data.data : [];
+
+      // Filtro adicional en cliente por si el backend no filtre correctamente
+      if (userRole === ROLE_ORG_ADMIN && userOrgId) {
+        candidatesList = candidatesList.filter(
+          (candidate) => candidate.organizationId === userOrgId
+        );
+      }
+
+      setCandidates(candidatesList);
+      setCurrentPage(data.page || page);
+      setTotalPages(data.pages || 1);
+      setTotalItems(data.total || candidatesList.length);
     } catch (err) {
       setError("No se pudieron cargar los candidatos");
       alert.apiError(err, "No se pudieron cargar los candidatos");
@@ -74,8 +120,10 @@ export default function Candidatos() {
   };
 
   useEffect(() => {
-    fetchCandidates(currentPage, search);
-  }, [currentPage, search]);
+    if (userRole !== null) {
+      fetchCandidates(currentPage, search);
+    }
+  }, [currentPage, search, userRole, userOrgId]);
 
   // Refrescar cuando se llega desde la creación
   useEffect(() => {
@@ -115,7 +163,7 @@ export default function Candidatos() {
       await deleteCandidate(candidateId);
       alert.success("Candidato eliminado exitosamente");
       setTimeout(() => {
-        window.location.reload();
+        fetchCandidates(currentPage, search);
       }, 1500);
     } catch (err) {
       alert.apiError(err, "Error al eliminar candidato");

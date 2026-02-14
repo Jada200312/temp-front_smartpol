@@ -1,14 +1,12 @@
 import { API_URL, getAuthHeaders, apiCall } from "./config";
 
 export async function getCandidates() {
-  // Obtener todos los candidatos sin paginación (con límite alto)
   return apiCall(`${API_URL}/candidates?limit=10000`, {
     headers: getAuthHeaders(),
   }, "obtener candidatos");
 }
 
 export async function getAllCandidates() {
-  // Obtener todos los candidatos cargando todas las páginas
   try {
     let allCandidates = [];
     let page = 1;
@@ -25,7 +23,6 @@ export async function getAllCandidates() {
         allCandidates = [...allCandidates, ...data];
       }
 
-      // Verificar si hay más páginas
       if (data?.pages && page >= data.pages) {
         hasMorePages = false;
       } else if (!data?.pages && (!data?.data || data.data.length < 100)) {
@@ -42,13 +39,16 @@ export async function getAllCandidates() {
   }
 }
 
-export async function getCandidatesWithPagination(page = 1, limit = 10, search = '') {
+export async function getCandidatesWithPagination(page = 1, limit = 10, search = '', organizationId = null) {
   const params = new URLSearchParams({
     page,
     limit,
   });
   if (search) {
     params.append('search', search);
+  }
+  if (organizationId) {
+    params.append('organizationId', organizationId);
   }
   return apiCall(`${API_URL}/candidates?${params.toString()}`, {
     headers: getAuthHeaders(),
@@ -88,5 +88,4 @@ export async function deleteCandidate(candidateId) {
     method: "DELETE",
     headers: getAuthHeaders(),
   }, "eliminar candidato");
-  return true;
 }

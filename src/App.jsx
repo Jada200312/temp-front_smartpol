@@ -14,69 +14,23 @@ import Votantes from "./pages/Personas";
 import Candidatos from "./pages/Candidatos";
 import Lideres from "./pages/Lideres";
 import Digitadores from "./pages/Digitadores";
+import Especiales from "./pages/Especiales";
 import Reportes from "./pages/Reportes";
 import CreateCandidates from "./pages/CreateCandidates";
 import CreateLeaders from "./pages/CreateLeaders";
 import CreateDigitadores from "./pages/CreateDigitadores";
+import CreateEspeciales from "./pages/CreateEspeciales";
 import AssignCandidates from "./pages/AssignCandidates";
 import AdminPermissions from "./pages/AdminPermissions";
 import Forbidden from "./pages/Forbidden";
 import NotFound from "./pages/NotFound";
 import PrivateRoute from "./components/PrivateRoute";
+import PermissionRoute from "./components/PermissionRoute";
 import { usePermission } from "./hooks/usePermission";
 import Organizaciones from "./pages/Organizaciones";
 import CreateOrganizaciones from "./pages/CreateOrganizaciones";
 import Campanas from "./pages/Campanas";
 import CreateCampanas from "./pages/CreateCampanas";
-
-/**
- * Componente para proteger rutas que requieren rol específico
- */
-function RoleBasedRoute({ requiredRoles, children }) {
-  const { user, isLoading } = useUser();
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user || !requiredRoles.includes(user.roleId)) {
-    return <Forbidden />;
-  }
-
-  return children;
-}
-
-/**
- * Componente para proteger rutas que requieren permisos específicos
- */
-function PermissionBasedRoute({ requiredPermission, children }) {
-  const { user, isLoading } = useUser();
-  const { can } = usePermission();
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user || !can(requiredPermission)) {
-    return <Forbidden />;
-  }
-
-  return children;
-}
 
 /**
  * Página de login con redirección automática si ya hay sesión
@@ -146,113 +100,133 @@ function App() {
             {/* Votantes - Superadmin, Admin campaña, Candidato, Líder, Digitador (todos) */}
             <Route path="votantes" element={<Votantes />} />
 
-            {/* Organizaciones - Solo Superadmin */}
+            {/* Organizaciones - Requiere permiso organizations:read */}
             <Route
               path="organizaciones"
               element={
-                <RoleBasedRoute requiredRoles={[1]}>
+                <PermissionRoute requiredPermission="organizations:read">
                   <Organizaciones />
-                </RoleBasedRoute>
+                </PermissionRoute>
               }
             />
 
-            {/* Crear Organizaciones - Solo Superadmin */}
+            {/* Crear Organizaciones - Requiere permiso organizations:create */}
             <Route
               path="crear-organizaciones"
               element={
-                <RoleBasedRoute requiredRoles={[1]}>
+                <PermissionRoute requiredPermission="organizations:create">
                   <CreateOrganizaciones />
-                </RoleBasedRoute>
+                </PermissionRoute>
               }
             />
 
-            {/* Campañas - Superadmin y Admin de Organización */}
+            {/* Campañas - Requiere permiso campaigns:read */}
             <Route
               path="campanas"
               element={
-                <RoleBasedRoute requiredRoles={[1, 2]}>
+                <PermissionRoute requiredPermission="campaigns:read">
                   <Campanas />
-                </RoleBasedRoute>
+                </PermissionRoute>
               }
             />
 
-            {/* Crear Campañas - Superadmin y Admin de Organización */}
+            {/* Crear Campañas - Requiere permiso campaigns:create */}
             <Route
               path="crear-campanas"
               element={
-                <RoleBasedRoute requiredRoles={[1, 2]}>
+                <PermissionRoute requiredPermission="campaigns:create">
                   <CreateCampanas />
-                </RoleBasedRoute>
+                </PermissionRoute>
               }
             />
 
-            {/* Candidatos - Superadmin, Admin campaña */}
+            {/* Candidatos - Requiere permiso candidates:read */}
             <Route
               path="candidatos"
               element={
-                <RoleBasedRoute requiredRoles={[1, 2]}>
+                <PermissionRoute requiredPermission="candidates:read">
                   <Candidatos />
-                </RoleBasedRoute>
+                </PermissionRoute>
               }
             />
 
-            {/* Líderes - Superadmin, Admin campaña, Candidato */}
+            {/* Líderes - Requiere permiso leaders:read */}
             <Route
               path="lideres"
               element={
-                <RoleBasedRoute requiredRoles={[1, 2, 3]}>
+                <PermissionRoute requiredPermission="leaders:read">
                   <Lideres />
-                </RoleBasedRoute>
+                </PermissionRoute>
               }
             />
 
-            {/* Digitadores - Superadmin, Admin campaña */}
+            {/* Digitadores - Requiere permiso users:create */}
             <Route
               path="digitadores"
               element={
-                <RoleBasedRoute requiredRoles={[1, 2]}>
+                <PermissionRoute requiredPermission="users:create">
                   <Digitadores />
-                </RoleBasedRoute>
+                </PermissionRoute>
               }
             />
 
-            {/* Crear Candidatos - Superadmin, Admin campaña */}
+            {/* Usuarios Especiales - Requiere permiso users:create */}
+            <Route
+              path="especiales"
+              element={
+                <PermissionRoute requiredPermission="users:create">
+                  <Especiales />
+                </PermissionRoute>
+              }
+            />
+
+            {/* Crear Candidatos - Requiere permiso candidates:create */}
             <Route
               path="crear-candidatos"
               element={
-                <RoleBasedRoute requiredRoles={[1, 2]}>
+                <PermissionRoute requiredPermission="candidates:create">
                   <CreateCandidates />
-                </RoleBasedRoute>
+                </PermissionRoute>
               }
             />
 
-            {/* Crear Líderes - Superadmin, Admin campaña, Candidato */}
+            {/* Crear Líderes - Requiere permiso leaders:create */}
             <Route
               path="crear-lideres"
               element={
-                <RoleBasedRoute requiredRoles={[1, 2, 3]}>
+                <PermissionRoute requiredPermission="leaders:create">
                   <CreateLeaders />
-                </RoleBasedRoute>
+                </PermissionRoute>
               }
             />
 
-            {/* Crear Digitadores - Superadmin, Admin campaña */}
+            {/* Crear Digitadores - Requiere permiso users:create */}
             <Route
               path="crear-digitadores"
               element={
-                <RoleBasedRoute requiredRoles={[1, 2]}>
+                <PermissionRoute requiredPermission="users:create">
                   <CreateDigitadores />
-                </RoleBasedRoute>
+                </PermissionRoute>
               }
             />
 
-            {/* Asignar Candidatos - Superadmin, Admin campaña */}
+            {/* Crear Usuarios Especiales - Requiere permiso users:create */}
+            <Route
+              path="crear-especiales"
+              element={
+                <PermissionRoute requiredPermission="users:create">
+                  <CreateEspeciales />
+                </PermissionRoute>
+              }
+            />
+
+            {/* Asignar Candidatos - Requiere permiso candidates:update */}
             <Route
               path="asignar-candidatos"
               element={
-                <RoleBasedRoute requiredRoles={[1, 2]}>
+                <PermissionRoute requiredPermission="candidates:update">
                   <AssignCandidates />
-                </RoleBasedRoute>
+                </PermissionRoute>
               }
             />
 
@@ -260,19 +234,19 @@ function App() {
             <Route
               path="reportes"
               element={
-                <PermissionBasedRoute requiredPermission="reports:read">
+                <PermissionRoute requiredPermission="reports:read">
                   <Reportes />
-                </PermissionBasedRoute>
+                </PermissionRoute>
               }
             />
 
-            {/* Admin Permisos - Solo Superadmin */}
+            {/* Admin Permisos - Requiere permiso permissions:manage */}
             <Route
               path="admin-permisos"
               element={
-                <RoleBasedRoute requiredRoles={[1]}>
+                <PermissionRoute requiredPermission="permissions:manage">
                   <AdminPermissions />
-                </RoleBasedRoute>
+                </PermissionRoute>
               }
             />
 

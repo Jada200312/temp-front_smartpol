@@ -263,9 +263,7 @@ export default function Lideres() {
           onClick={() => navigate("/app/crear-lideres")}
           disabled={!can("leaders:create")}
           title={
-            !can("leaders:create")
-              ? "No tienes permiso para crear líderes"
-              : ""
+            !can("leaders:create") ? "No tienes permiso para crear líderes" : ""
           }
           className={`flex items-center gap-2 px-6 py-3 rounded-xl shadow-md transition ${
             can("leaders:create")
@@ -404,9 +402,7 @@ export default function Lideres() {
       )}
 
       {error && (
-        <div className="bg-white p-6 rounded-xl text-red-600">
-          ❌ {error}
-        </div>
+        <div className="bg-white p-6 rounded-xl text-red-600">❌ {error}</div>
       )}
 
       {!loading && !error && filteredLeaders.length === 0 && (
@@ -487,12 +483,11 @@ export default function Lideres() {
                           <TrashIcon className="w-5 h-5" />
                         </button>
                       )}
-                      {!can("leaders:update") &&
-                        !can("leaders:delete") && (
-                          <span className="text-gray-300 text-sm">
-                            Sin acceso
-                          </span>
-                        )}
+                      {!can("leaders:update") && !can("leaders:delete") && (
+                        <span className="text-gray-300 text-sm">
+                          Sin acceso
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}

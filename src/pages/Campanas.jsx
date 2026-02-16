@@ -45,15 +45,15 @@ export default function Campanas() {
   // Obtener información del usuario al montar
   useEffect(() => {
     try {
-      const roleId = localStorage.getItem('roleId');
-      const organizationId = localStorage.getItem('organizationId');
-      
+      const roleId = localStorage.getItem("roleId");
+      const organizationId = localStorage.getItem("organizationId");
+
       setUserRole(parseInt(roleId));
       if (organizationId) {
         setUserOrgId(parseInt(organizationId));
       }
     } catch (err) {
-      console.error('Error al obtener info del usuario:', err);
+      console.error("Error al obtener info del usuario:", err);
     }
   }, []);
 
@@ -69,12 +69,16 @@ export default function Campanas() {
       );
 
       // Asegurar que siempre obtenemos un array
-      let campanias = Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []);
+      let campanias = Array.isArray(data.data)
+        ? data.data
+        : Array.isArray(data)
+          ? data
+          : [];
 
       // Filtrar por organización si es Org Admin
       if (userRole === ROLE_ORG_ADMIN && userOrgId) {
         campanias = campanias.filter(
-          (campaign) => campaign.organizationId === userOrgId
+          (campaign) => campaign.organizationId === userOrgId,
         );
       }
 
@@ -375,9 +379,7 @@ export default function Campanas() {
                     </td>
 
                     <td className="px-6 py-4 text-sm text-gray-700">
-                      {new Date(campaign.startDate).toLocaleDateString(
-                        "es-ES",
-                      )}
+                      {new Date(campaign.startDate).toLocaleDateString("es-ES")}
                     </td>
 
                     <td className="px-6 py-4 text-sm text-gray-700">
@@ -415,12 +417,11 @@ export default function Campanas() {
                           <TrashIcon className="w-5 h-5" />
                         </button>
                       )}
-                      {!can("campaigns:update") &&
-                        !can("campaigns:delete") && (
-                          <span className="text-gray-300 text-sm">
-                            Sin acceso
-                          </span>
-                        )}
+                      {!can("campaigns:update") && !can("campaigns:delete") && (
+                        <span className="text-gray-300 text-sm">
+                          Sin acceso
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}

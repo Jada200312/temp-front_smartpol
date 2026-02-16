@@ -260,19 +260,16 @@ export default function Organizaciones() {
             <table className="w-full table-auto">
               <thead className="bg-gray-100 border-b">
                 <tr>
-                  {[
-                    "Nombre",
-                    "Descripción",
-                    "Fecha Creación",
-                    "Acciones",
-                  ].map((h) => (
-                    <th
-                      key={h}
-                      className="px-6 py-4 text-xs font-bold text-gray-700 uppercase tracking-wide text-left"
-                    >
-                      {h}
-                    </th>
-                  ))}
+                  {["Nombre", "Descripción", "Fecha Creación", "Acciones"].map(
+                    (h) => (
+                      <th
+                        key={h}
+                        className="px-6 py-4 text-xs font-bold text-gray-700 uppercase tracking-wide text-left"
+                      >
+                        {h}
+                      </th>
+                    ),
+                  )}
                 </tr>
               </thead>
 
@@ -364,9 +361,7 @@ export default function Organizaciones() {
                   <span className="font-semibold text-gray-900">
                     Creada el:
                   </span>{" "}
-                  {new Date(organization.createdAt).toLocaleDateString(
-                    "es-ES",
-                  )}
+                  {new Date(organization.createdAt).toLocaleDateString("es-ES")}
                 </div>
               </div>
 

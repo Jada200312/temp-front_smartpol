@@ -46,15 +46,15 @@ export default function Candidatos() {
   // Obtener información del usuario al montar
   useEffect(() => {
     try {
-      const roleId = localStorage.getItem('roleId');
-      const organizationId = localStorage.getItem('organizationId');
-      
+      const roleId = localStorage.getItem("roleId");
+      const organizationId = localStorage.getItem("organizationId");
+
       setUserRole(parseInt(roleId));
       if (organizationId) {
         setUserOrgId(parseInt(organizationId));
       }
     } catch (err) {
-      console.error('Error al obtener info del usuario:', err);
+      console.error("Error al obtener info del usuario:", err);
     }
   }, []);
 
@@ -68,7 +68,7 @@ export default function Candidatos() {
         // Filtrar por organización si es Org Admin
         if (userRole === ROLE_ORG_ADMIN && userOrgId) {
           campanias = campanias.filter(
-            (campaign) => campaign.organizationId === userOrgId
+            (campaign) => campaign.organizationId === userOrgId,
           );
         }
 
@@ -90,12 +90,12 @@ export default function Candidatos() {
     try {
       // Pasar organizationId al backend si es Org Admin
       const orgIdToFilter = userRole === ROLE_ORG_ADMIN ? userOrgId : null;
-      
+
       const data = await getCandidatesWithPagination(
         page,
         itemsPerPage,
         searchTerm,
-        orgIdToFilter
+        orgIdToFilter,
       );
 
       let candidatesList = Array.isArray(data.data) ? data.data : [];
@@ -103,7 +103,7 @@ export default function Candidatos() {
       // Filtro adicional en cliente por si el backend no filtre correctamente
       if (userRole === ROLE_ORG_ADMIN && userOrgId) {
         candidatesList = candidatesList.filter(
-          (candidate) => candidate.organizationId === userOrgId
+          (candidate) => candidate.organizationId === userOrgId,
         );
       }
 
@@ -179,7 +179,9 @@ export default function Candidatos() {
         name: formData.name,
         party: formData.party,
         number: formData.number,
-        ...(formData.campaignId && { campaignId: parseInt(formData.campaignId) }),
+        ...(formData.campaignId && {
+          campaignId: parseInt(formData.campaignId),
+        }),
       };
 
       await updateCandidate(editingCandidate.id, updateData);

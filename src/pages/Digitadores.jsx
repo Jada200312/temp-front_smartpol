@@ -12,7 +12,6 @@ import {
   PlusIcon,
   PencilSquareIcon,
   TrashIcon,
-  ArrowLeftIcon,
 } from "@heroicons/react/24/outline";
 
 export default function Digitadores() {
@@ -20,6 +19,8 @@ export default function Digitadores() {
   const navigate = useNavigate();
   const location = useLocation();
   const alert = useAlert();
+
+  const [currentUser, setCurrentUser] = useState(null);
   const [digitadores, setDigitadores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -30,12 +31,33 @@ export default function Digitadores() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [itemsPerPage] = useState(10);
+  const [isInitialized, setIsInitialized] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
 
-  // Cargar digitadores (roleId: 5) con paginación
+  // ✅ Cargar usuario del localStorage
+  useEffect(() => {
+    const user_id = localStorage.getItem("user_id");
+    const user_email = localStorage.getItem("user_email");
+    const organizationId = localStorage.getItem("organizationId");
+    const roleId = localStorage.getItem("roleId");
+
+    if (user_id) {
+      const user = {
+        id: parseInt(user_id),
+        email: user_email,
+        organizationId: parseInt(organizationId),
+        roleId: parseInt(roleId),
+      };
+      setCurrentUser(user);
+    }
+
+    setIsInitialized(true);
+  }, []);
+
+  // ✅ Cargar digitadores con paginación
   const fetchDigitadores = async (page = 1, searchTerm = "") => {
     setLoading(true);
     setError("");
@@ -46,10 +68,21 @@ export default function Digitadores() {
         itemsPerPage,
         searchTerm,
       );
-      setDigitadores(Array.isArray(data.data) ? data.data : []);
-      setCurrentPage(data.page);
-      setTotalPages(data.pages);
-      setTotalItems(data.total);
+
+      // ✅ FILTRAR en FRONTEND por organizationId como en Líderes
+      let digitadorList = Array.isArray(data.data) ? data.data : [];
+
+      if (currentUser?.organizationId) {
+        digitadorList = digitadorList.filter(
+          (digitador) =>
+            digitador.organizationId === currentUser.organizationId
+        );
+      }
+
+      setDigitadores(digitadorList);
+      setCurrentPage(data.page || page);
+      setTotalPages(data.pages || 1);
+      setTotalItems(data.total || digitadorList.length);
     } catch (err) {
       setError("No se pudieron cargar los digitadores");
       alert.apiError(err, "No se pudieron cargar los digitadores");
@@ -58,22 +91,25 @@ export default function Digitadores() {
     }
   };
 
+  // ✅ EFECTO PRINCIPAL: Cargar digitadores cuando está todo listo
   useEffect(() => {
+    if (!isInitialized) return;
     fetchDigitadores(currentPage, search);
-  }, [currentPage, search]);
+  }, [currentPage, search, currentUser?.organizationId, isInitialized]);
 
-  // Refrescar cuando se llega desde la creación
+  // ✅ Refrescar cuando se llega desde la creación
   useEffect(() => {
-    if (location.state?.refresh) {
+    if (location.state?.refresh && isInitialized && currentUser) {
       setCurrentPage(1);
       setSearch("");
       fetchDigitadores(1, "");
+      navigate(location.pathname, { replace: true });
     }
-  }, [location]);
+  }, [location.state?.refresh, isInitialized, currentUser?.id]);
 
   const handleSearchChange = (value) => {
     setSearch(value);
-    setCurrentPage(1); // Reset a página 1 cuando cambia la búsqueda
+    setCurrentPage(1);
   };
 
   const handleEdit = (digitador) => {
@@ -98,7 +134,7 @@ export default function Digitadores() {
       await deleteUser(digitadorId);
       alert.success("Digitador eliminado exitosamente");
       setTimeout(() => {
-        window.location.reload();
+        fetchDigitadores(currentPage, search);
       }, 1500);
     } catch (err) {
       alert.apiError(err, "Error al eliminar digitador");
@@ -152,9 +188,6 @@ export default function Digitadores() {
     setCurrentPage(newPage);
   };
 
-  // No necesitamos filtrar localmente ya que el backend maneja la búsqueda
-  const filteredDigitadores = digitadores;
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-50 to-white p-4 sm:p-6 lg:p-8">
       {/* Header */}
@@ -164,7 +197,7 @@ export default function Digitadores() {
             Listado de Digitadores
           </h2>
           <p className="text-gray-500 text-sm mt-2 max-w-xl">
-            Gestión de digitadores registrados en la plataforma
+            Gestión de digitadores registrados en tu organización
           </p>
         </div>
 
@@ -210,7 +243,7 @@ export default function Digitadores() {
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
           {error}
         </div>
-      ) : filteredDigitadores.length === 0 ? (
+      ) : digitadores.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-8 text-center">
           <p className="text-gray-500 text-lg">
             {search
@@ -233,7 +266,7 @@ export default function Digitadores() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {filteredDigitadores.map((digitador) => (
+                {digitadores.map((digitador) => (
                   <tr
                     key={digitador.id}
                     className="hover:bg-gray-50 transition"

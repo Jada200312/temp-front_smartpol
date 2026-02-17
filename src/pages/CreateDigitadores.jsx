@@ -53,11 +53,17 @@ export default function CreateDigitadores() {
     setLoading(true);
 
     try {
-      // Crear usuario con roleId 5 (Digitador)
+      // ✅ Obtener organizationId del usuario autenticado
+      const organizationId = parseInt(
+        localStorage.getItem("organizationId") || "0"
+      );
+
+      // Crear usuario con roleId 5 (Digitador) y organizationId heredado
       const userResponse = await createUser({
         email: formData.email,
         password: formData.password,
         roleId: 5,
+        organizationId, // ✅ HEREDAR organizationId del usuario autenticado
       });
 
       if (!userResponse.id) {

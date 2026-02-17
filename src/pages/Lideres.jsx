@@ -10,7 +10,6 @@ import { getCandidateByUserId } from "../api/candidates";
 import { getAllCampaigns } from "../api/campaigns";
 import { usePermission } from "../hooks/usePermission";
 import { useAlert } from "../hooks/useAlert";
-import { useUser } from "../context/UserContext";
 import Pagination from "../components/Pagination";
 import {
   PlusIcon,
@@ -20,10 +19,11 @@ import {
 
 export default function Lideres() {
   const { can } = usePermission();
-  const { user } = useUser();
   const navigate = useNavigate();
   const location = useLocation();
   const alert = useAlert();
+
+  const [currentUser, setCurrentUser] = useState(null);
   const [leaders, setLeaders] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,9 +36,8 @@ export default function Lideres() {
   const [totalItems, setTotalItems] = useState(0);
   const [itemsPerPage] = useState(10);
   const [candidateId, setCandidateId] = useState(null);
-  const [loadingCandidateId, setLoadingCandidateId] = useState(
-    user?.roleId === 3,
-  );
+  const [loadingCandidateId, setLoadingCandidateId] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     document: "",
@@ -47,59 +46,70 @@ export default function Lideres() {
     campaignId: "",
   });
 
-  // Cargar campañas
+  useEffect(() => {
+    const user_id = localStorage.getItem("user_id");
+    const user_email = localStorage.getItem("user_email");
+    const organizationId = localStorage.getItem("organizationId");
+    const roleId = localStorage.getItem("roleId");
+
+    if (user_id) {
+      const user = {
+        id: parseInt(user_id),
+        email: user_email,
+        organizationId: parseInt(organizationId),
+        roleId: parseInt(roleId),
+      };
+
+      setCurrentUser(user);
+
+      if (user.roleId === 3) {
+        setLoadingCandidateId(true);
+        loadCandidateData(user.id);
+      } else {
+        setLoadingCandidateId(false);
+      }
+    }
+
+    setIsInitialized(true);
+  }, []);
+
+  const loadCandidateData = async (userId) => {
+    try {
+      const candidate = await getCandidateByUserId(userId);
+      if (candidate?.id) {
+        setCandidateId(candidate.id);
+      } else {
+        setError("No se pudo obtener tu información de candidato");
+      }
+    } catch (err) {
+      setError("Error al cargar datos del candidato");
+    } finally {
+      setLoadingCandidateId(false);
+    }
+  };
+
   useEffect(() => {
     const loadCampaigns = async () => {
       try {
         const data = await getAllCampaigns();
         setCampaigns(Array.isArray(data) ? data : []);
       } catch (err) {
-        console.error("Error loading campaigns:", err);
+        // Error silencioso
       }
     };
 
     loadCampaigns();
   }, []);
 
-  // Cargar candidateId si es candidato
-  useEffect(() => {
-    const loadData = async () => {
-      if (user?.roleId === 3) {
-        try {
-          const candidate = await getCandidateByUserId(user.id);
-          if (candidate?.id) {
-            setCandidateId(candidate.id);
-          } else {
-            setError("No se pudo obtener tu información de candidato");
-          }
-        } catch (err) {
-          console.error("Error loading candidate:", err);
-          setError("Error al cargar datos del candidato");
-        } finally {
-          setLoadingCandidateId(false);
-        }
-      } else {
-        setCandidateId(null);
-        setLoadingCandidateId(false);
-      }
-    };
-
-    if (user) {
-      loadData();
-    }
-  }, [user]);
-
-  // Cargar líderes con paginación
   const fetchLeaders = async (page = 1, searchTerm = "") => {
     setLoading(true);
     setError("");
     try {
       let data;
 
-      if (user?.roleId === 3) {
-        // Es CANDIDATO: buscar por candidateId
+      if (currentUser?.roleId === 3) {
         if (!candidateId || isNaN(candidateId)) {
-          throw new Error("candidateId no válido");
+          throw new Error("No se pudo cargar tu candidateId");
         }
         data = await getLeadersByCandidateWithPagination(
           candidateId,
@@ -108,15 +118,21 @@ export default function Lideres() {
           searchTerm,
         );
       } else {
-        // Es ADMIN/COORDINADOR: cargar todos los líderes
         data = await getLeadersWithPagination(page, itemsPerPage, searchTerm);
       }
 
-      const leadersList = Array.isArray(data.data) ? data.data : [];
+      let leadersList = Array.isArray(data.data) ? data.data : [];
+
+      if (currentUser?.roleId === 2 && currentUser?.organizationId) {
+        leadersList = leadersList.filter(
+          (leader) => leader.user?.organizationId === currentUser.organizationId
+        );
+      }
+
       setLeaders(leadersList);
-      setCurrentPage(data.page);
-      setTotalPages(data.pages);
-      setTotalItems(data.total);
+      setCurrentPage(data.page || page);
+      setTotalPages(data.pages || 1);
+      setTotalItems(data.total || leadersList.length);
     } catch (err) {
       const errorMsg = err.message || "No se pudieron cargar los líderes";
       setError(errorMsg);
@@ -126,30 +142,33 @@ export default function Lideres() {
     }
   };
 
-  // EFECTO PRINCIPAL: Cargar líderes solo cuando está todo listo
   useEffect(() => {
-    // Si es candidato y aún está cargando candidateId, esperar
-    if (user?.roleId === 3 && loadingCandidateId) {
+    if (!isInitialized) return;
+
+    if (currentUser?.roleId === 3 && loadingCandidateId) {
       setLoading(true);
       return;
     }
 
-    // Si es candidato pero no tiene candidateId válido, mostrar error
-    if (user?.roleId === 3 && (!candidateId || isNaN(candidateId))) {
+    if (currentUser?.roleId === 3 && (!candidateId || isNaN(candidateId))) {
       setLoading(false);
       setError("No se pudo cargar tu información de candidato");
       return;
     }
 
-    // Si todo está ok, cargar líderes
     fetchLeaders(currentPage, search);
-  }, [currentPage, search, candidateId, loadingCandidateId, user?.roleId]);
+  }, [
+    currentPage,
+    search,
+    candidateId,
+    loadingCandidateId,
+    currentUser?.roleId,
+    isInitialized,
+  ]);
 
-  // Refrescar cuando se llega desde la creación
   useEffect(() => {
-    if (location.state?.refresh) {
-      // Si es candidato, esperar a que candidateId esté cargado
-      if (user?.roleId === 3) {
+    if (location.state?.refresh && isInitialized && currentUser) {
+      if (currentUser.roleId === 3) {
         if (!loadingCandidateId && candidateId && !isNaN(candidateId)) {
           setCurrentPage(1);
           setSearch("");
@@ -160,8 +179,9 @@ export default function Lideres() {
         setSearch("");
         fetchLeaders(1, "");
       }
+      navigate(location.pathname, { replace: true });
     }
-  }, [location, candidateId, loadingCandidateId, user?.roleId]);
+  }, [location.state?.refresh, isInitialized, currentUser?.id]);
 
   const handleSearchChange = (value) => {
     setSearch(value);
@@ -193,7 +213,7 @@ export default function Lideres() {
       await deleteLeader(leaderId);
       alert.success("Líder eliminado exitosamente");
       setTimeout(() => {
-        window.location.reload();
+        fetchLeaders(currentPage, search);
       }, 1500);
     } catch (err) {
       alert.apiError(err, "Error al eliminar líder");
@@ -237,9 +257,6 @@ export default function Lideres() {
     setCurrentPage(newPage);
   };
 
-  const filteredLeaders = leaders;
-
-  // Función auxiliar para obtener nombre de campaña
   const getCampaignName = (campaignId) => {
     if (!campaignId) return "Sin asignar";
     const campaign = campaigns.find((c) => c.id === campaignId);
@@ -255,25 +272,31 @@ export default function Lideres() {
             Listado de Líderes
           </h2>
           <p className="text-gray-500 text-sm mt-2 max-w-xl">
-            Gestión de líderes comunitarios registrados en la plataforma
+            {currentUser?.roleId === 3
+              ? "Tus líderes comunitarios asignados"
+              : "Gestión de líderes comunitarios registrados en tu organización"}
           </p>
         </div>
 
-        <button
-          onClick={() => navigate("/app/crear-lideres")}
-          disabled={!can("leaders:create")}
-          title={
-            !can("leaders:create") ? "No tienes permiso para crear líderes" : ""
-          }
-          className={`flex items-center gap-2 px-6 py-3 rounded-xl shadow-md transition ${
-            can("leaders:create")
-              ? "bg-orange-500 text-white shadow-orange-500/20 hover:bg-orange-600"
-              : "bg-gray-300 text-gray-500 cursor-not-allowed"
-          }`}
-        >
-          <PlusIcon className="w-5 h-5" />
-          Agregar líder
-        </button>
+        {currentUser?.roleId !== 3 && (
+          <button
+            onClick={() => navigate("/app/crear-lideres")}
+            disabled={!can("leaders:create")}
+            title={
+              !can("leaders:create")
+                ? "No tienes permiso para crear líderes"
+                : ""
+            }
+            className={`flex items-center gap-2 px-6 py-3 rounded-xl shadow-md transition ${
+              can("leaders:create")
+                ? "bg-orange-500 text-white shadow-orange-500/20 hover:bg-orange-600"
+                : "bg-gray-300 text-gray-500 cursor-not-allowed"
+            }`}
+          >
+            <PlusIcon className="w-5 h-5" />
+            Agregar líder
+          </button>
+        )}
       </div>
 
       {/* Buscador */}
@@ -304,7 +327,7 @@ export default function Lideres() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nombre *
+                  Nombre <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -378,13 +401,13 @@ export default function Lideres() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+                  className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition"
                 >
                   Guardar
                 </button>
@@ -405,14 +428,14 @@ export default function Lideres() {
         <div className="bg-white p-6 rounded-xl text-red-600">❌ {error}</div>
       )}
 
-      {!loading && !error && filteredLeaders.length === 0 && (
+      {!loading && !error && leaders.length === 0 && (
         <div className="bg-white p-6 rounded-xl text-gray-500">
-          No se encontraron resultados
+          {search ? "No se encontraron resultados" : "No hay líderes registrados"}
         </div>
       )}
 
       {/* ===== TABLA DESKTOP ===== */}
-      {!loading && !error && filteredLeaders.length > 0 && (
+      {!loading && !error && leaders.length > 0 && (
         <div className="hidden md:block bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full table-auto">
@@ -437,7 +460,7 @@ export default function Lideres() {
               </thead>
 
               <tbody className="divide-y divide-gray-100">
-                {filteredLeaders.map((leader) => (
+                {leaders.map((leader) => (
                   <tr
                     key={leader.id}
                     className="hover:bg-gray-50 transition-colors"
@@ -483,11 +506,12 @@ export default function Lideres() {
                           <TrashIcon className="w-5 h-5" />
                         </button>
                       )}
-                      {!can("leaders:update") && !can("leaders:delete") && (
-                        <span className="text-gray-300 text-sm">
-                          Sin acceso
-                        </span>
-                      )}
+                      {!can("leaders:update") &&
+                        !can("leaders:delete") && (
+                          <span className="text-gray-300 text-sm">
+                            Sin acceso
+                          </span>
+                        )}
                     </td>
                   </tr>
                 ))}
@@ -507,9 +531,9 @@ export default function Lideres() {
       )}
 
       {/* ===== MOBILE ===== */}
-      {!loading && !error && (
+      {!loading && !error && leaders.length > 0 && (
         <div className="md:hidden space-y-4">
-          {filteredLeaders.map((leader) => (
+          {leaders.map((leader) => (
             <div
               key={leader.id}
               className="bg-white rounded-xl shadow-md p-4 border border-gray-200"
@@ -555,7 +579,7 @@ export default function Lideres() {
                 {can("leaders:update") && (
                   <button
                     onClick={() => handleEdit(leader)}
-                    className="flex items-center gap-2 text-orange-500 hover:text-orange-600 flex-1 justify-center py-2 rounded-lg hover:bg-orange-50"
+                    className="flex items-center gap-2 text-orange-500 hover:text-orange-600 flex-1 justify-center py-2 rounded-lg hover:bg-orange-50 transition"
                   >
                     <PencilSquareIcon className="w-4 h-4" />
                     Editar
@@ -564,7 +588,7 @@ export default function Lideres() {
                 {can("leaders:delete") && (
                   <button
                     onClick={() => handleDelete(leader.id)}
-                    className="flex items-center gap-2 text-red-500 hover:text-red-600 flex-1 justify-center py-2 rounded-lg hover:bg-red-50"
+                    className="flex items-center gap-2 text-red-500 hover:text-red-600 flex-1 justify-center py-2 rounded-lg hover:bg-red-50 transition"
                   >
                     <TrashIcon className="w-4 h-4" />
                     Eliminar

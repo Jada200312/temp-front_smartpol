@@ -5,10 +5,12 @@ import { createUser } from "../api/users";
 import { createLeader } from "../api/leaders";
 import { getAllCampaigns } from "../api/campaigns";
 import { useAlert } from "../hooks/useAlert";
+import { useUser } from "../context/UserContext";
 import { ValidationRules, validateForm } from "../utils/errorHandler";
 
 export default function CreateLeaders() {
   const navigate = useNavigate();
+  const { user } = useUser();
   const alert = useAlert();
   const [loading, setLoading] = useState(false);
   const [loadingCampaigns, setLoadingCampaigns] = useState(true);
@@ -82,30 +84,49 @@ export default function CreateLeaders() {
     setLoading(true);
 
     try {
-      // 1. Crear usuario con roleId 4 (Lider)
+      // ✅ Obtener organizationId de la campaña seleccionada o del usuario actual
+      let organizationId = user?.organizationId;
+
+      if (formData.campaignId) {
+        const selectedCampaign = campaigns.find(
+          (c) => c.id === parseInt(formData.campaignId)
+        );
+        organizationId = selectedCampaign?.organizationId || user?.organizationId;
+      }
+
+      // 1. ✅ Crear usuario con roleId 4 (Lider) y organizationId del usuario autenticado
       const userResponse = await createUser({
         email: formData.email,
         password: formData.password,
         roleId: 4,
+        organizationId: organizationId, // ✅ PASAR organizationId como en CreateCandidates
       });
 
       if (!userResponse.id) {
         throw new Error("Error al crear el usuario");
       }
 
-      // 2. Crear líder con el userId del usuario creado
+      console.log(
+        "✅ Usuario líder creado con organizationId:",
+        userResponse.organizationId,
+      );
+
+      // ✅ 2. Crear líder CON userId (requerido)
       const leaderData = {
         name: formData.name,
         document: formData.document,
         municipality: formData.municipality,
         phone: formData.phone,
-        userId: userResponse.id,
+        userId: userResponse.id, // ✅ REQUERIDO
         ...(formData.campaignId && { campaignId: parseInt(formData.campaignId) }),
       };
 
       await createLeader(leaderData);
 
-      alert.success("El líder ha sido creado exitosamente", "¡Éxito!");
+      alert.success(
+        `El líder ha sido creado exitosamente en la organización: ${user?.organizationName}`,
+        "¡Éxito!",
+      );
 
       setFormData({
         email: "",
@@ -136,7 +157,8 @@ export default function CreateLeaders() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Crear Líder</h1>
           <p className="mt-2 text-gray-600">
-            Completa el formulario para registrar un nuevo líder comunitario
+            Completa el formulario para registrar un nuevo líder comunitario en{" "}
+            <strong>{user?.organizationName || "tu organización"}</strong>
           </p>
         </div>
         <button

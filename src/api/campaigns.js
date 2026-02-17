@@ -1,10 +1,10 @@
 import { API_URL, getAuthHeaders, apiCall } from "./config";
 
 export async function getCampaigns() {
-  // Obtener todas las campañas sin paginación
-  return apiCall(`${API_URL}/campaigns?limit=10000`, {
+  // Obtener campañas del usuario autenticado
+  return apiCall(`${API_URL}/campaigns/me/my-campaigns`, {
     headers: getAuthHeaders(),
-  }, "obtener campañas");
+  }, "obtener mis campañas");
 }
 
 export async function getAllCampaigns() {
@@ -19,7 +19,8 @@ export async function getAllCampaigns() {
         headers: getAuthHeaders(),
       }, "obtener campañas página " + page);
 
-      if (Array.isArray(data?.data)) {
+      // Manejar respuesta paginada
+      if (data?.data && Array.isArray(data.data)) {
         allCampaigns = [...allCampaigns, ...data.data];
       } else if (Array.isArray(data)) {
         allCampaigns = [...allCampaigns, ...data];
@@ -28,7 +29,7 @@ export async function getAllCampaigns() {
       // Verificar si hay más páginas
       if (data?.pages && page >= data.pages) {
         hasMorePages = false;
-      } else if (!data?.pages && (!data?.data || data.data.length < 100)) {
+      } else if (!data?.pages && (!data?.data || data.data.length === 0)) {
         hasMorePages = false;
       } else {
         page++;
@@ -42,36 +43,58 @@ export async function getAllCampaigns() {
   }
 }
 
-export async function getCampaignsWithPagination(page = 1, limit = 10, search = '') {
-  const params = new URLSearchParams({
-    page,
-    limit,
-  });
-  if (search) {
-    params.append('search', search);
-  }
-  
-  const response = await apiCall(`${API_URL}/campaigns?${params.toString()}`, {
-    headers: getAuthHeaders(),
-  }, "obtener campañas con paginación");
+export async function getUserCampaignsWithPagination(page = 1, limit = 10, search = '') {
+  try {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+    });
+    
+    if (search && search.trim()) {
+      params.append('search', search.trim());
+    }
+    
+    // ✅ Usar el endpoint que filtra automáticamente por organización del usuario
+    const response = await apiCall(`${API_URL}/campaigns?${params.toString()}`, {
+      headers: getAuthHeaders(),
+    }, "obtener campañas con paginación");
 
-  // Si el backend retorna un array directamente, formatearlo
-  if (Array.isArray(response)) {
+    // Validar que la respuesta tenga la estructura correcta
+    if (!response) {
+      return {
+        data: [],
+        page: page,
+        pages: 1,
+        total: 0
+      };
+    }
+
+    // Si el backend retorna un array directamente, formatearlo
+    if (Array.isArray(response)) {
+      return {
+        data: response,
+        page: page,
+        pages: 1,
+        total: response.length
+      };
+    }
+
+    // Si el backend retorna un objeto con estructura paginada
     return {
-      data: response,
-      page: page,
-      pages: 1,
-      total: response.length
+      data: Array.isArray(response.data) ? response.data : [],
+      page: response.page || page,
+      pages: response.pages || 1,
+      total: response.total || 0
     };
+  } catch (error) {
+    console.error("Error in getUserCampaignsWithPagination:", error);
+    throw error;
   }
+}
 
-  // Si el backend retorna un objeto con estructura diferente
-  return {
-    data: response.data || response,
-    page: response.page || page,
-    pages: response.pages || 1,
-    total: response.total || response.length || 0
-  };
+export async function getCampaignsWithPagination(page = 1, limit = 10, search = '') {
+  // ✅ Ahora esta función es un alias de getUserCampaignsWithPagination para mantener compatibilidad
+  return getUserCampaignsWithPagination(page, limit, search);
 }
 
 export async function getCampaignById(campaignId) {

@@ -5,7 +5,6 @@ import {
   deleteCandidate,
   updateCandidate,
 } from "../api/candidates";
-import { getAllCampaigns } from "../api/campaigns";
 import { usePermission } from "../hooks/usePermission";
 import { useAlert } from "../hooks/useAlert";
 import Pagination from "../components/Pagination";
@@ -15,16 +14,14 @@ import {
   TrashIcon,
 } from "@heroicons/react/24/outline";
 
-const ROLE_SUPER_ADMIN = 1;
-const ROLE_ORG_ADMIN = 2;
-
 export default function Candidatos() {
   const { can } = usePermission();
   const navigate = useNavigate();
   const location = useLocation();
   const alert = useAlert();
+  
+  const [currentUser, setCurrentUser] = useState(null);
   const [candidates, setCandidates] = useState([]);
-  const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -34,8 +31,7 @@ export default function Candidatos() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [itemsPerPage] = useState(10);
-  const [userRole, setUserRole] = useState(null);
-  const [userOrgId, setUserOrgId] = useState(null);
+  const [isInitialized, setIsInitialized] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     party: "",
@@ -43,67 +39,45 @@ export default function Candidatos() {
     campaignId: "",
   });
 
-  // Obtener información del usuario al montar
+  // Cargar usuario del localStorage
   useEffect(() => {
-    try {
-      const roleId = localStorage.getItem("roleId");
-      const organizationId = localStorage.getItem("organizationId");
+    const user_id = localStorage.getItem("user_id");
+    const user_email = localStorage.getItem("user_email");
+    const organizationId = localStorage.getItem("organizationId");
+    const roleId = localStorage.getItem("roleId");
 
-      setUserRole(parseInt(roleId));
-      if (organizationId) {
-        setUserOrgId(parseInt(organizationId));
-      }
-    } catch (err) {
-      console.error("Error al obtener info del usuario:", err);
+    if (user_id) {
+      const user = {
+        id: parseInt(user_id),
+        email: user_email,
+        organizationId: parseInt(organizationId),
+        roleId: parseInt(roleId),
+      };
+      
+      setCurrentUser(user);
+      setIsInitialized(true);
+    } else {
+      setIsInitialized(true);
     }
   }, []);
-
-  // Cargar campañas
-  useEffect(() => {
-    const loadCampaigns = async () => {
-      try {
-        const data = await getAllCampaigns();
-        let campanias = Array.isArray(data) ? data : [];
-
-        // Filtrar por organización si es Org Admin
-        if (userRole === ROLE_ORG_ADMIN && userOrgId) {
-          campanias = campanias.filter(
-            (campaign) => campaign.organizationId === userOrgId,
-          );
-        }
-
-        setCampaigns(campanias);
-      } catch (err) {
-        console.error("Error loading campaigns:", err);
-      }
-    };
-
-    if (userRole !== null) {
-      loadCampaigns();
-    }
-  }, [userRole, userOrgId]);
 
   // Cargar candidatos con paginación
   const fetchCandidates = async (page = 1, searchTerm = "") => {
     setLoading(true);
     setError("");
     try {
-      // Pasar organizationId al backend si es Org Admin
-      const orgIdToFilter = userRole === ROLE_ORG_ADMIN ? userOrgId : null;
-
       const data = await getCandidatesWithPagination(
         page,
         itemsPerPage,
         searchTerm,
-        orgIdToFilter,
       );
 
       let candidatesList = Array.isArray(data.data) ? data.data : [];
 
-      // Filtro adicional en cliente por si el backend no filtre correctamente
-      if (userRole === ROLE_ORG_ADMIN && userOrgId) {
+      // Filtrar candidatos si es admin de organización
+      if (currentUser?.roleId === 2 && currentUser?.organizationId) {
         candidatesList = candidatesList.filter(
-          (candidate) => candidate.organizationId === userOrgId,
+          (candidate) => candidate.user?.organizationId === currentUser.organizationId
         );
       }
 
@@ -120,10 +94,10 @@ export default function Candidatos() {
   };
 
   useEffect(() => {
-    if (userRole !== null) {
+    if (isInitialized && currentUser) {
       fetchCandidates(currentPage, search);
     }
-  }, [currentPage, search, userRole, userOrgId]);
+  }, [currentPage, search, isInitialized, currentUser?.id]);
 
   // Refrescar cuando se llega desde la creación
   useEffect(() => {
@@ -131,8 +105,9 @@ export default function Candidatos() {
       setCurrentPage(1);
       setSearch("");
       fetchCandidates(1, "");
+      navigate(location.pathname, { replace: true });
     }
-  }, [location]);
+  }, [location.state?.refresh, navigate, location.pathname]);
 
   const handleSearchChange = (value) => {
     setSearch(value);
@@ -178,7 +153,7 @@ export default function Candidatos() {
       const updateData = {
         name: formData.name,
         party: formData.party,
-        number: formData.number,
+        number: parseInt(formData.number) || 0,
         ...(formData.campaignId && {
           campaignId: parseInt(formData.campaignId),
         }),
@@ -206,18 +181,8 @@ export default function Candidatos() {
     setCurrentPage(newPage);
   };
 
-  const filteredCandidates = candidates;
-
-  // Función auxiliar para obtener nombre de campaña
-  const getCampaignName = (campaignId) => {
-    if (!campaignId) return "Sin asignar";
-    const campaign = campaigns.find((c) => c.id === campaignId);
-    return campaign ? campaign.name : "Campaña desconocida";
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-50 to-white p-4 sm:p-6 lg:p-8">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between gap-4 mb-8">
         <div>
           <h2 className="text-3xl font-extrabold text-gray-900">
@@ -247,7 +212,6 @@ export default function Candidatos() {
         </button>
       </div>
 
-      {/* Buscador */}
       <div className="mb-8">
         <input
           type="text"
@@ -258,7 +222,6 @@ export default function Candidatos() {
         />
       </div>
 
-      {/* Modal de edición */}
       {showModal && editingCandidate && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 max-h-screen overflow-y-auto">
@@ -277,7 +240,7 @@ export default function Candidatos() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nombre *
+                  Nombre <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -291,7 +254,7 @@ export default function Candidatos() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Partido
+                  Partido Político
                 </label>
                 <input
                   type="text"
@@ -304,7 +267,7 @@ export default function Candidatos() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Número
+                  Número de Candidato
                 </label>
                 <input
                   type="number"
@@ -315,36 +278,17 @@ export default function Candidatos() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Campaña
-                </label>
-                <select
-                  name="campaignId"
-                  value={formData.campaignId}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
-                >
-                  <option value="">Sin asignar</option>
-                  {campaigns.map((campaign) => (
-                    <option key={campaign.id} value={campaign.id}>
-                      {campaign.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
               <div className="flex gap-3 pt-4 border-t">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+                  className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition"
                 >
                   Guardar
                 </button>
@@ -354,41 +298,37 @@ export default function Candidatos() {
         </div>
       )}
 
-      {/* Estados */}
       {loading && (
         <div className="bg-white p-6 rounded-xl shadow-sm">
           Cargando candidatos...
         </div>
       )}
 
-      {!loading && filteredCandidates.length === 0 && (
+      {!loading && candidates.length === 0 && (
         <div className="bg-white p-6 rounded-xl text-gray-500">
-          No se encontraron resultados
+          {search ? "No se encontraron resultados" : "No hay candidatos registrados"}
         </div>
       )}
 
-      {/* ===== TABLA DESKTOP ===== */}
-      {!loading && filteredCandidates.length > 0 && (
+      {!loading && candidates.length > 0 && (
         <div className="hidden md:block bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full table-auto">
               <thead className="bg-gray-100 border-b">
                 <tr>
-                  {["Nombre", "Partido", "Número", "Campaña", "Acciones"].map(
-                    (h) => (
-                      <th
-                        key={h}
-                        className="px-6 py-4 text-xs font-bold text-gray-700 uppercase tracking-wide text-left"
-                      >
-                        {h}
-                      </th>
-                    ),
-                  )}
+                  {["Nombre", "Partido", "Número", "Acciones"].map((h) => (
+                    <th
+                      key={h}
+                      className="px-6 py-4 text-xs font-bold text-gray-700 uppercase tracking-wide text-left"
+                    >
+                      {h}
+                    </th>
+                  ))}
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-gray-100">
-                {filteredCandidates.map((candidate) => (
+                {candidates.map((candidate) => (
                   <tr
                     key={candidate.id}
                     className="hover:bg-gray-50 transition-colors"
@@ -403,12 +343,6 @@ export default function Candidatos() {
 
                     <td className="px-6 py-4 text-sm text-gray-700 font-semibold">
                       {candidate.number || "-"}
-                    </td>
-
-                    <td className="px-6 py-4 text-sm text-gray-700">
-                      <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
-                        {getCampaignName(candidate.campaignId)}
-                      </span>
                     </td>
 
                     <td className="px-6 py-4 flex gap-4">
@@ -443,7 +377,6 @@ export default function Candidatos() {
             </table>
           </div>
 
-          {/* Pagination */}
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}
@@ -454,10 +387,9 @@ export default function Candidatos() {
         </div>
       )}
 
-      {/* ===== MOBILE ===== */}
-      {!loading && (
+      {!loading && candidates.length > 0 && (
         <div className="md:hidden space-y-4">
-          {filteredCandidates.map((candidate) => (
+          {candidates.map((candidate) => (
             <div
               key={candidate.id}
               className="bg-white rounded-xl shadow-md p-4 border border-gray-200"
@@ -481,19 +413,13 @@ export default function Candidatos() {
                     {candidate.number}
                   </div>
                 )}
-                <div>
-                  <span className="font-semibold text-gray-900">Campaña:</span>{" "}
-                  <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
-                    {getCampaignName(candidate.campaignId)}
-                  </span>
-                </div>
               </div>
 
               <div className="flex gap-4 pt-3 border-t">
                 {can("candidates:update") && (
                   <button
                     onClick={() => handleEdit(candidate)}
-                    className="flex items-center gap-2 text-orange-500 hover:text-orange-600 flex-1 justify-center py-2 rounded-lg hover:bg-orange-50"
+                    className="flex items-center gap-2 text-orange-500 hover:text-orange-600 flex-1 justify-center py-2 rounded-lg hover:bg-orange-50 transition"
                   >
                     <PencilSquareIcon className="w-4 h-4" />
                     Editar
@@ -502,7 +428,7 @@ export default function Candidatos() {
                 {can("candidates:delete") && (
                   <button
                     onClick={() => handleDelete(candidate.id)}
-                    className="flex items-center gap-2 text-red-500 hover:text-red-600 flex-1 justify-center py-2 rounded-lg hover:bg-red-50"
+                    className="flex items-center gap-2 text-red-500 hover:text-red-600 flex-1 justify-center py-2 rounded-lg hover:bg-red-50 transition"
                   >
                     <TrashIcon className="w-4 h-4" />
                     Eliminar

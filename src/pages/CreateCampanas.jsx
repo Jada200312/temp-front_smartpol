@@ -23,6 +23,7 @@ export default function CreateCampanas() {
     endDate: "",
     status: true,
     organizationId: "",
+    userIds: [], // Nuevo: para asignar usuarios
   });
 
   // Obtener usuario al montar el componente
@@ -157,6 +158,7 @@ export default function CreateCampanas() {
         status: formData.status,
       };
 
+      // Asignar organización según el rol
       if (parseInt(currentUser.roleId) === ROLE_ORG_ADMIN) {
         const orgId = localStorage.getItem('organizationId');
         if (orgId) {
@@ -164,6 +166,11 @@ export default function CreateCampanas() {
         }
       } else if (parseInt(currentUser.roleId) === ROLE_SUPER_ADMIN) {
         dataToSend.organizationId = formData.organizationId;
+      }
+
+      // Agregar usuarios si existen
+      if (formData.userIds && formData.userIds.length > 0) {
+        dataToSend.userIds = formData.userIds;
       }
 
       console.log("Datos a enviar:", dataToSend);

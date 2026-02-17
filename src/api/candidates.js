@@ -39,16 +39,13 @@ export async function getAllCandidates() {
   }
 }
 
-export async function getCandidatesWithPagination(page = 1, limit = 10, search = '', organizationId = null) {
+export async function getCandidatesWithPagination(page = 1, limit = 10, search = '') {
   const params = new URLSearchParams({
     page,
     limit,
   });
   if (search) {
     params.append('search', search);
-  }
-  if (organizationId) {
-    params.append('organizationId', organizationId);
   }
   return apiCall(`${API_URL}/candidates?${params.toString()}`, {
     headers: getAuthHeaders(),

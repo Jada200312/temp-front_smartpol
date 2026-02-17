@@ -14,14 +14,13 @@ import {
   TrashIcon,
 } from "@heroicons/react/24/outline";
 
-const ROLE_SUPER_ADMIN = 1;
-const ROLE_ORG_ADMIN = 2;
-
 export default function Campanas() {
   const { can } = usePermission();
   const navigate = useNavigate();
   const location = useLocation();
   const alert = useAlert();
+  
+  const [currentUser, setCurrentUser] = useState(null);
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -32,8 +31,7 @@ export default function Campanas() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [itemsPerPage] = useState(10);
-  const [userRole, setUserRole] = useState(null);
-  const [userOrgId, setUserOrgId] = useState(null);
+  const [isInitialized, setIsInitialized] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -42,22 +40,29 @@ export default function Campanas() {
     status: true,
   });
 
-  // Obtener información del usuario al montar
   useEffect(() => {
-    try {
-      const roleId = localStorage.getItem("roleId");
-      const organizationId = localStorage.getItem("organizationId");
+    const user_id = localStorage.getItem("user_id");
+    const user_email = localStorage.getItem("user_email");
+    const organizationId = localStorage.getItem("organizationId");
+    const roleId = localStorage.getItem("roleId");
+    const organizationName = localStorage.getItem("organizationName");
 
-      setUserRole(parseInt(roleId));
-      if (organizationId) {
-        setUserOrgId(parseInt(organizationId));
-      }
-    } catch (err) {
-      console.error("Error al obtener info del usuario:", err);
+    if (user_id) {
+      const user = {
+        id: parseInt(user_id),
+        email: user_email,
+        organizationId: parseInt(organizationId),
+        roleId: parseInt(roleId),
+        organizationName,
+      };
+      
+      setCurrentUser(user);
+      setIsInitialized(true);
+    } else {
+      setIsInitialized(true);
     }
   }, []);
 
-  // Cargar campañas con paginación
   const fetchCampaigns = async (page = 1, searchTerm = "") => {
     setLoading(true);
     setError("");
@@ -68,27 +73,31 @@ export default function Campanas() {
         searchTerm,
       );
 
-      // Asegurar que siempre obtenemos un array
-      let campanias = Array.isArray(data.data)
-        ? data.data
-        : Array.isArray(data)
-          ? data
-          : [];
+      if (!data || !data.data) {
+        setCampaigns([]);
+        setCurrentPage(1);
+        setTotalPages(1);
+        setTotalItems(0);
+        return;
+      }
 
-      // Filtrar por organización si es Org Admin
-      if (userRole === ROLE_ORG_ADMIN && userOrgId) {
-        campanias = campanias.filter(
-          (campaign) => campaign.organizationId === userOrgId,
+      const campaignsData = Array.isArray(data.data) ? data.data : [];
+      
+      let filteredData = campaignsData;
+      if (currentUser?.organizationId) {
+        filteredData = campaignsData.filter(
+          (campaign) => campaign.organizationId === currentUser.organizationId
         );
       }
 
-      setCampaigns(campanias);
+      setCampaigns(filteredData);
       setCurrentPage(data.page || page);
       setTotalPages(data.pages || 1);
-      setTotalItems(data.total || campanias.length);
+      setTotalItems(data.total || 0);
     } catch (err) {
+      console.error("Error fetching campaigns:", err);
       setError("No se pudieron cargar las campañas");
-      console.error("Error:", err);
+      setCampaigns([]);
       alert.apiError(err, "No se pudieron cargar las campañas");
     } finally {
       setLoading(false);
@@ -96,24 +105,29 @@ export default function Campanas() {
   };
 
   useEffect(() => {
-    // Solo cargar si tenemos definido el rol
-    if (userRole !== null) {
+    if (isInitialized && currentUser) {
+      fetchCampaigns(1, "");
+    }
+  }, [isInitialized, currentUser?.id]);
+
+  useEffect(() => {
+    if (isInitialized && currentUser && (currentPage > 1 || search)) {
       fetchCampaigns(currentPage, search);
     }
-  }, [currentPage, search, userRole, userOrgId]);
+  }, [currentPage, search, isInitialized, currentUser?.id]);
 
-  // Refrescar cuando se llega desde la creación
   useEffect(() => {
     if (location.state?.refresh) {
       setCurrentPage(1);
       setSearch("");
       fetchCampaigns(1, "");
+      navigate(location.pathname, { replace: true });
     }
-  }, [location]);
+  }, [location.state?.refresh, navigate, location.pathname]);
 
   const handleSearchChange = (value) => {
     setSearch(value);
-    setCurrentPage(1); // Reset a página 1 cuando cambia la búsqueda
+    setCurrentPage(1);
   };
 
   const handleEdit = (campaign) => {
@@ -140,10 +154,9 @@ export default function Campanas() {
     try {
       await deleteCampaign(campaignId);
       alert.success("Campaña eliminada exitosamente");
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
+      fetchCampaigns(currentPage, search);
     } catch (err) {
+      console.error("Error deleting campaign:", err);
       alert.apiError(err, "Error al eliminar campaña");
     }
   };
@@ -152,6 +165,11 @@ export default function Campanas() {
     e.preventDefault();
     if (!editingCampaign) return;
 
+    if (new Date(formData.startDate) >= new Date(formData.endDate)) {
+      alert.error("La fecha de inicio debe ser anterior a la fecha de fin");
+      return;
+    }
+
     try {
       await updateCampaign(editingCampaign.id, formData);
       setShowModal(false);
@@ -159,6 +177,7 @@ export default function Campanas() {
       alert.success("Campaña actualizada exitosamente");
       fetchCampaigns(currentPage, search);
     } catch (err) {
+      console.error("Error updating campaign:", err);
       alert.apiError(err, "Error al actualizar campaña");
     }
   };
@@ -175,11 +194,10 @@ export default function Campanas() {
     setCurrentPage(newPage);
   };
 
-  const filteredCampaigns = campaigns;
+  const filteredCampaigns = campaigns || [];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-50 to-white p-4 sm:p-6 lg:p-8">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between gap-4 mb-8">
         <div>
           <h2 className="text-3xl font-extrabold text-gray-900">
@@ -187,6 +205,11 @@ export default function Campanas() {
           </h2>
           <p className="text-gray-500 text-sm mt-2 max-w-xl">
             Gestión de campañas políticas registradas en la plataforma
+            {currentUser?.organizationId && (
+              <span className="block text-xs mt-1">
+                Organización: {currentUser?.organizationName} (ID: {currentUser?.organizationId})
+              </span>
+            )}
           </p>
         </div>
 
@@ -209,7 +232,6 @@ export default function Campanas() {
         </button>
       </div>
 
-      {/* Buscador */}
       <div className="mb-8">
         <input
           type="text"
@@ -220,7 +242,6 @@ export default function Campanas() {
         />
       </div>
 
-      {/* Modal de edición */}
       {showModal && editingCampaign && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 max-h-screen overflow-y-auto">
@@ -260,7 +281,7 @@ export default function Campanas() {
                   value={formData.description}
                   onChange={handleInputChange}
                   rows="2"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none resize-none"
                 />
               </div>
 
@@ -310,13 +331,13 @@ export default function Campanas() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+                  className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition"
                 >
                   Guardar
                 </button>
@@ -326,20 +347,24 @@ export default function Campanas() {
         </div>
       )}
 
-      {/* Estados */}
       {loading && (
-        <div className="bg-white p-6 rounded-xl shadow-sm">
+        <div className="bg-white p-6 rounded-xl shadow-sm text-gray-500 text-center">
           Cargando campañas...
         </div>
       )}
 
-      {!loading && filteredCampaigns.length === 0 && (
-        <div className="bg-white p-6 rounded-xl text-gray-500">
-          No se encontraron resultados
+      {!loading && error && (
+        <div className="bg-red-50 border border-red-200 p-4 rounded-xl text-red-700">
+          {error}
         </div>
       )}
 
-      {/* ===== TABLA DESKTOP ===== */}
+      {!loading && filteredCampaigns.length === 0 && !error && (
+        <div className="bg-white p-6 rounded-xl text-gray-500 text-center">
+          No se encontraron campañas
+        </div>
+      )}
+
       {!loading && filteredCampaigns.length > 0 && (
         <div className="hidden md:block bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
@@ -379,11 +404,15 @@ export default function Campanas() {
                     </td>
 
                     <td className="px-6 py-4 text-sm text-gray-700">
-                      {new Date(campaign.startDate).toLocaleDateString("es-ES")}
+                      {campaign.startDate
+                        ? new Date(campaign.startDate).toLocaleDateString("es-ES")
+                        : "-"}
                     </td>
 
                     <td className="px-6 py-4 text-sm text-gray-700">
-                      {new Date(campaign.endDate).toLocaleDateString("es-ES")}
+                      {campaign.endDate
+                        ? new Date(campaign.endDate).toLocaleDateString("es-ES")
+                        : "-"}
                     </td>
 
                     <td className="px-6 py-4 text-sm">
@@ -429,7 +458,6 @@ export default function Campanas() {
             </table>
           </div>
 
-          {/* Pagination */}
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}
@@ -440,8 +468,7 @@ export default function Campanas() {
         </div>
       )}
 
-      {/* ===== MOBILE ===== */}
-      {!loading && (
+      {!loading && filteredCampaigns.length > 0 && (
         <div className="md:hidden space-y-4">
           {filteredCampaigns.map((campaign) => (
             <div
@@ -461,11 +488,15 @@ export default function Campanas() {
                 </div>
                 <div>
                   <span className="font-semibold text-gray-900">Inicio:</span>{" "}
-                  {new Date(campaign.startDate).toLocaleDateString("es-ES")}
+                  {campaign.startDate
+                    ? new Date(campaign.startDate).toLocaleDateString("es-ES")
+                    : "-"}
                 </div>
                 <div>
                   <span className="font-semibold text-gray-900">Fin:</span>{" "}
-                  {new Date(campaign.endDate).toLocaleDateString("es-ES")}
+                  {campaign.endDate
+                    ? new Date(campaign.endDate).toLocaleDateString("es-ES")
+                    : "-"}
                 </div>
                 <div>
                   <span
@@ -484,7 +515,7 @@ export default function Campanas() {
                 {can("campaigns:update") && (
                   <button
                     onClick={() => handleEdit(campaign)}
-                    className="flex items-center gap-2 text-orange-500 hover:text-orange-600 flex-1 justify-center py-2 rounded-lg hover:bg-orange-50"
+                    className="flex items-center gap-2 text-orange-500 hover:text-orange-600 flex-1 justify-center py-2 rounded-lg hover:bg-orange-50 transition"
                   >
                     <PencilSquareIcon className="w-4 h-4" />
                     Editar
@@ -493,7 +524,7 @@ export default function Campanas() {
                 {can("campaigns:delete") && (
                   <button
                     onClick={() => handleDelete(campaign.id)}
-                    className="flex items-center gap-2 text-red-500 hover:text-red-600 flex-1 justify-center py-2 rounded-lg hover:bg-red-50"
+                    className="flex items-center gap-2 text-red-500 hover:text-red-600 flex-1 justify-center py-2 rounded-lg hover:bg-red-50 transition"
                   >
                     <TrashIcon className="w-4 h-4" />
                     Eliminar
@@ -502,6 +533,16 @@ export default function Campanas() {
               </div>
             </div>
           ))}
+
+          <div className="pt-4">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={handlePageChange}
+            />
+          </div>
         </div>
       )}
     </div>

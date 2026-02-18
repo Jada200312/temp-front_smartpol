@@ -205,8 +205,76 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
     }
   }, [form.identification, voter]);
 
-  const handleChange = (e) =>
-    setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    // Campos que solo deben permitir números
+    const numericFields = ["identification", "phone"];
+
+    // Si es un campo numérico, filtrar solo dígitos
+    if (numericFields.includes(name)) {
+      const numericValue = value.replace(/\D/g, "");
+      setForm({ ...form, [name]: numericValue });
+      return;
+    }
+
+    setForm({ ...form, [name]: value });
+  };
+
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+
+    if (!value) return; // No validar si está vacío
+
+    // Campos que solo deben permitir números
+    const numericFields = ["identification", "phone"];
+
+    // Validar campos numéricos
+    if (numericFields.includes(name) && !/^\d+$/.test(value)) {
+      alert.warning(
+        `${name === "identification" ? "La identificación" : "El teléfono"} solo puede contener números`,
+        "Formato inválido",
+      );
+      setForm({ ...form, [name]: value.replace(/\D/g, "") });
+      return;
+    }
+
+    // Campos que pueden tener espacios pero NO al inicio o final
+    const fieldsTrimmed = ["firstName", "lastName"];
+
+    // Validar campos con espacios sólo en el medio (no al inicio/final o múltiples)
+    if (fieldsTrimmed.includes(name)) {
+      // No permitir espacios al inicio o final
+      if (value.startsWith(" ") || value.endsWith(" ")) {
+        alert.warning(
+          "Este campo no puede tener espacios al inicio o final",
+          "Validación",
+        );
+        setForm({ ...form, [name]: value.trim() });
+        return;
+      }
+
+      // No permitir múltiples espacios consecutivos
+      if (/\s{2,}/.test(value)) {
+        alert.warning(
+          "Este campo no puede tener múltiples espacios consecutivos",
+          "Validación",
+        );
+        setForm({ ...form, [name]: value.replace(/\s{2,}/g, " ") });
+        return;
+      }
+    }
+
+    if (name === "birthDate" && value && !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      // Validar formato de fecha YYYY-MM-DD
+      alert.warning(
+        "La fecha debe tener el formato YYYY-MM-DD",
+        "Formato inválido",
+      );
+      setForm({ ...form, [name]: "" });
+      return;
+    }
+  };
 
   const handleCandidateChange = (candidateId) => {
     setForm((prev) => {
@@ -233,6 +301,50 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
       if (!form[field]) {
         alert.warning(`${label} es requerido`, "Campo incompleto");
         return false;
+      }
+    }
+
+    // Validar que identificación y teléfono solo tengan números
+    const numericFields = {
+      identification: "Identificación",
+      phone: "Teléfono",
+    };
+
+    for (const [field, label] of Object.entries(numericFields)) {
+      if (form[field] && !/^\d+$/.test(form[field])) {
+        alert.warning(
+          `${label} solo puede contener números`,
+          "Formato inválido",
+        );
+        return false;
+      }
+    }
+
+    // Validar que nombre y apellido no tengan espacios al inicio o final
+    const fieldsTrimmed = {
+      firstName: "Nombre",
+      lastName: "Apellido",
+    };
+
+    for (const [field, label] of Object.entries(fieldsTrimmed)) {
+      if (form[field]) {
+        // Validar que no haya espacios al inicio o final
+        if (form[field].startsWith(" ") || form[field].endsWith(" ")) {
+          alert.warning(
+            `${label} no puede tener espacios al inicio o final`,
+            "Validación de datos",
+          );
+          return false;
+        }
+
+        // Validar que no haya múltiples espacios
+        if (/\s{2,}/.test(form[field])) {
+          alert.warning(
+            `${label} no puede tener múltiples espacios consecutivos`,
+            "Validación de datos",
+          );
+          return false;
+        }
       }
     }
 
@@ -264,8 +376,8 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
     setLoading(true);
 
     const voterPayload = {
-      firstName: form.firstName,
-      lastName: form.lastName,
+      firstName: form.firstName.toUpperCase(),
+      lastName: form.lastName.toUpperCase(),
       identification: form.identification,
       gender: form.gender,
       departmentId: Number(form.departmentId),
@@ -279,7 +391,7 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
     if (form.phone) voterPayload.phone = form.phone;
     if (form.address) voterPayload.address = form.address;
     if (form.neighborhood) voterPayload.neighborhood = form.neighborhood;
-    if (form.email) voterPayload.email = form.email;
+    if (form.email) voterPayload.email = form.email.toUpperCase();
     if (form.occupation) voterPayload.occupation = form.occupation;
     if (form.votingTableId)
       voterPayload.votingTableId = String(form.votingTableId);
@@ -382,6 +494,7 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
                   name={name}
                   value={form[name]}
                   onChange={handleChange}
+                  onBlur={handleBlur}
                   className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-orange-400"
                 />
               </div>

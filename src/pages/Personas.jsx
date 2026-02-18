@@ -109,7 +109,11 @@ export default function Personas() {
     setLoading(true);
     setError("");
     try {
-      // Si es candidato, usar endpoint específico; si es líder, usar endpoint de líder
+      // Obtener votantes según el rol del usuario:
+      // - Candidato: solo sus votantes
+      // - Líder: solo sus votantes
+      // - Admin de campaña: votantes de su organización (candidatos, líderes, digitadores)
+      // - Digitador: votantes que él creó
       const data =
         user?.roleId === 3 && candidateId
           ? await getVotersByCandidateWithAssignments(
@@ -337,12 +341,14 @@ export default function Personas() {
             setEditingVoter(null);
             setShowModal(true);
           }}
-          disabled={!can("voters:create")}
+          disabled={!can("voters:manage") && !can("voters:create")}
           title={
-            !can("voters:create") ? "No tienes permiso para crear votantes" : ""
+            !can("voters:manage") && !can("voters:create")
+              ? "No tienes permiso para crear votantes"
+              : ""
           }
           className={`flex items-center gap-2 px-6 py-3 rounded-xl shadow-md transition ${
-            can("voters:create")
+            can("voters:manage") || can("voters:create")
               ? "bg-orange-500 text-white shadow-orange-500/20 hover:bg-orange-600"
               : "bg-gray-300 text-gray-500 cursor-not-allowed"
           }`}
@@ -470,7 +476,7 @@ export default function Personas() {
                     </td>
 
                     <td className="px-6 py-4 flex gap-4">
-                      {can("voters:update") && (
+                      {(can("voters:manage") || can("voters:update")) && (
                         <button
                           onClick={() => handleEdit(v)}
                           className="text-gray-400 hover:text-orange-500 transition"
@@ -478,7 +484,7 @@ export default function Personas() {
                           <PencilSquareIcon className="w-5 h-5" />
                         </button>
                       )}
-                      {can("voters:delete") && (
+                      {(can("voters:manage") || can("voters:delete")) && (
                         <button
                           onClick={() => handleDelete(v.id)}
                           className="text-gray-400 hover:text-red-500 transition"
@@ -486,11 +492,13 @@ export default function Personas() {
                           <TrashIcon className="w-5 h-5" />
                         </button>
                       )}
-                      {!can("voters:update") && !can("voters:delete") && (
-                        <span className="text-gray-300 text-sm">
-                          Sin acceso
-                        </span>
-                      )}
+                      {!can("voters:manage") &&
+                        !can("voters:update") &&
+                        !can("voters:delete") && (
+                          <span className="text-gray-300 text-sm">
+                            Sin acceso
+                          </span>
+                        )}
                     </td>
                   </tr>
                 ))}

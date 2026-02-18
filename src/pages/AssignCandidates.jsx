@@ -18,22 +18,57 @@ export default function AssignCandidates() {
   const [selectedLeader, setSelectedLeader] = useState("");
   const [assignedCandidates, setAssignedCandidates] = useState([]);
   const [selectedCandidates, setSelectedCandidates] = useState({});
+  const [currentUser, setCurrentUser] = useState(null);
 
-  // Cargar líderes y candidatos al montar el componente
+  // Cargar datos del usuario desde localStorage
+  useEffect(() => {
+    const user_id = localStorage.getItem("user_id");
+    const user_email = localStorage.getItem("user_email");
+    const organizationId = localStorage.getItem("organizationId");
+    const roleId = localStorage.getItem("roleId");
+
+    if (user_id) {
+      const user = {
+        id: parseInt(user_id),
+        email: user_email,
+        organizationId: organizationId ? parseInt(organizationId) : null,
+        roleId: roleId ? parseInt(roleId) : null,
+      };
+      setCurrentUser(user);
+    }
+  }, []);
+
+  // Cargar líderes y candidatos
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [leadersData, candidatesData] = await Promise.all([
-          getLeaders(),
-          getCandidates(),
-        ]);
+        // Obtener todos los líderes
+        const leadersData = await getLeaders();
+        const candidatesData = await getCandidates();
+
         // Extraer el array de datos del objeto de paginación
-        const leadersList = Array.isArray(leadersData)
+        let leadersList = Array.isArray(leadersData)
           ? leadersData
           : leadersData?.data || [];
-        const candidatesList = Array.isArray(candidatesData)
+        let candidatesList = Array.isArray(candidatesData)
           ? candidatesData
           : candidatesData?.data || [];
+
+        // Si es admin de campaña, filtrar solo sus líderes
+        if (currentUser?.roleId === 2 && currentUser?.organizationId) {
+          leadersList = leadersList.filter((leader) => {
+            return (
+              leader.campaign?.organizationId === currentUser.organizationId
+            );
+          });
+          // También filtrar candidatos por organización
+          candidatesList = candidatesList.filter((candidate) => {
+            return (
+              candidate.campaign?.organizationId === currentUser.organizationId
+            );
+          });
+        }
+
         setLeaders(leadersList);
         setAllCandidates(candidatesList);
       } catch (err) {
@@ -41,8 +76,11 @@ export default function AssignCandidates() {
         setError("No se pudieron cargar los datos");
       }
     };
-    loadData();
-  }, []);
+
+    if (currentUser) {
+      loadData();
+    }
+  }, [currentUser]);
 
   // Cuando se selecciona un líder, cargar sus candidatos asignados
   useEffect(() => {
@@ -118,6 +156,14 @@ export default function AssignCandidates() {
   };
 
   const leaderData = leaders.find((l) => l.id === parseInt(selectedLeader));
+
+  // Filtrar candidatos por la campaña del líder seleccionado
+  const availableCandidates =
+    selectedLeader && leaderData?.campaign?.id
+      ? allCandidates.filter((c) => c.campaignId === leaderData.campaign.id)
+      : selectedLeader
+        ? []
+        : allCandidates;
 
   return (
     <div className="space-y-6">
@@ -214,11 +260,12 @@ export default function AssignCandidates() {
           {selectedLeader && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-4">
-                Candidatos Disponibles por Corporación ({allCandidates.length})
+                Candidatos Disponibles por Corporación (
+                {availableCandidates.length})
               </label>
               <div className="space-y-4">
                 {Object.entries(
-                  allCandidates.reduce((acc, candidate) => {
+                  availableCandidates.reduce((acc, candidate) => {
                     const corpName =
                       candidate.corporation?.name || "Sin corporación";
                     const corpId = candidate.corporation?.id || 0;
@@ -288,7 +335,7 @@ export default function AssignCandidates() {
                   </div>
                 ))}
               </div>
-              {allCandidates.length === 0 && (
+              {availableCandidates.length === 0 && (
                 <p className="text-gray-500 text-sm">
                   No hay candidatos disponibles
                 </p>

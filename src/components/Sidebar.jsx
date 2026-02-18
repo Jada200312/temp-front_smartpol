@@ -7,40 +7,106 @@ import { usePermission } from "../hooks/usePermission";
 export default function Sidebar({ isOpen, onClose }) {
   const location = useLocation();
   const { user } = useUser();
-  const { can } = usePermission();
+  const { can, canAny } = usePermission();
   const [expandedMenu, setExpandedMenu] = useState(null);
   const isActive = (path) => location.pathname.startsWith(path);
 
-  // Definir acceso por rol
-  // roleId: 1 = Superadmin, 2 = Admin campaña, 3 = Candidato, 4 = Líder, 5 = Digitador
-  const canAccess = (roleId) => {
-    if (!user) return false;
-    return (
-      user.roleId === roleId ||
-      (Array.isArray(roleId) && roleId.includes(user.roleId))
-    );
-  };
+  // Control de acceso basado en permisos
+  // Nueva estructura de permisos:
+  // - resource:read = acceso de lectura únicamente
+  // - resource:manage = gestión completa (crear, editar, eliminar) + mostrar en sidebar
+  const canSeeDashboard = true; // Todos pueden ver dashboard
 
-  const isSuperadmin = user?.roleId === 1;
-  const isAdminCampaign = user?.roleId === 2;
-  const isCandidate = user?.roleId === 3;
-  const isLeader = user?.roleId === 4;
-  const isDigitador = user?.roleId === 5;
+  const canSeeInicio = true; // Todos pueden ver inicio
 
-  // Roles que pueden ver inicio: todos
-  const canSeeInicio = true;
+  // Votantes: mostrar si tiene permiso de lectura
+  const canSeeVotantes = can("voters:read");
 
-  // Roles que pueden ver votantes: todos
-  const canSeePersonas = true;
+  // Organizaciones: mostrar en sidebar si tiene manage O create O update O delete
+  const canSeeOrganizaciones = canAny([
+    "organizations:manage",
+    "organizations:create",
+    "organizations:update",
+    "organizations:delete",
+  ]);
 
-  // Roles que pueden crear: Superadmin y Admin de campaña
-  const canCreate = isSuperadmin || isAdminCampaign;
+  // Campañas: mostrar en sidebar si tiene manage O create O update O delete
+  const canSeeCampanas = canAny([
+    "campaigns:manage",
+    "campaigns:create",
+    "campaigns:update",
+    "campaigns:delete",
+  ]);
 
-  // Roles que pueden ver reportes: verifica permiso en lugar de solo roleId
+  // Candidatos: mostrar en sidebar si tiene manage O create O update O delete
+  const canSeeCandidatos = canAny([
+    "candidates:manage",
+    "candidates:create",
+    "candidates:update",
+    "candidates:delete",
+  ]);
+
+  // Líderes: mostrar en sidebar si tiene manage O create O update O delete
+  const canSeeLideres = canAny([
+    "leaders:manage",
+    "leaders:create",
+    "leaders:update",
+    "leaders:delete",
+  ]);
+
+  // Digitadores: mostrar si puede create O update O delete O manage usuarios
+  const canSeeDigitadores = canAny([
+    "users:manage",
+    "users:create",
+    "users:update",
+    "users:delete",
+  ]);
+
+  // Usuarios Especiales: mostrar si puede manage O create O update O delete usuarios
+  const canSeeEspeciales = canAny([
+    "users:manage",
+    "users:create",
+    "users:update",
+    "users:delete",
+  ]);
+
+  // Asignar Candidatos: mostrar si puede manage O update O delete candidatos
+  const canSeeAsignarCandidatos = canAny([
+    "candidates:manage",
+    "candidates:create",
+    "candidates:update",
+    "candidates:delete",
+  ]);
+
+  // Reportes: ver si tiene permiso de lectura
   const canSeeReportes = can("reports:read");
 
-  // Roles que pueden ver admin de permisos: solo Superadmin
-  const canSeeAdminPermisos = isSuperadmin;
+  // Admin Permisos: Gestionar permisos
+  const canSeeAdminPermisos = can("permissions:manage");
+
+  // Para expandir el menú Gestión si alguno de sus items está disponible
+  const canSeeGestion = canAny([
+    "organizations:manage",
+    "organizations:create",
+    "organizations:update",
+    "organizations:delete",
+    "campaigns:manage",
+    "campaigns:create",
+    "campaigns:update",
+    "campaigns:delete",
+    "candidates:manage",
+    "candidates:create",
+    "candidates:update",
+    "candidates:delete",
+    "leaders:manage",
+    "leaders:create",
+    "leaders:update",
+    "leaders:delete",
+    "users:manage",
+    "users:create",
+    "users:update",
+    "users:delete",
+  ]);
 
   return (
     <>
@@ -74,7 +140,23 @@ export default function Sidebar({ isOpen, onClose }) {
         {/* Navegación */}
         <nav className="flex-1 px-4 py-6">
           <ul className="space-y-2">
-            {/* Inicio - Solo Superadmin */}
+            {/* Dashboard */}
+            <li>
+              <Link
+                to="/app/dashboard"
+                onClick={onClose}
+                className={`flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all
+                  ${
+                    isActive("/app/dashboard") || location.pathname === "/app"
+                      ? "bg-orange-500 text-white shadow-md"
+                      : "text-gray-600 hover:bg-orange-100 hover:text-orange-600"
+                  }`}
+              >
+                <span className="ml-3">Dashboard</span>
+              </Link>
+            </li>
+
+            {/* Inicio */}
             {canSeeInicio && (
               <li>
                 <Link
@@ -92,8 +174,8 @@ export default function Sidebar({ isOpen, onClose }) {
               </li>
             )}
 
-            {/* Votantes - Todos */}
-            {canSeePersonas && (
+            {/* Votantes */}
+            {canSeeVotantes && (
               <li>
                 <Link
                   to="/app/votantes"
@@ -110,8 +192,8 @@ export default function Sidebar({ isOpen, onClose }) {
               </li>
             )}
 
-            {/* Submenu Gestión - Agrupa Candidatos, Líderes, Digitadores y Asignar Candidatos */}
-            {(canCreate || isSuperadmin || isAdminCampaign || isCandidate) && (
+            {/* Submenu Gestión - Agrupa varios módulos basados en permisos */}
+            {canSeeGestion && (
               <li>
                 <button
                   onClick={() =>
@@ -125,7 +207,9 @@ export default function Sidebar({ isOpen, onClose }) {
                       isActive("/app/digitadores") ||
                       isActive("/app/candidatos") ||
                       isActive("/app/lideres") ||
-                      isActive("/app/asignar-candidatos")
+                      isActive("/app/asignar-candidatos") ||
+                      isActive("/app/organizaciones") ||
+                      isActive("/app/campanas")
                         ? "bg-orange-100 text-orange-600"
                         : "text-gray-600 hover:bg-orange-50 hover:text-orange-600"
                     }`}
@@ -151,8 +235,46 @@ export default function Sidebar({ isOpen, onClose }) {
                 {/* Submenu items */}
                 {expandedMenu === "gestion" && (
                   <ul className="space-y-1 mt-2 pl-4">
+                    {/* Organizaciones */}
+                    {canSeeOrganizaciones && (
+                      <li>
+                        <Link
+                          to="/app/organizaciones"
+                          onClick={onClose}
+                          className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all
+                            ${
+                              isActive("/app/organizaciones")
+                                ? "bg-orange-500 text-white shadow-md"
+                                : "text-gray-600 hover:bg-orange-100 hover:text-orange-600"
+                            }`}
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-current mr-3"></span>
+                          <span>Organizaciones</span>
+                        </Link>
+                      </li>
+                    )}
+
+                    {/* Campañas */}
+                    {canSeeCampanas && (
+                      <li>
+                        <Link
+                          to="/app/campanas"
+                          onClick={onClose}
+                          className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all
+                            ${
+                              isActive("/app/campanas")
+                                ? "bg-orange-500 text-white shadow-md"
+                                : "text-gray-600 hover:bg-orange-100 hover:text-orange-600"
+                            }`}
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-current mr-3"></span>
+                          <span>Campañas</span>
+                        </Link>
+                      </li>
+                    )}
+
                     {/* Candidatos */}
-                    {canCreate && (
+                    {canSeeCandidatos && (
                       <li>
                         <Link
                           to="/app/candidatos"
@@ -171,7 +293,7 @@ export default function Sidebar({ isOpen, onClose }) {
                     )}
 
                     {/* Líderes */}
-                    {(canCreate || isCandidate) && (
+                    {canSeeLideres && (
                       <li>
                         <Link
                           to="/app/lideres"
@@ -190,7 +312,7 @@ export default function Sidebar({ isOpen, onClose }) {
                     )}
 
                     {/* Digitadores */}
-                    {(isSuperadmin || isAdminCampaign) && (
+                    {canSeeDigitadores && (
                       <li>
                         <Link
                           to="/app/digitadores"
@@ -208,8 +330,27 @@ export default function Sidebar({ isOpen, onClose }) {
                       </li>
                     )}
 
+                    {/* Usuarios Especiales */}
+                    {canSeeEspeciales && (
+                      <li>
+                        <Link
+                          to="/app/especiales"
+                          onClick={onClose}
+                          className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all
+                            ${
+                              isActive("/app/especiales")
+                                ? "bg-orange-500 text-white shadow-md"
+                                : "text-gray-600 hover:bg-orange-100 hover:text-orange-600"
+                            }`}
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-current mr-3"></span>
+                          <span>Usuarios Especiales</span>
+                        </Link>
+                      </li>
+                    )}
+
                     {/* Asignar Candidatos */}
-                    {canCreate && (
+                    {canSeeAsignarCandidatos && (
                       <li>
                         <Link
                           to="/app/asignar-candidatos"
@@ -231,7 +372,7 @@ export default function Sidebar({ isOpen, onClose }) {
               </li>
             )}
 
-            {/* Reportes - Admin campaña, Candidato, Líder (NO Superadmin, NO Digitador) */}
+            {/* Reportes */}
             {canSeeReportes && (
               <li>
                 <Link
@@ -249,7 +390,7 @@ export default function Sidebar({ isOpen, onClose }) {
               </li>
             )}
 
-            {/* Admin Permisos - Solo Superadmin */}
+            {/* Admin Permisos */}
             {canSeeAdminPermisos && (
               <li>
                 <Link

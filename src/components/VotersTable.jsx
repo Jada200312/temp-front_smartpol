@@ -25,6 +25,8 @@ export default function VotersTable({
     key: "id",
     direction: "asc",
   });
+  const [isExporting, setIsExporting] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   // Cargar datos base: centros de votación y departamentos
   useEffect(() => {
@@ -125,22 +127,28 @@ export default function VotersTable({
   };
 
   const exportToExcel = async () => {
-    // Llamar al callback para obtener todos los datos sin paginación
-    if (onExportRequest) {
-      try {
-        const allData = await onExportRequest();
-        await performExport(allData);
-      } catch (error) {
-        console.error("Error al obtener datos para exportación:", error);
-        alert("Error al obtener datos para exportación");
+    setIsExporting(true);
+    setShowExportMenu(false);
+    try {
+      // Llamar al callback para obtener todos los datos sin paginación
+      if (onExportRequest) {
+        try {
+          const allData = await onExportRequest();
+          await performExport(allData);
+        } catch (error) {
+          console.error("Error al obtener datos para exportación:", error);
+          alert("Error al obtener datos para exportación");
+        }
+      } else {
+        // Fallback: si no hay callback, usar datos actuales
+        const dataToExport =
+          allVotersForExport && allVotersForExport.length > 0
+            ? allVotersForExport
+            : enrichedVoters;
+        await performExport(dataToExport);
       }
-    } else {
-      // Fallback: si no hay callback, usar datos actuales
-      const dataToExport =
-        allVotersForExport && allVotersForExport.length > 0
-          ? allVotersForExport
-          : enrichedVoters;
-      await performExport(dataToExport);
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -150,10 +158,24 @@ export default function VotersTable({
       return;
     }
 
+    const processed = processExportData(dataToExport);
+
+    // Obtener todas las corporaciones únicas de los datos
+    const corporations = new Set();
+    processed.forEach((row) => {
+      if (row.candidatosPorCorp) {
+        row.candidatosPorCorp.forEach((_, corpName) => {
+          corporations.add(corpName);
+        });
+      }
+    });
+    const sortedCorporations = Array.from(corporations).sort();
+
     const workbook = new Workbook();
     const worksheet = workbook.addWorksheet("Votantes");
 
-    worksheet.columns = [
+    // Construir columnas dinámicamente
+    const baseColumns = [
       { header: "ID", key: "ID", width: 8 },
       { header: "Nombre", key: "Nombre", width: 16 },
       { header: "Apellido", key: "Apellido", width: 16 },
@@ -166,6 +188,16 @@ export default function VotersTable({
       { header: "Barrio", key: "Barrio", width: 16 },
       { header: "Centro de Votación", key: "CentroVotacion", width: 20 },
     ];
+
+    const corporationColumns = sortedCorporations.map((corp) => ({
+      header: corp,
+      key: `corp_${corp}`,
+      width: 25,
+    }));
+
+    const likeColumns = [{ header: "Líderes", key: "Lideres", width: 30 }];
+
+    worksheet.columns = [...baseColumns, ...corporationColumns, ...likeColumns];
 
     const headerFill = {
       type: "pattern",
@@ -224,31 +256,33 @@ export default function VotersTable({
       fgColor: { argb: "FFF5F5F5" },
     };
 
-    dataToExport.forEach((voter, rowIndex) => {
-      const rowData = {
-        ID: voter.id,
-        Nombre: voter.firstName || "N/A",
-        Apellido: voter.lastName || "N/A",
-        Identificación: voter.identification || "N/A",
-        Género:
-          voter.gender === "M"
-            ? "Masculino"
-            : voter.gender === "F"
-              ? "Femenino"
-              : "Otro",
-        Teléfono: voter.phone || "N/A",
-        Email: voter.email || "N/A",
-        Departamento: voter.department?.name || "N/A",
-        Municipio: voter.municipality?.name || "N/A",
-        Barrio: voter.neighborhood || "N/A",
-        CentroVotacion:
-          voter.votingBooth?.name && voter.votingTableId
-            ? `${voter.votingBooth.name} - ${voter.votingTableId}`
-            : voter.votingBooth?.name || "N/A",
+    processed.forEach((rowData, rowIndex) => {
+      // Construir el objeto de fila con candidatos por corporación
+      const finalRowData = {
+        ID: rowData.ID,
+        Nombre: rowData.Nombre,
+        Apellido: rowData.Apellido,
+        Identificación: rowData.Identificación,
+        Género: rowData.Género,
+        Teléfono: rowData.Teléfono,
+        Email: rowData.Email,
+        Departamento: rowData.Departamento,
+        Municipio: rowData.Municipio,
+        Barrio: rowData.Barrio,
+        CentroVotacion: rowData.CentroVotacion,
       };
 
-      const row = worksheet.addRow(rowData);
-      row.height = 50;
+      // Añadir candidatos por corporación
+      sortedCorporations.forEach((corp) => {
+        const candidates = rowData.candidatosPorCorp.get(corp) || [];
+        finalRowData[`corp_${corp}`] =
+          candidates.length > 0 ? candidates.join("\n") : "N/A";
+      });
+
+      finalRowData.Lideres = rowData.Lideres;
+
+      const row = worksheet.addRow(finalRowData);
+      row.height = 80;
 
       row.eachCell((cell, colNumber) => {
         cell.border = dataBorder;
@@ -259,7 +293,11 @@ export default function VotersTable({
           cell.fill = lightGrayFill;
         }
 
-        if (colNumber === 13 || colNumber === 14) {
+        // Aplicar alineación especial para columnas de candidatos y líderes
+        if (
+          colNumber > baseColumns.length &&
+          colNumber <= baseColumns.length + corporationColumns.length + 1
+        ) {
           cell.alignment = {
             vertical: "top",
             wrapText: true,
@@ -290,6 +328,279 @@ export default function VotersTable({
     return sortConfig.direction === "asc" ? <span>▲</span> : <span>▼</span>;
   };
 
+  const processExportData = (dataToExport) => {
+    return dataToExport.map((voter) => {
+      // Agrupar candidatos por corporación
+      const candidatosPorCorp = new Map();
+
+      if (voter.candidates && voter.candidates.length > 0) {
+        voter.candidates.forEach((c) => {
+          const corpName = c.corporation?.name || "Sin Corporación";
+          if (!candidatosPorCorp.has(corpName)) {
+            candidatosPorCorp.set(corpName, []);
+          }
+          candidatosPorCorp.get(corpName).push(c.name);
+        });
+      }
+
+      // Formatear líderes
+      const lideresStr =
+        voter.leaders && voter.leaders.length > 0
+          ? voter.leaders.map((l) => l.name).join("; ")
+          : "N/A";
+
+      return {
+        ID: voter.id,
+        Nombre: voter.firstName || "N/A",
+        Apellido: voter.lastName || "N/A",
+        Identificación: voter.identification || "N/A",
+        Género:
+          voter.gender === "M"
+            ? "Masculino"
+            : voter.gender === "F"
+              ? "Femenino"
+              : "Otro",
+        Teléfono: voter.phone || "N/A",
+        Email: voter.email || "N/A",
+        Departamento: voter.department?.name || "N/A",
+        Municipio: voter.municipality?.name || "N/A",
+        Barrio: voter.neighborhood || "N/A",
+        CentroVotacion:
+          voter.votingBooth?.name && voter.votingTableId
+            ? `${voter.votingBooth.name} - ${voter.votingTableId}`
+            : voter.votingBooth?.name || "N/A",
+        candidatosPorCorp: candidatosPorCorp,
+        Lideres: lideresStr,
+      };
+    });
+  };
+
+  const exportToCSV = async () => {
+    setIsExporting(true);
+    setShowExportMenu(false);
+    try {
+      if (onExportRequest) {
+        try {
+          const allData = await onExportRequest();
+          performCSVExport(allData);
+        } catch (error) {
+          console.error("Error al obtener datos para exportación:", error);
+          alert("Error al obtener datos para exportación");
+        }
+      } else {
+        const dataToExport =
+          allVotersForExport && allVotersForExport.length > 0
+            ? allVotersForExport
+            : enrichedVoters;
+        performCSVExport(dataToExport);
+      }
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const performCSVExport = (dataToExport) => {
+    if (dataToExport.length === 0) {
+      alert("No hay datos para exportar");
+      return;
+    }
+
+    const processed = processExportData(dataToExport);
+
+    // Obtener todas las corporaciones únicas
+    const corporations = new Set();
+    processed.forEach((row) => {
+      if (row.candidatosPorCorp) {
+        row.candidatosPorCorp.forEach((_, corpName) => {
+          corporations.add(corpName);
+        });
+      }
+    });
+    const sortedCorporations = Array.from(corporations).sort();
+
+    const baseHeaders = [
+      "ID",
+      "Nombre",
+      "Apellido",
+      "Identificación",
+      "Género",
+      "Teléfono",
+      "Email",
+      "Departamento",
+      "Municipio",
+      "Barrio",
+      "Centro de Votación",
+    ];
+
+    const headers = [...baseHeaders, ...sortedCorporations, "Líderes"];
+
+    const csvContent = [
+      headers.join(","),
+      ...processed.map((row) =>
+        headers
+          .map((header) => {
+            let value = "";
+            if (baseHeaders.includes(header)) {
+              value = row[header] || "";
+            } else if (header === "Líderes") {
+              value = row.Lideres || "";
+            } else {
+              // Es una corporación
+              const candidates = row.candidatosPorCorp.get(header) || [];
+              value = candidates.join("; ");
+            }
+            // Escapar comillas y envolver en comillas si contiene comas o saltos de línea
+            const escaped = String(value).replace(/"/g, '""');
+            return escaped.includes(",") || escaped.includes("\n")
+              ? `"${escaped}"`
+              : escaped;
+          })
+          .join(","),
+      ),
+    ].join("\n");
+
+    const fileName = `Informe_Votantes_${new Date().toISOString().slice(0, 10)}.csv`;
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const exportToText = async () => {
+    setIsExporting(true);
+    setShowExportMenu(false);
+    try {
+      if (onExportRequest) {
+        try {
+          const allData = await onExportRequest();
+          performTextExport(allData);
+        } catch (error) {
+          console.error("Error al obtener datos para exportación:", error);
+          alert("Error al obtener datos para exportación");
+        }
+      } else {
+        const dataToExport =
+          allVotersForExport && allVotersForExport.length > 0
+            ? allVotersForExport
+            : enrichedVoters;
+        performTextExport(dataToExport);
+      }
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const performTextExport = (dataToExport) => {
+    if (dataToExport.length === 0) {
+      alert("No hay datos para exportar");
+      return;
+    }
+
+    const processed = processExportData(dataToExport);
+
+    // Obtener todas las corporaciones únicas
+    const corporations = new Set();
+    processed.forEach((row) => {
+      if (row.candidatosPorCorp) {
+        row.candidatosPorCorp.forEach((_, corpName) => {
+          corporations.add(corpName);
+        });
+      }
+    });
+    const sortedCorporations = Array.from(corporations).sort();
+
+    const baseHeaders = [
+      "ID",
+      "Nombre",
+      "Apellido",
+      "Identificación",
+      "Género",
+      "Teléfono",
+      "Email",
+      "Departamento",
+      "Municipio",
+      "Barrio",
+      "Centro de Votación",
+    ];
+
+    const headers = [...baseHeaders, ...sortedCorporations, "Líderes"];
+
+    // Calcular ancho de columnas
+    const columnWidths = headers.map((header) => header.length);
+    processed.forEach((row) => {
+      baseHeaders.forEach((header, index) => {
+        const value = String(row[header] || "");
+        columnWidths[index] = Math.max(columnWidths[index], value.length);
+      });
+
+      // Calcular ancho para columnas de corporaciones
+      sortedCorporations.forEach((corp, index) => {
+        const candidates = row.candidatosPorCorp.get(corp) || [];
+        const value = candidates.join("; ");
+        columnWidths[baseHeaders.length + index] = Math.max(
+          columnWidths[baseHeaders.length + index],
+          value.length,
+        );
+      });
+
+      // Calcular ancho para columna de líderes
+      const likeValue = String(row.Lideres || "");
+      columnWidths[baseHeaders.length + sortedCorporations.length] = Math.max(
+        columnWidths[baseHeaders.length + sortedCorporations.length],
+        likeValue.length,
+      );
+    });
+
+    // Crear contenido de texto con formato de tabla
+    const separator = (char = "-") =>
+      headers.map((_, index) => char.repeat(columnWidths[index] + 2)).join("+");
+
+    let textContent = "";
+    textContent += separator() + "\n";
+    textContent +=
+      "|" +
+      headers
+        .map((header, index) => ` ${header.padEnd(columnWidths[index])} `)
+        .join("|") +
+      "|\n";
+    textContent += separator("=") + "\n";
+
+    processed.forEach((row) => {
+      textContent +=
+        "|" +
+        headers
+          .map((header, index) => {
+            let value = "";
+            if (baseHeaders.includes(header)) {
+              value = String(row[header] || "");
+            } else if (header === "Líderes") {
+              value = String(row.Lideres || "");
+            } else {
+              // Es una corporación
+              const candidates = row.candidatosPorCorp.get(header) || [];
+              value = candidates.join("; ");
+            }
+            return ` ${value.padEnd(columnWidths[index])} `;
+          })
+          .join("|") +
+        "|\n";
+    });
+
+    textContent += separator() + "\n";
+
+    const fileName = `Informe_Votantes_${new Date().toISOString().slice(0, 10)}.txt`;
+    const blob = new Blob([textContent], { type: "text/plain;charset=utf-8;" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   const totalPages = pagination
     ? Math.ceil(pagination.total / pagination.limit)
     : 1;
@@ -309,18 +620,61 @@ export default function VotersTable({
         <h2 className="text-base sm:text-lg font-semibold text-gray-800">
           Votantes Registrados ({pagination?.total || enrichedVoters.length})
         </h2>
-        <button
-          onClick={exportToExcel}
-          disabled={!can("voters:read")}
-          title={!can("voters:read") ? "No tienes permiso para exportar" : ""}
-          className={`w-full sm:w-auto px-3 sm:px-4 py-2 rounded-md transition flex items-center justify-center sm:justify-start gap-2 text-sm sm:text-base ${
-            can("voters:read")
-              ? "bg-green-600 text-white hover:bg-green-700"
-              : "bg-gray-300 text-gray-500 cursor-not-allowed"
-          }`}
-        >
-          <span>📊</span> Exportar a Excel
-        </button>
+        <div className="relative">
+          <button
+            onClick={() => setShowExportMenu(!showExportMenu)}
+            disabled={!can("voters:read") || isExporting}
+            title={
+              !can("voters:read")
+                ? "No tienes permiso para exportar"
+                : isExporting
+                  ? "Generando archivo..."
+                  : "Selecciona formato de exportación"
+            }
+            className={`w-full sm:w-auto px-3 sm:px-4 py-2 rounded-md transition flex items-center justify-center sm:justify-start gap-2 text-sm sm:text-base ${
+              can("voters:read") && !isExporting
+                ? "bg-green-600 text-white hover:bg-green-700"
+                : !isExporting
+                  ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  : "bg-orange-500 text-white cursor-wait opacity-70"
+            }`}
+          >
+            {isExporting ? (
+              <>
+                <span className="inline-block animate-spin">⏳</span>
+                Generando...
+              </>
+            ) : (
+              <>
+                <span>📊</span> Exportar
+                <span className="text-xs">▼</span>
+              </>
+            )}
+          </button>
+
+          {showExportMenu && !isExporting && can("voters:read") && (
+            <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+              <button
+                onClick={exportToExcel}
+                className="w-full text-left px-4 py-2 hover:bg-gray-100 transition flex items-center gap-2 text-sm border-b border-gray-100"
+              >
+                <span>📈</span> Exportar a Excel
+              </button>
+              <button
+                onClick={exportToCSV}
+                className="w-full text-left px-4 py-2 hover:bg-gray-100 transition flex items-center gap-2 text-sm border-b border-gray-100"
+              >
+                <span>📋</span> Exportar a CSV
+              </button>
+              <button
+                onClick={exportToText}
+                className="w-full text-left px-4 py-2 hover:bg-gray-100 transition flex items-center gap-2 text-sm"
+              >
+                <span>📄</span> Exportar a Texto
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Vista Desktop - Tabla */}
@@ -375,7 +729,7 @@ export default function VotersTable({
           <tbody>
             {sortedVoters.length === 0 ? (
               <tr>
-                <td colSpan="12" className="px-4 py-12 text-center">
+                <td colSpan="11" className="px-4 py-12 text-center">
                   <div className="flex flex-col items-center justify-center">
                     <svg
                       className="w-12 h-12 text-gray-400 mb-4"

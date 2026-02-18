@@ -30,12 +30,14 @@ export function UserProvider({ children }) {
         const userId = localStorage.getItem("user_id");
         const email = localStorage.getItem("user_email");
         const roleId = localStorage.getItem("roleId");
+        const organizationId = localStorage.getItem("organizationId");
 
         if (token && userId && email) {
           const userData = {
             id: parseInt(userId),
             email,
             roleId: roleId ? parseInt(roleId) : null,
+            organizationId: organizationId ? parseInt(organizationId) : null,
           };
           setUser(userData);
 

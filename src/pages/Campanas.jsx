@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
-  getCandidatesWithPagination,
-  deleteCandidate,
-  updateCandidate,
-} from "../api/candidates";
+  getCampaignsWithPagination,
+  deleteCampaign,
+  updateCampaign,
+} from "../api/campaigns";
 import { usePermission } from "../hooks/usePermission";
 import { useAlert } from "../hooks/useAlert";
 import Pagination from "../components/Pagination";
@@ -14,18 +14,18 @@ import {
   TrashIcon,
 } from "@heroicons/react/24/outline";
 
-export default function Candidatos() {
+export default function Campanas() {
   const { can } = usePermission();
   const navigate = useNavigate();
   const location = useLocation();
   const alert = useAlert();
 
   const [currentUser, setCurrentUser] = useState(null);
-  const [candidates, setCandidates] = useState([]);
+  const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [editingCandidate, setEditingCandidate] = useState(null);
+  const [editingCampaign, setEditingCampaign] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -34,17 +34,18 @@ export default function Candidatos() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
-    party: "",
-    number: "",
-    campaignId: "",
+    description: "",
+    startDate: "",
+    endDate: "",
+    status: true,
   });
 
-  // Cargar usuario del localStorage
   useEffect(() => {
     const user_id = localStorage.getItem("user_id");
     const user_email = localStorage.getItem("user_email");
     const organizationId = localStorage.getItem("organizationId");
     const roleId = localStorage.getItem("roleId");
+    const organizationName = localStorage.getItem("organizationName");
 
     if (user_id) {
       const user = {
@@ -52,6 +53,7 @@ export default function Candidatos() {
         email: user_email,
         organizationId: parseInt(organizationId),
         roleId: parseInt(roleId),
+        organizationName,
       };
 
       setCurrentUser(user);
@@ -61,34 +63,42 @@ export default function Candidatos() {
     }
   }, []);
 
-  // Cargar candidatos con paginación
-  const fetchCandidates = async (page = 1, searchTerm = "") => {
+  const fetchCampaigns = async (page = 1, searchTerm = "") => {
     setLoading(true);
     setError("");
     try {
-      const data = await getCandidatesWithPagination(
+      const data = await getCampaignsWithPagination(
         page,
         itemsPerPage,
         searchTerm,
       );
 
-      let candidatesList = Array.isArray(data.data) ? data.data : [];
+      if (!data || !data.data) {
+        setCampaigns([]);
+        setCurrentPage(1);
+        setTotalPages(1);
+        setTotalItems(0);
+        return;
+      }
 
-      // Filtrar candidatos si es admin de organización
-      if (currentUser?.roleId === 2 && currentUser?.organizationId) {
-        candidatesList = candidatesList.filter(
-          (candidate) =>
-            candidate.user?.organizationId === currentUser.organizationId,
+      const campaignsData = Array.isArray(data.data) ? data.data : [];
+
+      let filteredData = campaignsData;
+      if (currentUser?.organizationId) {
+        filteredData = campaignsData.filter(
+          (campaign) => campaign.organizationId === currentUser.organizationId,
         );
       }
 
-      setCandidates(candidatesList);
+      setCampaigns(filteredData);
       setCurrentPage(data.page || page);
       setTotalPages(data.pages || 1);
-      setTotalItems(data.total || candidatesList.length);
+      setTotalItems(data.total || 0);
     } catch (err) {
-      setError("No se pudieron cargar los candidatos");
-      alert.apiError(err, "No se pudieron cargar los candidatos");
+      console.error("Error fetching campaigns:", err);
+      setError("No se pudieron cargar las campañas");
+      setCampaigns([]);
+      alert.apiError(err, "No se pudieron cargar las campañas");
     } finally {
       setLoading(false);
     }
@@ -96,16 +106,21 @@ export default function Candidatos() {
 
   useEffect(() => {
     if (isInitialized && currentUser) {
-      fetchCandidates(currentPage, search);
+      fetchCampaigns(1, "");
+    }
+  }, [isInitialized, currentUser?.id]);
+
+  useEffect(() => {
+    if (isInitialized && currentUser && (currentPage > 1 || search)) {
+      fetchCampaigns(currentPage, search);
     }
   }, [currentPage, search, isInitialized, currentUser?.id]);
 
-  // Refrescar cuando se llega desde la creación
   useEffect(() => {
     if (location.state?.refresh) {
       setCurrentPage(1);
       setSearch("");
-      fetchCandidates(1, "");
+      fetchCampaigns(1, "");
       navigate(location.pathname, { replace: true });
     }
   }, [location.state?.refresh, navigate, location.pathname]);
@@ -115,20 +130,21 @@ export default function Candidatos() {
     setCurrentPage(1);
   };
 
-  const handleEdit = (candidate) => {
-    setEditingCandidate(candidate);
+  const handleEdit = (campaign) => {
+    setEditingCampaign(campaign);
     setFormData({
-      name: candidate.name,
-      party: candidate.party,
-      number: candidate.number,
-      campaignId: candidate.campaignId || "",
+      name: campaign.name,
+      description: campaign.description || "",
+      startDate: campaign.startDate ? campaign.startDate.split("T")[0] : "",
+      endDate: campaign.endDate ? campaign.endDate.split("T")[0] : "",
+      status: campaign.status,
     });
     setShowModal(true);
   };
 
-  const handleDelete = async (candidateId) => {
+  const handleDelete = async (campaignId) => {
     const result = await alert.confirm(
-      "¿Estás seguro de que deseas eliminar este candidato?",
+      "¿Estás seguro de que deseas eliminar esta campaña?",
       "Confirmar eliminación",
       "Sí, eliminar",
       "Cancelar",
@@ -136,45 +152,41 @@ export default function Candidatos() {
     if (!result.isConfirmed) return;
 
     try {
-      await deleteCandidate(candidateId);
-      alert.success("Candidato eliminado exitosamente");
-      setTimeout(() => {
-        fetchCandidates(currentPage, search);
-      }, 1500);
+      await deleteCampaign(campaignId);
+      alert.success("Campaña eliminada exitosamente");
+      fetchCampaigns(currentPage, search);
     } catch (err) {
-      alert.apiError(err, "Error al eliminar candidato");
+      console.error("Error deleting campaign:", err);
+      alert.apiError(err, "Error al eliminar campaña");
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!editingCandidate) return;
+    if (!editingCampaign) return;
+
+    if (new Date(formData.startDate) >= new Date(formData.endDate)) {
+      alert.error("La fecha de inicio debe ser anterior a la fecha de fin");
+      return;
+    }
 
     try {
-      const updateData = {
-        name: formData.name,
-        party: formData.party,
-        number: parseInt(formData.number) || 0,
-        ...(formData.campaignId && {
-          campaignId: parseInt(formData.campaignId),
-        }),
-      };
-
-      await updateCandidate(editingCandidate.id, updateData);
+      await updateCampaign(editingCampaign.id, formData);
       setShowModal(false);
-      setEditingCandidate(null);
-      alert.success("Candidato actualizado exitosamente");
-      fetchCandidates(currentPage, search);
+      setEditingCampaign(null);
+      alert.success("Campaña actualizada exitosamente");
+      fetchCampaigns(currentPage, search);
     } catch (err) {
-      alert.apiError(err, "Error al actualizar candidato");
+      console.error("Error updating campaign:", err);
+      alert.apiError(err, "Error al actualizar campaña");
     }
   };
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: type === "checkbox" ? checked : value,
     }));
   };
 
@@ -182,53 +194,61 @@ export default function Candidatos() {
     setCurrentPage(newPage);
   };
 
+  const filteredCampaigns = campaigns || [];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-50 to-white p-4 sm:p-6 lg:p-8">
       <div className="flex flex-col sm:flex-row justify-between gap-4 mb-8">
         <div>
           <h2 className="text-3xl font-extrabold text-gray-900">
-            Listado de Candidatos
+            Listado de Campañas
           </h2>
           <p className="text-gray-500 text-sm mt-2 max-w-xl">
-            Gestión de candidatos registrados en la plataforma
+            Gestión de campañas políticas registradas en la plataforma
+            {currentUser?.organizationId && (
+              <span className="block text-xs mt-1">
+                Organización: {currentUser?.organizationName} (ID:{" "}
+                {currentUser?.organizationId})
+              </span>
+            )}
           </p>
         </div>
 
         <button
-          onClick={() => navigate("/app/crear-candidatos")}
-          disabled={!can("candidates:manage") && !can("candidates:create")}
+          onClick={() => navigate("/app/crear-campanas")}
+          disabled={!can("campaigns:manage") && !can("campaigns:create")}
           title={
-            !can("candidates:manage") && !can("candidates:create")
-              ? "No tienes permiso para crear candidatos"
+            !can("campaigns:manage") && !can("campaigns:create")
+              ? "No tienes permiso para crear campañas"
               : ""
           }
           className={`flex items-center gap-2 px-6 py-3 rounded-xl shadow-md transition ${
-            can("candidates:manage") || can("candidates:create")
+            can("campaigns:manage") || can("campaigns:create")
               ? "bg-orange-500 text-white shadow-orange-500/20 hover:bg-orange-600"
               : "bg-gray-300 text-gray-500 cursor-not-allowed"
           }`}
         >
           <PlusIcon className="w-5 h-5" />
-          Agregar candidato
+          Agregar campaña
         </button>
       </div>
 
       <div className="mb-8">
         <input
           type="text"
-          placeholder="Buscar por nombre, partido o número..."
+          placeholder="Buscar por nombre o descripción..."
           value={search}
           onChange={(e) => handleSearchChange(e.target.value)}
           className="w-full sm:w-96 px-4 py-3 rounded-xl border border-gray-200 bg-white shadow-sm focus:ring-2 focus:ring-orange-500/30 focus:outline-none"
         />
       </div>
 
-      {showModal && editingCandidate && (
+      {showModal && editingCampaign && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 max-h-screen overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-gray-900">
-                Editar Candidato
+                Editar Campaña
               </h3>
               <button
                 onClick={() => setShowModal(false)}
@@ -241,7 +261,7 @@ export default function Candidatos() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nombre <span className="text-red-500">*</span>
+                  Nombre *
                 </label>
                 <input
                   type="text"
@@ -255,28 +275,57 @@ export default function Candidatos() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Partido Político
+                  Descripción
                 </label>
-                <input
-                  type="text"
-                  name="party"
-                  value={formData.party}
+                <textarea
+                  name="description"
+                  value={formData.description}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                  rows="2"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none resize-none"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Número de Candidato
+                  Fecha de Inicio *
                 </label>
                 <input
-                  type="number"
-                  name="number"
-                  value={formData.number}
+                  type="date"
+                  name="startDate"
+                  value={formData.startDate}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                  required
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Fecha de Finalización *
+                </label>
+                <input
+                  type="date"
+                  name="endDate"
+                  value={formData.endDate}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                  required
+                />
+              </div>
+
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="status"
+                  name="status"
+                  checked={formData.status}
+                  onChange={handleInputChange}
+                  className="w-4 h-4 text-orange-500 rounded focus:ring-orange-500"
+                />
+                <label htmlFor="status" className="ml-2 text-sm text-gray-700">
+                  Campaña activa
+                </label>
               </div>
 
               <div className="flex gap-3 pt-4 border-t">
@@ -300,26 +349,37 @@ export default function Candidatos() {
       )}
 
       {loading && (
-        <div className="bg-white p-6 rounded-xl shadow-sm">
-          Cargando candidatos...
+        <div className="bg-white p-6 rounded-xl shadow-sm text-gray-500 text-center">
+          Cargando campañas...
         </div>
       )}
 
-      {!loading && candidates.length === 0 && (
-        <div className="bg-white p-6 rounded-xl text-gray-500">
-          {search
-            ? "No se encontraron resultados"
-            : "No hay candidatos registrados"}
+      {!loading && error && (
+        <div className="bg-red-50 border border-red-200 p-4 rounded-xl text-red-700">
+          {error}
         </div>
       )}
 
-      {!loading && candidates.length > 0 && (
+      {!loading && filteredCampaigns.length === 0 && !error && (
+        <div className="bg-white p-6 rounded-xl text-gray-500 text-center">
+          No se encontraron campañas
+        </div>
+      )}
+
+      {!loading && filteredCampaigns.length > 0 && (
         <div className="hidden md:block bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full table-auto">
               <thead className="bg-gray-100 border-b">
                 <tr>
-                  {["Nombre", "Partido", "Número", "Acciones"].map((h) => (
+                  {[
+                    "Nombre",
+                    "Organización",
+                    "Inicio",
+                    "Fin",
+                    "Estado",
+                    "Acciones",
+                  ].map((h) => (
                     <th
                       key={h}
                       className="px-6 py-4 text-xs font-bold text-gray-700 uppercase tracking-wide text-left"
@@ -331,47 +391,67 @@ export default function Candidatos() {
               </thead>
 
               <tbody className="divide-y divide-gray-100">
-                {candidates.map((candidate) => (
+                {filteredCampaigns.map((campaign) => (
                   <tr
-                    key={candidate.id}
+                    key={campaign.id}
                     className="hover:bg-gray-50 transition-colors"
                   >
                     <td className="px-6 py-4 text-sm font-semibold text-gray-900">
-                      {candidate.name}
+                      {campaign.name}
                     </td>
 
                     <td className="px-6 py-4 text-sm text-gray-700">
-                      {candidate.party || "No registrado"}
+                      {campaign.organization?.name || "No asignada"}
                     </td>
 
-                    <td className="px-6 py-4 text-sm text-gray-700 font-semibold">
-                      {candidate.number || "-"}
+                    <td className="px-6 py-4 text-sm text-gray-700">
+                      {campaign.startDate
+                        ? new Date(campaign.startDate).toLocaleDateString(
+                            "es-ES",
+                          )
+                        : "-"}
+                    </td>
+
+                    <td className="px-6 py-4 text-sm text-gray-700">
+                      {campaign.endDate
+                        ? new Date(campaign.endDate).toLocaleDateString("es-ES")
+                        : "-"}
+                    </td>
+
+                    <td className="px-6 py-4 text-sm">
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          campaign.status
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {campaign.status ? "Activa" : "Inactiva"}
+                      </span>
                     </td>
 
                     <td className="px-6 py-4 flex gap-4">
-                      {(can("candidates:manage") ||
-                        can("candidates:update")) && (
+                      {(can("campaigns:manage") || can("campaigns:update")) && (
                         <button
-                          onClick={() => handleEdit(candidate)}
+                          onClick={() => handleEdit(campaign)}
                           className="text-gray-400 hover:text-orange-500 transition"
                           title="Editar"
                         >
                           <PencilSquareIcon className="w-5 h-5" />
                         </button>
                       )}
-                      {(can("candidates:manage") ||
-                        can("candidates:delete")) && (
+                      {(can("campaigns:manage") || can("campaigns:delete")) && (
                         <button
-                          onClick={() => handleDelete(candidate.id)}
+                          onClick={() => handleDelete(campaign.id)}
                           className="text-gray-400 hover:text-red-500 transition"
                           title="Eliminar"
                         >
                           <TrashIcon className="w-5 h-5" />
                         </button>
                       )}
-                      {!can("candidates:manage") &&
-                        !can("candidates:update") &&
-                        !can("candidates:delete") && (
+                      {!can("campaigns:manage") &&
+                        !can("campaigns:update") &&
+                        !can("campaigns:delete") && (
                           <span className="text-gray-300 text-sm">
                             Sin acceso
                           </span>
@@ -393,47 +473,62 @@ export default function Candidatos() {
         </div>
       )}
 
-      {!loading && candidates.length > 0 && (
+      {!loading && filteredCampaigns.length > 0 && (
         <div className="md:hidden space-y-4">
-          {candidates.map((candidate) => (
+          {filteredCampaigns.map((campaign) => (
             <div
-              key={candidate.id}
+              key={campaign.id}
               className="bg-white rounded-xl shadow-md p-4 border border-gray-200"
             >
               <div className="font-bold text-gray-900 text-lg mb-2">
-                {candidate.name}
+                {campaign.name}
               </div>
 
               <div className="space-y-2 text-sm text-gray-600 mb-4">
-                {candidate.party && (
-                  <div>
-                    <span className="font-semibold text-gray-900">
-                      Partido:
-                    </span>{" "}
-                    {candidate.party}
-                  </div>
-                )}
-                {candidate.number && (
-                  <div>
-                    <span className="font-semibold text-gray-900">Número:</span>{" "}
-                    {candidate.number}
-                  </div>
-                )}
+                <div>
+                  <span className="font-semibold text-gray-900">
+                    Organización:
+                  </span>{" "}
+                  {campaign.organization?.name || "No asignada"}
+                </div>
+                <div>
+                  <span className="font-semibold text-gray-900">Inicio:</span>{" "}
+                  {campaign.startDate
+                    ? new Date(campaign.startDate).toLocaleDateString("es-ES")
+                    : "-"}
+                </div>
+                <div>
+                  <span className="font-semibold text-gray-900">Fin:</span>{" "}
+                  {campaign.endDate
+                    ? new Date(campaign.endDate).toLocaleDateString("es-ES")
+                    : "-"}
+                </div>
+                <div>
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      campaign.status
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    {campaign.status ? "Activa" : "Inactiva"}
+                  </span>
+                </div>
               </div>
 
               <div className="flex gap-4 pt-3 border-t">
-                {can("candidates:update") && (
+                {can("campaigns:update") && (
                   <button
-                    onClick={() => handleEdit(candidate)}
+                    onClick={() => handleEdit(campaign)}
                     className="flex items-center gap-2 text-orange-500 hover:text-orange-600 flex-1 justify-center py-2 rounded-lg hover:bg-orange-50 transition"
                   >
                     <PencilSquareIcon className="w-4 h-4" />
                     Editar
                   </button>
                 )}
-                {can("candidates:delete") && (
+                {can("campaigns:delete") && (
                   <button
-                    onClick={() => handleDelete(candidate.id)}
+                    onClick={() => handleDelete(campaign.id)}
                     className="flex items-center gap-2 text-red-500 hover:text-red-600 flex-1 justify-center py-2 rounded-lg hover:bg-red-50 transition"
                   >
                     <TrashIcon className="w-4 h-4" />
@@ -443,6 +538,16 @@ export default function Candidatos() {
               </div>
             </div>
           ))}
+
+          <div className="pt-4">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={handlePageChange}
+            />
+          </div>
         </div>
       )}
     </div>

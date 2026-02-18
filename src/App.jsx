@@ -14,65 +14,25 @@ import Votantes from "./pages/Personas";
 import Candidatos from "./pages/Candidatos";
 import Lideres from "./pages/Lideres";
 import Digitadores from "./pages/Digitadores";
+import Especiales from "./pages/Especiales";
 import Reportes from "./pages/Reportes";
 import CreateCandidates from "./pages/CreateCandidates";
 import CreateLeaders from "./pages/CreateLeaders";
 import CreateDigitadores from "./pages/CreateDigitadores";
+import CreateEspeciales from "./pages/CreateEspeciales";
 import AssignCandidates from "./pages/AssignCandidates";
 import AdminPermissions from "./pages/AdminPermissions";
 import Forbidden from "./pages/Forbidden";
 import NotFound from "./pages/NotFound";
 import PrivateRoute from "./components/PrivateRoute";
+import PermissionRoute from "./components/PermissionRoute";
 import { usePermission } from "./hooks/usePermission";
+import Organizaciones from "./pages/Organizaciones";
+import CreateOrganizaciones from "./pages/CreateOrganizaciones";
+import Campanas from "./pages/Campanas";
+import CreateCampanas from "./pages/CreateCampanas";
 
 /**
- * Componente para proteger rutas que requieren rol específico
- */
-function RoleBasedRoute({ requiredRoles, children }) {
-  const { user, isLoading } = useUser();
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user || !requiredRoles.includes(user.roleId)) {
-    return <Forbidden />;
-  }
-
-  return children;
-}
-
-/**
- * Componente para proteger rutas que requieren permisos específicos
- */
-function PermissionBasedRoute({ requiredPermission, children }) {
-  const { user, isLoading } = useUser();
-  const { can } = usePermission();
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user || !can(requiredPermission)) {
-    return <Forbidden />;
-  }
-
-  return children;
-} /**
  * Página de login con redirección automática si ya hay sesión
  */
 function LoginPage() {
@@ -82,7 +42,7 @@ function LoginPage() {
   useEffect(() => {
     // Si hay usuario y ya termina de cargar, redirigir
     if (!isLoading && user) {
-      navigate("/app/inicio", { replace: true });
+      navigate("/app/dashboard", { replace: true });
     }
   }, [user, isLoading, navigate]);
 
@@ -131,104 +91,240 @@ function App() {
               </PrivateRoute>
             }
           >
-            {/* Inicio - Todos pueden acceder */}
+            {/* Dashboard - Ruta /app/dashboard - Todos los usuarios autenticados pueden acceder */}
+            <Route path="dashboard" element={null} />
+
+            {/* Inicio - Todos los usuarios autenticados pueden acceder */}
             <Route path="inicio" element={<Inicio />} />
 
-            {/* Votantes - Superadmin, Admin campaña, Candidato, Líder, Digitador (todos) */}
-            <Route path="votantes" element={<Votantes />} />
+            {/* Votantes - Requiere permiso voters:read (solo lectura) */}
+            <Route
+              path="votantes"
+              element={
+                <PermissionRoute requiredPermission="voters:read">
+                  <Votantes />
+                </PermissionRoute>
+              }
+            />
 
-            {/* Candidatos - Superadmin, Admin campaña */}
+            {/* Organizaciones - Requiere cualquier permiso de gestion */}
+            <Route
+              path="organizaciones"
+              element={
+                <PermissionRoute
+                  requiredPermission={[
+                    "organizations:manage",
+                    "organizations:create",
+                    "organizations:update",
+                    "organizations:delete",
+                  ]}
+                >
+                  <Organizaciones />
+                </PermissionRoute>
+              }
+            />
+
+            {/* Crear Organizaciones - Requiere create o manage */}
+            <Route
+              path="crear-organizaciones"
+              element={
+                <PermissionRoute
+                  requiredPermission={[
+                    "organizations:manage",
+                    "organizations:create",
+                  ]}
+                >
+                  <CreateOrganizaciones />
+                </PermissionRoute>
+              }
+            />
+
+            {/* Campanas - Requiere cualquier permiso de gestion */}
+            <Route
+              path="campanas"
+              element={
+                <PermissionRoute
+                  requiredPermission={[
+                    "campaigns:manage",
+                    "campaigns:create",
+                    "campaigns:update",
+                    "campaigns:delete",
+                  ]}
+                >
+                  <Campanas />
+                </PermissionRoute>
+              }
+            />
+
+            {/* Crear Campanas - Requiere create o manage */}
+            <Route
+              path="crear-campanas"
+              element={
+                <PermissionRoute
+                  requiredPermission={["campaigns:manage", "campaigns:create"]}
+                >
+                  <CreateCampanas />
+                </PermissionRoute>
+              }
+            />
+
+            {/* Candidatos - Requiere cualquier permiso de gestion */}
             <Route
               path="candidatos"
               element={
-                <RoleBasedRoute requiredRoles={[1, 2]}>
+                <PermissionRoute
+                  requiredPermission={[
+                    "candidates:manage",
+                    "candidates:create",
+                    "candidates:update",
+                    "candidates:delete",
+                  ]}
+                >
                   <Candidatos />
-                </RoleBasedRoute>
+                </PermissionRoute>
               }
             />
 
-            {/* Líderes - Superadmin, Admin campaña, Candidato */}
+            {/* Lideres - Requiere cualquier permiso de gestion */}
             <Route
               path="lideres"
               element={
-                <RoleBasedRoute requiredRoles={[1, 2, 3]}>
+                <PermissionRoute
+                  requiredPermission={[
+                    "leaders:manage",
+                    "leaders:create",
+                    "leaders:update",
+                    "leaders:delete",
+                  ]}
+                >
                   <Lideres />
-                </RoleBasedRoute>
+                </PermissionRoute>
               }
             />
 
-            {/* Digitadores - Superadmin, Admin campaña */}
+            {/* Digitadores - Requiere cualquier permiso de gestion */}
             <Route
               path="digitadores"
               element={
-                <RoleBasedRoute requiredRoles={[1, 2]}>
+                <PermissionRoute
+                  requiredPermission={[
+                    "users:manage",
+                    "users:create",
+                    "users:update",
+                    "users:delete",
+                  ]}
+                >
                   <Digitadores />
-                </RoleBasedRoute>
+                </PermissionRoute>
               }
             />
 
-            {/* Crear Candidatos - Superadmin, Admin campaña */}
+            {/* Usuarios Especiales - Requiere cualquier permiso de gestion */}
+            <Route
+              path="especiales"
+              element={
+                <PermissionRoute
+                  requiredPermission={[
+                    "users:manage",
+                    "users:create",
+                    "users:update",
+                    "users:delete",
+                  ]}
+                >
+                  <Especiales />
+                </PermissionRoute>
+              }
+            />
+
+            {/* Crear Candidatos - Requiere create o manage */}
             <Route
               path="crear-candidatos"
               element={
-                <RoleBasedRoute requiredRoles={[1, 2]}>
+                <PermissionRoute
+                  requiredPermission={[
+                    "candidates:manage",
+                    "candidates:create",
+                  ]}
+                >
                   <CreateCandidates />
-                </RoleBasedRoute>
+                </PermissionRoute>
               }
             />
 
-            {/* Crear Líderes - Superadmin, Admin campaña, Candidato */}
+            {/* Crear Lideres - Requiere create o manage */}
             <Route
               path="crear-lideres"
               element={
-                <RoleBasedRoute requiredRoles={[1, 2, 3]}>
+                <PermissionRoute
+                  requiredPermission={["leaders:manage", "leaders:create"]}
+                >
                   <CreateLeaders />
-                </RoleBasedRoute>
+                </PermissionRoute>
               }
             />
 
-            {/* Crear Digitadores - Superadmin, Admin campaña */}
+            {/* Crear Digitadores - Requiere create o manage */}
             <Route
               path="crear-digitadores"
               element={
-                <RoleBasedRoute requiredRoles={[1, 2]}>
+                <PermissionRoute
+                  requiredPermission={["users:manage", "users:create"]}
+                >
                   <CreateDigitadores />
-                </RoleBasedRoute>
+                </PermissionRoute>
               }
             />
 
-            {/* Asignar Candidatos - Superadmin, Admin campaña */}
+            {/* Crear Usuarios Especiales - Requiere create o manage */}
+            <Route
+              path="crear-especiales"
+              element={
+                <PermissionRoute
+                  requiredPermission={["users:manage", "users:create"]}
+                >
+                  <CreateEspeciales />
+                </PermissionRoute>
+              }
+            />
+
+            {/* Asignar Candidatos - Requiere manage, update, o delete */}
             <Route
               path="asignar-candidatos"
               element={
-                <RoleBasedRoute requiredRoles={[1, 2]}>
+                <PermissionRoute
+                  requiredPermission={[
+                    "candidates:manage",
+                    "candidates:update",
+                    "candidates:delete",
+                  ]}
+                >
                   <AssignCandidates />
-                </RoleBasedRoute>
+                </PermissionRoute>
               }
             />
 
-            {/* Reportes - Requiere permiso reports:read */}
+            {/* Reportes - Requiere permiso reports:read (solo lectura) */}
             <Route
               path="reportes"
               element={
-                <PermissionBasedRoute requiredPermission="reports:read">
+                <PermissionRoute requiredPermission="reports:read">
                   <Reportes />
-                </PermissionBasedRoute>
+                </PermissionRoute>
               }
             />
 
-            {/* Admin Permisos - Solo Superadmin */}
+            {/* Admin Permisos - Requiere permiso permissions:manage (solo administradores) */}
             <Route
               path="admin-permisos"
               element={
-                <RoleBasedRoute requiredRoles={[1]}>
+                <PermissionRoute requiredPermission="permissions:manage">
                   <AdminPermissions />
-                </RoleBasedRoute>
+                </PermissionRoute>
               }
             />
 
-            {/* Ruta por defecto dentro de Dashboard */}
-            <Route index element={<Navigate to="inicio" replace />} />
+            {/* Ruta por defecto dentro de Dashboard - redirigir a dashboard */}
+            <Route index element={<Navigate to="dashboard" replace />} />
           </Route>
 
           {/* Ruta de acceso denegado */}

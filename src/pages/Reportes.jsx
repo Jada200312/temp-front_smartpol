@@ -1,30 +1,150 @@
 import React, { useState, useEffect } from "react";
 import { getVoterReport, getVoterReportForExport } from "../api/reports";
+import { getLeaderByUserId } from "../api/leaders";
+import { getCandidateByUserId } from "../api/candidates";
 import ReportFilters from "../components/ReportFilters";
 import AggregationCounters from "../components/AggregationCounters";
 import VotersTable from "../components/VotersTable";
 import { ProtectedComponent } from "../components/ProtectedComponent";
+import { useUser } from "../context/UserContext";
 
 export default function Reportes() {
+  const { user } = useUser();
   const [voters, setVoters] = useState([]);
+  const [allVoters, setAllVoters] = useState([]); // Todos los votantes para búsqueda
   const [aggregations, setAggregations] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadingAll, setLoadingAll] = useState(false);
   const [error, setError] = useState(null);
   const [filters, setFilters] = useState({});
   const [activeFilters, setActiveFilters] = useState({});
   const [pagination, setPagination] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [candidateId, setCandidateId] = useState(null);
+  const [loadingCandidateId, setLoadingCandidateId] = useState(
+    user?.roleId === 3,
+  );
+  const [leaderId, setLeaderId] = useState(null);
+  const [loadingLeaderId, setLoadingLeaderId] = useState(user?.roleId === 4);
+
+  // Cargar candidateId si el usuario es candidato, y leaderId si es líder
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Si es candidato, obtener su candidateId
+        if (user?.roleId === 3) {
+          try {
+            const candidate = await getCandidateByUserId(user.id);
+            if (candidate?.id) {
+              setCandidateId(candidate.id);
+            }
+          } catch (err) {
+            console.error("Error loading candidate:", err);
+          } finally {
+            setLoadingCandidateId(false);
+          }
+        } else {
+          setCandidateId(null);
+          setLoadingCandidateId(false);
+        }
+
+        // Si es líder, obtener su leaderId
+        if (user?.roleId === 4) {
+          try {
+            const leader = await getLeaderByUserId(user.id);
+            if (leader?.id) {
+              setLeaderId(leader.id);
+            }
+          } catch (err) {
+            console.error("Error loading leader:", err);
+          } finally {
+            setLoadingLeaderId(false);
+          }
+        } else {
+          setLeaderId(null);
+          setLoadingLeaderId(false);
+        }
+      } catch (err) {
+        setLoadingCandidateId(false);
+        setLoadingLeaderId(false);
+      }
+    };
+
+    if (user) {
+      loadData();
+    }
+  }, [user]);
 
   useEffect(() => {
+    // Protección: si es candidato o líder pero aún está cargando sus IDs, no ejecutar
+    if (user?.roleId === 3 && loadingCandidateId) {
+      return;
+    }
+    if (user?.roleId === 3 && !candidateId) {
+      return;
+    }
+    if (user?.roleId === 4 && loadingLeaderId) {
+      return;
+    }
+    if (user?.roleId === 4 && !leaderId) {
+      return;
+    }
+
     loadReport(filters, currentPage);
-  }, [filters, currentPage]);
+  }, [
+    filters,
+    currentPage,
+    candidateId,
+    loadingCandidateId,
+    leaderId,
+    loadingLeaderId,
+    user?.roleId,
+  ]);
+
+  // Cargar todos los votantes cuando se activa la búsqueda
+  useEffect(() => {
+    if (search) {
+      // Protección: si es candidato o líder pero aún está cargando sus IDs, no ejecutar
+      if (user?.roleId === 3 && loadingCandidateId) {
+        return;
+      }
+      if (user?.roleId === 3 && !candidateId) {
+        return;
+      }
+      if (user?.roleId === 4 && loadingLeaderId) {
+        return;
+      }
+      if (user?.roleId === 4 && !leaderId) {
+        return;
+      }
+
+      loadAllVoters();
+    }
+  }, [
+    search,
+    filters,
+    candidateId,
+    loadingCandidateId,
+    leaderId,
+    loadingLeaderId,
+    user?.roleId,
+  ]);
 
   const loadReport = async (currentFilters, page = 1) => {
     setLoading(true);
     setError(null);
     try {
+      // Si el usuario es candidato o líder, agregar automáticamente su ID al filtro
+      let filtersToApply = { ...currentFilters };
+      if (user?.roleId === 3 && candidateId) {
+        filtersToApply.candidateId = candidateId;
+      } else if (user?.roleId === 4 && leaderId) {
+        filtersToApply.leaderId = leaderId;
+      }
+
       const response = await getVoterReport({
-        ...currentFilters,
+        ...filtersToApply,
         page,
         limit: 50,
       });
@@ -56,10 +176,33 @@ export default function Reportes() {
     }
   };
 
+  const loadAllVoters = async () => {
+    setLoadingAll(true);
+    try {
+      // Si el usuario es candidato o líder, agregar automáticamente su ID al filtro
+      let filtersToApply = { ...activeFilters };
+      if (user?.roleId === 3 && candidateId) {
+        filtersToApply.candidateId = candidateId;
+      } else if (user?.roleId === 4 && leaderId) {
+        filtersToApply.leaderId = leaderId;
+      }
+
+      const response = await getVoterReportForExport(filtersToApply);
+      setAllVoters(response.data || []);
+    } catch (error) {
+      console.error("Error loading all voters for search:", error);
+      setAllVoters([]);
+    } finally {
+      setLoadingAll(false);
+    }
+  };
+
   const handleFiltersChange = (newFilters) => {
     setFilters(newFilters);
     setActiveFilters(newFilters);
     setCurrentPage(1); // Reset a página 1
+    setSearch(""); // Limpiar búsqueda al cambiar filtros
+    setAllVoters([]); // Limpiar votantes en búsqueda
   };
 
   const handlePageChange = (page) => {
@@ -104,9 +247,25 @@ export default function Reportes() {
     setCurrentPage(1); // Reset a página 1
   };
 
+  // Filtrar votantes localmente por búsqueda
+  const getFilteredVoters = () => {
+    if (!search) {
+      return voters;
+    }
+
+    return allVoters.filter((v) => {
+      const fullName = `${v.firstName} ${v.lastName}`.toLowerCase();
+      const identification = v.identification?.toLowerCase() || "";
+      return (
+        fullName.includes(search.toLowerCase()) ||
+        identification.includes(search.toLowerCase())
+      );
+    });
+  };
+
   return (
     <ProtectedComponent
-      permission="voters:read"
+      permission="reports:read"
       fallback={
         <div className="p-8 text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
@@ -128,6 +287,26 @@ export default function Reportes() {
             Visualiza, analiza y exporta la información de votantes registrada
             en SMARTPOL
           </p>
+        </div>
+
+        {/* Buscador Local */}
+        <div className="mb-4">
+          <input
+            type="text"
+            placeholder="Buscar por nombre o identificación..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full sm:w-96 px-4 py-3 rounded-xl border border-gray-200 bg-white shadow-sm focus:ring-2 focus:ring-orange-500/30 focus:outline-none"
+          />
+          {search && (
+            <p className="text-sm text-gray-500 mt-2">
+              Mostrando{" "}
+              <span className="font-semibold">
+                {getFilteredVoters().length}
+              </span>{" "}
+              resultado{getFilteredVoters().length !== 1 ? "s" : ""} de búsqueda
+            </p>
+          )}
         </div>
 
         {/* Mensaje de Error */}
@@ -181,12 +360,12 @@ export default function Reportes() {
         {/* Tabla de Votantes */}
         {!error && (
           <VotersTable
-            voters={voters}
+            voters={search ? getFilteredVoters() : voters}
             filters={activeFilters}
-            loading={loading}
-            pagination={pagination}
-            currentPageProp={currentPage}
-            onPageChange={handlePageChange}
+            loading={search ? loadingAll : loading}
+            pagination={search ? null : pagination}
+            currentPageProp={search ? 1 : currentPage}
+            onPageChange={search ? () => {} : handlePageChange}
             onExportRequest={handleExportRequest}
           />
         )}

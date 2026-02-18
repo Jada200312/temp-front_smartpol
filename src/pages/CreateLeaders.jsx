@@ -1,15 +1,20 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import { createUser } from "../api/users";
 import { createLeader } from "../api/leaders";
+import { getAllCampaigns } from "../api/campaigns";
 import { useAlert } from "../hooks/useAlert";
+import { useUser } from "../context/UserContext";
 import { ValidationRules, validateForm } from "../utils/errorHandler";
 
 export default function CreateLeaders() {
   const navigate = useNavigate();
+  const { user } = useUser();
   const alert = useAlert();
   const [loading, setLoading] = useState(false);
+  const [loadingCampaigns, setLoadingCampaigns] = useState(true);
+  const [campaigns, setCampaigns] = useState([]);
   const [formErrors, setFormErrors] = useState({});
   const [formData, setFormData] = useState({
     email: "",
@@ -19,6 +24,7 @@ export default function CreateLeaders() {
     document: "",
     municipality: "",
     phone: "",
+    campaignId: "",
   });
 
   const validationRules = {
@@ -29,6 +35,23 @@ export default function CreateLeaders() {
     document: [ValidationRules.required, ValidationRules.minLength(5)],
     municipality: [ValidationRules.required],
   };
+
+  // Cargar campañas al montar el componente
+  useEffect(() => {
+    const loadCampaigns = async () => {
+      try {
+        const data = await getAllCampaigns();
+        setCampaigns(Array.isArray(data) ? data : []);
+      } catch (err) {
+        alert.error("Error al cargar las campañas");
+        console.error("Error:", err);
+      } finally {
+        setLoadingCampaigns(false);
+      }
+    };
+
+    loadCampaigns();
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -61,29 +84,49 @@ export default function CreateLeaders() {
     setLoading(true);
 
     try {
-      // 1. Crear usuario con roleId 4 (Lider)
+      // ✅ Obtener organizationId de la campaña seleccionada o del usuario actual
+      let organizationId = user?.organizationId;
+
+      if (formData.campaignId) {
+        const selectedCampaign = campaigns.find(
+          (c) => c.id === parseInt(formData.campaignId)
+        );
+        organizationId = selectedCampaign?.organizationId || user?.organizationId;
+      }
+
+      // 1. ✅ Crear usuario con roleId 4 (Lider) y organizationId del usuario autenticado
       const userResponse = await createUser({
         email: formData.email,
         password: formData.password,
         roleId: 4,
+        organizationId: organizationId, // ✅ PASAR organizationId como en CreateCandidates
       });
 
       if (!userResponse.id) {
         throw new Error("Error al crear el usuario");
       }
 
-      // 2. Crear líder con el userId del usuario creado
+      console.log(
+        "✅ Usuario líder creado con organizationId:",
+        userResponse.organizationId,
+      );
+
+      // ✅ 2. Crear líder CON userId (requerido)
       const leaderData = {
         name: formData.name,
         document: formData.document,
         municipality: formData.municipality,
         phone: formData.phone,
-        userId: userResponse.id,
+        userId: userResponse.id, // ✅ REQUERIDO
+        ...(formData.campaignId && { campaignId: parseInt(formData.campaignId) }),
       };
 
       await createLeader(leaderData);
 
-      alert.success("El líder ha sido creado exitosamente", "¡Éxito!");
+      alert.success(
+        `El líder ha sido creado exitosamente en la organización: ${user?.organizationName}`,
+        "¡Éxito!",
+      );
 
       setFormData({
         email: "",
@@ -93,6 +136,7 @@ export default function CreateLeaders() {
         document: "",
         municipality: "",
         phone: "",
+        campaignId: "",
       });
       setFormErrors({});
 
@@ -113,7 +157,8 @@ export default function CreateLeaders() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Crear Líder</h1>
           <p className="mt-2 text-gray-600">
-            Completa el formulario para registrar un nuevo líder comunitario
+            Completa el formulario para registrar un nuevo líder comunitario en{" "}
+            <strong>{user?.organizationName || "tu organización"}</strong>
           </p>
         </div>
         <button
@@ -166,7 +211,7 @@ export default function CreateLeaders() {
                   htmlFor="password"
                   className="block text-sm font-medium text-gray-700"
                 >
-                  Contraseña *
+                  Contraseña <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="password"
@@ -174,10 +219,18 @@ export default function CreateLeaders() {
                   id="password"
                   value={formData.password}
                   onChange={handleInputChange}
-                  required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm border p-2"
+                  className={`
+                    mt-1 block w-full rounded-md shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm border p-2
+                    ${formErrors.password ? "border-red-500 bg-red-50" : "border-gray-300"}
+                  `}
                   placeholder="••••••••"
+                  required
                 />
+                {formErrors.password && (
+                  <p className="mt-1 text-sm text-red-500">
+                    {formErrors.password}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -185,7 +238,7 @@ export default function CreateLeaders() {
                   htmlFor="confirmPassword"
                   className="block text-sm font-medium text-gray-700"
                 >
-                  Confirmar Contraseña *
+                  Confirmar Contraseña <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="password"
@@ -193,10 +246,18 @@ export default function CreateLeaders() {
                   id="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleInputChange}
-                  required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm border p-2"
+                  className={`
+                    mt-1 block w-full rounded-md shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm border p-2
+                    ${formErrors.confirmPassword ? "border-red-500 bg-red-50" : "border-gray-300"}
+                  `}
                   placeholder="••••••••"
+                  required
                 />
+                {formErrors.confirmPassword && (
+                  <p className="mt-1 text-sm text-red-500">
+                    {formErrors.confirmPassword}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -214,7 +275,7 @@ export default function CreateLeaders() {
                   htmlFor="name"
                   className="block text-sm font-medium text-gray-700"
                 >
-                  Nombre Completo *
+                  Nombre Completo <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -222,10 +283,16 @@ export default function CreateLeaders() {
                   id="name"
                   value={formData.name}
                   onChange={handleInputChange}
-                  required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm border p-2"
+                  className={`
+                    mt-1 block w-full rounded-md shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm border p-2
+                    ${formErrors.name ? "border-red-500 bg-red-50" : "border-gray-300"}
+                  `}
                   placeholder="María González"
+                  required
                 />
+                {formErrors.name && (
+                  <p className="mt-1 text-sm text-red-500">{formErrors.name}</p>
+                )}
               </div>
 
               <div>
@@ -233,7 +300,7 @@ export default function CreateLeaders() {
                   htmlFor="document"
                   className="block text-sm font-medium text-gray-700"
                 >
-                  Documento de Identidad *
+                  Documento de Identidad <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -241,21 +308,29 @@ export default function CreateLeaders() {
                   id="document"
                   value={formData.document}
                   onChange={handleInputChange}
-                  required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm border p-2"
+                  className={`
+                    mt-1 block w-full rounded-md shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm border p-2
+                    ${formErrors.document ? "border-red-500 bg-red-50" : "border-gray-300"}
+                  `}
                   placeholder="1234567890"
+                  required
                 />
+                {formErrors.document && (
+                  <p className="mt-1 text-sm text-red-500">
+                    {formErrors.document}
+                  </p>
+                )}
               </div>
             </div>
 
             {/* Municipio y Teléfono */}
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 mb-4">
               <div>
                 <label
                   htmlFor="municipality"
                   className="block text-sm font-medium text-gray-700"
                 >
-                  Municipio *
+                  Municipio <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -263,10 +338,18 @@ export default function CreateLeaders() {
                   id="municipality"
                   value={formData.municipality}
                   onChange={handleInputChange}
-                  required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm border p-2"
+                  className={`
+                    mt-1 block w-full rounded-md shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm border p-2
+                    ${formErrors.municipality ? "border-red-500 bg-red-50" : "border-gray-300"}
+                  `}
                   placeholder="Nombre del municipio"
+                  required
                 />
+                {formErrors.municipality && (
+                  <p className="mt-1 text-sm text-red-500">
+                    {formErrors.municipality}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -287,20 +370,53 @@ export default function CreateLeaders() {
                 />
               </div>
             </div>
+
+            {/* Campaña */}
+            <div>
+              <label
+                htmlFor="campaignId"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Campaña (Opcional)
+              </label>
+              <select
+                name="campaignId"
+                id="campaignId"
+                value={formData.campaignId}
+                onChange={handleInputChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm border p-2"
+              >
+                <option value="">Seleccionar campaña (opcional)</option>
+                {loadingCampaigns ? (
+                  <option disabled>Cargando campañas...</option>
+                ) : campaigns.length > 0 ? (
+                  campaigns.map((campaign) => (
+                    <option key={campaign.id} value={campaign.id}>
+                      {campaign.name} {campaign.status ? "✓" : "✗"}
+                    </option>
+                  ))
+                ) : (
+                  <option disabled>No hay campañas disponibles</option>
+                )}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Puedes asignar el líder a una campaña ahora o hacerlo después
+              </p>
+            </div>
           </div>
 
           {/* Botones de acción */}
           <div className="flex justify-end gap-4">
             <button
               type="button"
-              onClick={() => navigate("/app/votantes")}
+              onClick={() => navigate("/app/lideres")}
               className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || loadingCampaigns}
               className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Guardando..." : "Crear Líder"}

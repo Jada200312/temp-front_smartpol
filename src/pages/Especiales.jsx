@@ -12,7 +12,6 @@ import {
   PlusIcon,
   PencilSquareIcon,
   TrashIcon,
-  ArrowLeftIcon,
 } from "@heroicons/react/24/outline";
 
 export default function Especiales() {
@@ -159,13 +158,6 @@ export default function Especiales() {
           </p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={() => navigate("/app/votantes")}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-          >
-            <ArrowLeftIcon className="h-5 w-5 mr-2" />
-            Volver
-          </button>
           {(can("users:manage") || can("users:create")) && (
             <button
               onClick={() => navigate("/app/crear-especiales")}

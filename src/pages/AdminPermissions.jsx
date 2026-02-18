@@ -1,10 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  ArrowLeftIcon,
-  ShieldCheckIcon,
-  UserGroupIcon,
-} from "@heroicons/react/24/outline";
+import { ShieldCheckIcon, UserGroupIcon } from "@heroicons/react/24/outline";
 import {
   getRoles,
   getUsers,
@@ -182,13 +178,6 @@ export default function AdminPermissions() {
                 </p>
               </div>
             </div>
-            <button
-              onClick={() => navigate("/app/votantes")}
-              className="inline-flex items-center gap-2 px-6 py-3 border-2 border-gray-300 rounded-lg shadow-sm text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 transition-all hover:border-gray-400"
-            >
-              <ArrowLeftIcon className="h-5 w-5" />
-              Volver
-            </button>
           </div>
         </div>
 

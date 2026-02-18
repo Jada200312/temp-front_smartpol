@@ -392,11 +392,11 @@ export default function Dashboard() {
 
               {/* ====== FILA 2B: Gráficos de Votantes (Partidos + Candidatos) ====== */}
               {user?.roleId === 2 && can("candidates:read") && (
-                <div className="flex flex-col gap-8 w-full lg:w-1/2">
+                <div className="flex flex-row gap-8 w-full">
                   {/* Gráfico de Votantes por Partido */}
                   <div
-                    className="flex justify-start items-center"
-                    style={{ height: "340px", width: "100%" }}
+                    className="flex justify-start items-center flex-1"
+                    style={{ height: "340px" }}
                   >
                     <div style={{ width: "100%", height: "100%" }}>
                       <VotersByParty
@@ -407,8 +407,8 @@ export default function Dashboard() {
 
                   {/* Gráfico de Votantes por Candidato */}
                   <div
-                    className="flex justify-start items-center"
-                    style={{ height: "340px", width: "100%" }}
+                    className="flex justify-start items-center flex-1"
+                    style={{ height: "340px" }}
                   >
                     <div style={{ width: "100%", height: "100%" }}>
                       <VotersByCandidate

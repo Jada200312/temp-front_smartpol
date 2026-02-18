@@ -6,6 +6,7 @@ import {
   updateUser,
 } from "../api/users";
 import { usePermission } from "../hooks/usePermission";
+import { useUser } from "../context/UserContext";
 import { useAlert } from "../hooks/useAlert";
 import Pagination from "../components/Pagination";
 import {
@@ -19,6 +20,7 @@ export default function Administradores() {
   const navigate = useNavigate();
   const location = useLocation();
   const alert = useAlert();
+  const { user } = useUser();
 
   const [currentUser, setCurrentUser] = useState(null);
   const [administradores, setAdministradores] = useState([]);
@@ -36,6 +38,13 @@ export default function Administradores() {
     email: "",
     password: "",
   });
+
+  // ✅ Validar que solo el superadmin (roleId=1) pueda acceder
+  useEffect(() => {
+    if (user && user.roleId !== 1) {
+      navigate("/app/forbidden");
+    }
+  }, [user, navigate]);
 
   // ✅ Cargar usuario del localStorage
   useEffect(() => {
@@ -199,24 +208,6 @@ export default function Administradores() {
             Gestión de administradores registrados en tu organización
           </p>
         </div>
-
-        <button
-          onClick={() => navigate("/app/crear-administradores")}
-          disabled={!can("users:manage") && !can("users:create")}
-          title={
-            !can("users:manage") && !can("users:create")
-              ? "No tienes permiso para crear administradores"
-              : ""
-          }
-          className={`flex items-center gap-2 px-6 py-3 rounded-xl shadow-md transition ${
-            can("users:manage") || can("users:create")
-              ? "bg-orange-500 text-white shadow-orange-500/20 hover:bg-orange-600"
-              : "bg-gray-300 text-gray-500 cursor-not-allowed"
-          }`}
-        >
-          <PlusIcon className="w-5 h-5" />
-          Agregar administrador
-        </button>
       </div>
 
       {/* Search */}

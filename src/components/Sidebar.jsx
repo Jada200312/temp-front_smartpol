@@ -60,13 +60,8 @@ export default function Sidebar({ isOpen, onClose }) {
     "users:delete",
   ]);
 
-  // Administradores: mostrar si puede create O update O delete O manage usuarios
-  const canSeeAdministradores = canAny([
-    "users:manage",
-    "users:create",
-    "users:update",
-    "users:delete",
-  ]);
+  // Administradores: mostrar SOLO para superadmin (roleId=1)
+  const canSeeAdministradores = user?.roleId === 1;
 
   // Usuarios Especiales: mostrar si puede manage O create O update O delete usuarios
   const canSeeEspeciales = canAny([

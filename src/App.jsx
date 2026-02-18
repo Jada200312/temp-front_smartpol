@@ -9,16 +9,17 @@ import { UserProvider, useUser } from "./context/UserContext";
 import { useEffect } from "react";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
-import Inicio from "./pages/Inicio";
 import Votantes from "./pages/Personas";
 import Candidatos from "./pages/Candidatos";
 import Lideres from "./pages/Lideres";
 import Digitadores from "./pages/Digitadores";
+import Administradores from "./pages/Administradores";
 import Especiales from "./pages/Especiales";
 import Reportes from "./pages/Reportes";
 import CreateCandidates from "./pages/CreateCandidates";
 import CreateLeaders from "./pages/CreateLeaders";
 import CreateDigitadores from "./pages/CreateDigitadores";
+import CreateAdministradores from "./pages/CreateAdministradores";
 import CreateEspeciales from "./pages/CreateEspeciales";
 import AssignCandidates from "./pages/AssignCandidates";
 import AdminPermissions from "./pages/AdminPermissions";
@@ -91,11 +92,8 @@ function App() {
               </PrivateRoute>
             }
           >
-            {/* Dashboard - Ruta /app/dashboard - Todos los usuarios autenticados pueden acceder */}
+            {/* Dashboard - Ruta principal /app/dashboard */}
             <Route path="dashboard" element={null} />
-
-            {/* Inicio - Todos los usuarios autenticados pueden acceder */}
-            <Route path="inicio" element={<Inicio />} />
 
             {/* Votantes - Requiere permiso voters:read (solo lectura) */}
             <Route
@@ -219,6 +217,23 @@ function App() {
               }
             />
 
+            {/* Administradores - Requiere cualquier permiso de gestion */}
+            <Route
+              path="administradores"
+              element={
+                <PermissionRoute
+                  requiredPermission={[
+                    "users:manage",
+                    "users:create",
+                    "users:update",
+                    "users:delete",
+                  ]}
+                >
+                  <Administradores />
+                </PermissionRoute>
+              }
+            />
+
             {/* Usuarios Especiales - Requiere cualquier permiso de gestion */}
             <Route
               path="especiales"
@@ -271,6 +286,18 @@ function App() {
                   requiredPermission={["users:manage", "users:create"]}
                 >
                   <CreateDigitadores />
+                </PermissionRoute>
+              }
+            />
+
+            {/* Crear Administradores - Requiere create o manage */}
+            <Route
+              path="crear-administradores"
+              element={
+                <PermissionRoute
+                  requiredPermission={["users:manage", "users:create"]}
+                >
+                  <CreateAdministradores />
                 </PermissionRoute>
               }
             />

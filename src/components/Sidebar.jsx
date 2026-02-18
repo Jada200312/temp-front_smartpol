@@ -17,8 +17,6 @@ export default function Sidebar({ isOpen, onClose }) {
   // - resource:manage = gestión completa (crear, editar, eliminar) + mostrar en sidebar
   const canSeeDashboard = true; // Todos pueden ver dashboard
 
-  const canSeeInicio = true; // Todos pueden ver inicio
-
   // Votantes: mostrar si tiene permiso de lectura
   const canSeeVotantes = can("voters:read");
 
@@ -56,6 +54,14 @@ export default function Sidebar({ isOpen, onClose }) {
 
   // Digitadores: mostrar si puede create O update O delete O manage usuarios
   const canSeeDigitadores = canAny([
+    "users:manage",
+    "users:create",
+    "users:update",
+    "users:delete",
+  ]);
+
+  // Administradores: mostrar si puede create O update O delete O manage usuarios
+  const canSeeAdministradores = canAny([
     "users:manage",
     "users:create",
     "users:update",
@@ -129,9 +135,6 @@ export default function Sidebar({ isOpen, onClose }) {
         {/* Logo */}
         <div className="flex flex-col items-center justify-center px-6 py-8 border-b">
           <img src={Logo} alt="SmartPol" className="w-24 mb-3" />
-          <h3 className="text-xl font-bold text-gray-800 tracking-wide">
-            Smart<span className="text-orange-500">Pol</span>
-          </h3>
           <span className="text-xs text-gray-400 mt-1">
             Panel de administración
           </span>
@@ -155,24 +158,6 @@ export default function Sidebar({ isOpen, onClose }) {
                 <span className="ml-3">Dashboard</span>
               </Link>
             </li>
-
-            {/* Inicio */}
-            {canSeeInicio && (
-              <li>
-                <Link
-                  to="/app/inicio"
-                  onClick={onClose}
-                  className={`flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all
-                    ${
-                      isActive("/app/inicio")
-                        ? "bg-orange-500 text-white shadow-md"
-                        : "text-gray-600 hover:bg-orange-100 hover:text-orange-600"
-                    }`}
-                >
-                  <span className="ml-3">Inicio</span>
-                </Link>
-              </li>
-            )}
 
             {/* Votantes */}
             {canSeeVotantes && (
@@ -326,6 +311,25 @@ export default function Sidebar({ isOpen, onClose }) {
                         >
                           <span className="w-1.5 h-1.5 rounded-full bg-current mr-3"></span>
                           <span>Digitadores</span>
+                        </Link>
+                      </li>
+                    )}
+
+                    {/* Administradores */}
+                    {canSeeAdministradores && (
+                      <li>
+                        <Link
+                          to="/app/administradores"
+                          onClick={onClose}
+                          className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all
+                            ${
+                              isActive("/app/administradores")
+                                ? "bg-orange-500 text-white shadow-md"
+                                : "text-gray-600 hover:bg-orange-100 hover:text-orange-600"
+                            }`}
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-current mr-3"></span>
+                          <span>Administradores</span>
                         </Link>
                       </li>
                     )}

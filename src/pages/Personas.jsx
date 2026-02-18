@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import {
   getVotersWithAssignments,
@@ -47,6 +47,7 @@ export default function Personas() {
   const [leaderId, setLeaderId] = useState(null);
   const [loadingLeaderId, setLoadingLeaderId] = useState(user?.roleId === 4);
   const ITEMS_PER_PAGE = 20;
+  const previousLocationKeyRef = useRef(location.key);
 
   // Cargar centros de votación, candidateId si es candidato y leaderId si es líder
   useEffect(() => {
@@ -230,8 +231,18 @@ export default function Personas() {
     }
   }, [search, candidateId ?? null, leaderId ?? null, user]);
 
-  // Refrescar cuando se llega desde la creación
+  // Refrescar cuando se llega desde la creación o cuando se clickea en el sidebar de Votantes
   useEffect(() => {
+    // Detectar si el usuario hizo click en el enlace del sidebar nuevamente
+    const isNewNavigation = previousLocationKeyRef.current !== location.key;
+    previousLocationKeyRef.current = location.key;
+
+    // Resetear a página 1 si es una nueva navegación a la ruta de votantes
+    if (isNewNavigation && location.pathname === "/app/votantes") {
+      setCurrentPage(1);
+      setSearch("");
+    }
+
     if (location.state?.refresh) {
       // Si es candidato, esperar a que candidateId esté cargado
       if (user?.roleId === 3) {
@@ -253,7 +264,9 @@ export default function Personas() {
       }
     }
   }, [
-    location,
+    location.key,
+    location.pathname,
+    location.state?.refresh,
     candidateId ?? null,
     loadingCandidateId,
     leaderId ?? null,

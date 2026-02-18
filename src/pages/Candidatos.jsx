@@ -122,6 +122,7 @@ export default function Candidatos() {
       party: candidate.party,
       number: candidate.number,
       campaignId: candidate.campaignId || "",
+      password: "",
     });
     setShowModal(true);
   };
@@ -159,6 +160,18 @@ export default function Candidatos() {
           campaignId: parseInt(formData.campaignId),
         }),
       };
+
+      // Solo agregar contraseña si se proporciona una nueva
+      if (formData.password && formData.password.trim()) {
+        if (formData.password.length < 6) {
+          alert.warning(
+            "La contraseña debe tener al menos 6 caracteres",
+            "Contraseña débil",
+          );
+          return;
+        }
+        updateData.password = formData.password;
+      }
 
       await updateCandidate(editingCandidate.id, updateData);
       setShowModal(false);
@@ -277,6 +290,23 @@ export default function Candidatos() {
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nueva Contraseña (opcional)
+                </label>
+                <input
+                  type="password"
+                  name="password"
+                  value={formData.password || ""}
+                  onChange={handleInputChange}
+                  placeholder="Dejar en blanco para no cambiar"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Mínimo 6 caracteres si se proporciona
+                </p>
               </div>
 
               <div className="flex gap-3 pt-4 border-t">

@@ -83,12 +83,9 @@ export default function Campanas() {
 
       const campaignsData = Array.isArray(data.data) ? data.data : [];
 
+      // No filtrar el frontend si el usuario es super admin (roleId = 1)
+      // El backend ya maneja el filtrado apropiadamente
       let filteredData = campaignsData;
-      if (currentUser?.organizationId) {
-        filteredData = campaignsData.filter(
-          (campaign) => campaign.organizationId === currentUser.organizationId,
-        );
-      }
 
       setCampaigns(filteredData);
       setCurrentPage(data.page || page);

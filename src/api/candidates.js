@@ -64,6 +64,15 @@ export async function getCandidateByUserId(userId) {
   }, "obtener candidato por usuario");
 }
 
+export async function getCandidatesByCampaign(campaignId) {
+  if (!campaignId || isNaN(campaignId)) {
+    throw new Error('campaignId debe ser un número válido');
+  }
+  return apiCall(`${API_URL}/candidates/by-campaign/${campaignId}`, {
+    headers: getAuthHeaders(),
+  }, "obtener candidatos por campaña");
+}
+
 export async function createCandidate(candidate) {
   return apiCall(`${API_URL}/candidates`, {
     method: "POST",
@@ -85,4 +94,16 @@ export async function deleteCandidate(candidateId) {
     method: "DELETE",
     headers: getAuthHeaders(),
   }, "eliminar candidato");
+}
+
+export async function getVoterCountByCandidate() {
+  return apiCall(`${API_URL}/candidates/votes/by-candidate`, {
+    headers: getAuthHeaders(),
+  }, "obtener conteo de votantes por candidato");
+}
+
+export async function getVoterCountByParty() {
+  return apiCall(`${API_URL}/candidates/votes/by-party`, {
+    headers: getAuthHeaders(),
+  }, "obtener conteo de votantes por partido");
 }

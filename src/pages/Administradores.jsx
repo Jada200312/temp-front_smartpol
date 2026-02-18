@@ -14,18 +14,18 @@ import {
   TrashIcon,
 } from "@heroicons/react/24/outline";
 
-export default function Digitadores() {
+export default function Administradores() {
   const { can } = usePermission();
   const navigate = useNavigate();
   const location = useLocation();
   const alert = useAlert();
 
   const [currentUser, setCurrentUser] = useState(null);
-  const [digitadores, setDigitadores] = useState([]);
+  const [administradores, setAdministradores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [editingDigitador, setEditingDigitador] = useState(null);
+  const [editingAdmin, setEditingAdmin] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -57,44 +57,43 @@ export default function Digitadores() {
     setIsInitialized(true);
   }, []);
 
-  // ✅ Cargar digitadores con paginación
-  const fetchDigitadores = async (page = 1, searchTerm = "") => {
+  // ✅ Cargar administradores con paginación
+  const fetchAdministradores = async (page = 1, searchTerm = "") => {
     setLoading(true);
     setError("");
     try {
       const data = await getUsersByRoleWithPagination(
-        5,
+        2,
         page,
         itemsPerPage,
         searchTerm,
       );
 
       // ✅ FILTRAR en FRONTEND por organizationId solo si es admin de organización
-      let digitadorList = Array.isArray(data.data) ? data.data : [];
+      let adminList = Array.isArray(data.data) ? data.data : [];
 
       if (currentUser?.roleId === 2 && currentUser?.organizationId) {
-        digitadorList = digitadorList.filter(
-          (digitador) =>
-            digitador.organizationId === currentUser.organizationId,
+        adminList = adminList.filter(
+          (admin) => admin.organizationId === currentUser.organizationId,
         );
       }
 
-      setDigitadores(digitadorList);
+      setAdministradores(adminList);
       setCurrentPage(data.page || page);
       setTotalPages(data.pages || 1);
-      setTotalItems(data.total || digitadorList.length);
+      setTotalItems(data.total || adminList.length);
     } catch (err) {
-      setError("No se pudieron cargar los digitadores");
-      alert.apiError(err, "No se pudieron cargar los digitadores");
+      setError("No se pudieron cargar los administradores");
+      alert.apiError(err, "No se pudieron cargar los administradores");
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ EFECTO PRINCIPAL: Cargar digitadores cuando está todo listo
+  // ✅ EFECTO PRINCIPAL: Cargar administradores cuando está todo listo
   useEffect(() => {
     if (!isInitialized) return;
-    fetchDigitadores(currentPage, search);
+    fetchAdministradores(currentPage, search);
   }, [currentPage, search, currentUser?.organizationId, isInitialized]);
 
   // ✅ Refrescar cuando se llega desde la creación
@@ -102,7 +101,7 @@ export default function Digitadores() {
     if (location.state?.refresh && isInitialized && currentUser) {
       setCurrentPage(1);
       setSearch("");
-      fetchDigitadores(1, "");
+      fetchAdministradores(1, "");
       navigate(location.pathname, { replace: true });
     }
   }, [location.state?.refresh, isInitialized, currentUser?.id]);
@@ -112,18 +111,18 @@ export default function Digitadores() {
     setCurrentPage(1);
   };
 
-  const handleEdit = (digitador) => {
-    setEditingDigitador(digitador);
+  const handleEdit = (admin) => {
+    setEditingAdmin(admin);
     setFormData({
-      email: digitador.email,
+      email: admin.email,
       password: "",
     });
     setShowModal(true);
   };
 
-  const handleDelete = async (digitadorId) => {
+  const handleDelete = async (adminId) => {
     const result = await alert.confirm(
-      "¿Estás seguro de que deseas eliminar este digitador?",
+      "¿Estás seguro de que deseas eliminar este administrador?",
       "Confirmar eliminación",
       "Sí, eliminar",
       "Cancelar",
@@ -131,19 +130,19 @@ export default function Digitadores() {
     if (!result.isConfirmed) return;
 
     try {
-      await deleteUser(digitadorId);
-      alert.success("Digitador eliminado exitosamente");
+      await deleteUser(adminId);
+      alert.success("Administrador eliminado exitosamente");
       setTimeout(() => {
-        fetchDigitadores(currentPage, search);
+        fetchAdministradores(currentPage, search);
       }, 1500);
     } catch (err) {
-      alert.apiError(err, "Error al eliminar digitador");
+      alert.apiError(err, "Error al eliminar administrador");
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!editingDigitador) return;
+    if (!editingAdmin) return;
 
     // Validaciones básicas
     if (!formData.email) {
@@ -166,13 +165,13 @@ export default function Digitadores() {
         updateData.password = formData.password;
       }
 
-      await updateUser(editingDigitador.id, updateData);
+      await updateUser(editingAdmin.id, updateData);
       setShowModal(false);
-      setEditingDigitador(null);
-      alert.success("Digitador actualizado exitosamente");
-      fetchDigitadores(currentPage, search);
+      setEditingAdmin(null);
+      alert.success("Administrador actualizado exitosamente");
+      fetchAdministradores(currentPage, search);
     } catch (err) {
-      alert.apiError(err, "Error al actualizar digitador");
+      alert.apiError(err, "Error al actualizar administrador");
     }
   };
 
@@ -194,19 +193,19 @@ export default function Digitadores() {
       <div className="flex flex-col sm:flex-row justify-between gap-4 mb-8">
         <div>
           <h2 className="text-3xl font-extrabold text-gray-900">
-            Listado de Digitadores
+            Listado de Administradores
           </h2>
           <p className="text-gray-500 text-sm mt-2 max-w-xl">
-            Gestión de digitadores registrados en tu organización
+            Gestión de administradores registrados en tu organización
           </p>
         </div>
 
         <button
-          onClick={() => navigate("/app/crear-digitadores")}
+          onClick={() => navigate("/app/crear-administradores")}
           disabled={!can("users:manage") && !can("users:create")}
           title={
             !can("users:manage") && !can("users:create")
-              ? "No tienes permiso para crear digitadores"
+              ? "No tienes permiso para crear administradores"
               : ""
           }
           className={`flex items-center gap-2 px-6 py-3 rounded-xl shadow-md transition ${
@@ -216,7 +215,7 @@ export default function Digitadores() {
           }`}
         >
           <PlusIcon className="w-5 h-5" />
-          Agregar digitador
+          Agregar administrador
         </button>
       </div>
 
@@ -236,19 +235,19 @@ export default function Digitadores() {
         <div className="flex items-center justify-center min-h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-            <p className="text-gray-600">Cargando digitadores...</p>
+            <p className="text-gray-600">Cargando administradores...</p>
           </div>
         </div>
       ) : error ? (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
           {error}
         </div>
-      ) : digitadores.length === 0 ? (
+      ) : administradores.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-8 text-center">
           <p className="text-gray-500 text-lg">
             {search
-              ? "No se encontraron digitadores"
-              : "No hay digitadores registrados"}
+              ? "No se encontraron administradores"
+              : "No hay administradores registrados"}
           </p>
         </div>
       ) : (
@@ -266,19 +265,16 @@ export default function Digitadores() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {digitadores.map((digitador) => (
-                  <tr
-                    key={digitador.id}
-                    className="hover:bg-gray-50 transition"
-                  >
+                {administradores.map((admin) => (
+                  <tr key={admin.id} className="hover:bg-gray-50 transition">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
-                        {digitador.email}
+                        {admin.email}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
-                        onClick={() => handleEdit(digitador)}
+                        onClick={() => handleEdit(admin)}
                         disabled={!can("users:manage") && !can("users:update")}
                         title={
                           !can("users:manage") && !can("users:update")
@@ -295,7 +291,7 @@ export default function Digitadores() {
                         Editar
                       </button>
                       <button
-                        onClick={() => handleDelete(digitador.id)}
+                        onClick={() => handleDelete(admin.id)}
                         disabled={!can("users:manage") && !can("users:delete")}
                         title={
                           !can("users:manage") && !can("users:delete")
@@ -335,12 +331,12 @@ export default function Digitadores() {
           <div className="bg-white rounded-lg shadow-lg max-w-md w-full">
             <div className="flex items-center justify-between p-6 border-b">
               <h3 className="text-lg font-semibold text-gray-900">
-                Editar Digitador
+                Editar Administrador
               </h3>
               <button
                 onClick={() => {
                   setShowModal(false);
-                  setEditingDigitador(null);
+                  setEditingAdmin(null);
                 }}
                 className="text-gray-400 hover:text-gray-600"
               >
@@ -391,7 +387,7 @@ export default function Digitadores() {
                   type="button"
                   onClick={() => {
                     setShowModal(false);
-                    setEditingDigitador(null);
+                    setEditingAdmin(null);
                   }}
                   className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition"
                 >

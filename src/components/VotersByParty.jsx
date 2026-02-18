@@ -102,20 +102,6 @@ export const VotersByParty = ({ data = [] }) => {
       <div style={{ position: "relative", height: "340px" }}>
         <Doughnut data={chartData} options={options} />
       </div>
-
-      {/* Información adicional */}
-      {data.length > 0 && (
-        <div className="flex flex-col gap-2 px-3 py-4 border-t mt-4 text-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-gray-600">Total votantes:</span>
-            <span className="font-bold text-orange-500">{total}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-gray-600">Partidos:</span>
-            <span className="font-bold text-orange-500">{data.length}</span>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

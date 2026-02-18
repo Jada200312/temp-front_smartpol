@@ -1,13 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import { createUser } from "../api/users";
+import { useUser } from "../context/UserContext";
 import { useAlert } from "../hooks/useAlert";
 import { ValidationRules, validateForm } from "../utils/errorHandler";
 
 export default function CreateAdministradores() {
   const navigate = useNavigate();
   const alert = useAlert();
+  const { user } = useUser();
   const [loading, setLoading] = useState(false);
   const [formErrors, setFormErrors] = useState({});
   const [formData, setFormData] = useState({
@@ -15,6 +17,13 @@ export default function CreateAdministradores() {
     password: "",
     confirmPassword: "",
   });
+
+  // ✅ Validar que solo el superadmin (roleId=1) pueda acceder
+  useEffect(() => {
+    if (user && user.roleId !== 1) {
+      navigate("/app/forbidden");
+    }
+  }, [user, navigate]);
 
   const validationRules = {
     email: [ValidationRules.required, ValidationRules.email],

@@ -19,7 +19,6 @@ import Reportes from "./pages/Reportes";
 import CreateCandidates from "./pages/CreateCandidates";
 import CreateLeaders from "./pages/CreateLeaders";
 import CreateDigitadores from "./pages/CreateDigitadores";
-import CreateAdministradores from "./pages/CreateAdministradores";
 import CreateEspeciales from "./pages/CreateEspeciales";
 import AssignCandidates from "./pages/AssignCandidates";
 import AdminPermissions from "./pages/AdminPermissions";
@@ -286,18 +285,6 @@ function App() {
                   requiredPermission={["users:manage", "users:create"]}
                 >
                   <CreateDigitadores />
-                </PermissionRoute>
-              }
-            />
-
-            {/* Crear Administradores - Requiere create o manage */}
-            <Route
-              path="crear-administradores"
-              element={
-                <PermissionRoute
-                  requiredPermission={["users:manage", "users:create"]}
-                >
-                  <CreateAdministradores />
                 </PermissionRoute>
               }
             />

@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import { getCorporations } from "../api/corporations";
-import { getAllCampaigns } from "../api/campaigns";
+import { getAllCampaigns, getCampaignsByOrganization } from "../api/campaigns";
+import { getOrganizations } from "../api/organizations";
 import { createUser } from "../api/users";
 import { createCandidate } from "../api/candidates";
 import { useAlert } from "../hooks/useAlert";
@@ -16,6 +17,7 @@ export default function CreateCandidates() {
   const alert = useAlert();
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
+  const [organizations, setOrganizations] = useState([]);
   const [corporations, setCorporations] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
   const [userRole, setUserRole] = useState(null);
@@ -28,6 +30,7 @@ export default function CreateCandidates() {
     name: "",
     party: "",
     number: "",
+    organizationId: "",
     corporation_id: "",
     campaignId: "",
   });
@@ -39,6 +42,7 @@ export default function CreateCandidates() {
     name: [ValidationRules.required, ValidationRules.minLength(3)],
     party: [ValidationRules.required, ValidationRules.minLength(2)],
     number: [ValidationRules.required],
+    organizationId: [ValidationRules.required],
     corporation_id: [ValidationRules.required],
     campaignId: [ValidationRules.required],
   };
@@ -52,28 +56,32 @@ export default function CreateCandidates() {
         setUserRole(parseInt(roleId));
         setCurrentOrganizationId(parseInt(organizationId));
 
-        const [corporationsData, campaignsData] = await Promise.all([
+        const [organizationsData, corporationsData] = await Promise.all([
+          getOrganizations(),
           getCorporations(),
-          getAllCampaigns(),
         ]);
 
+        const organizationsList = Array.isArray(organizationsData) 
+          ? organizationsData 
+          : Array.isArray(organizationsData?.data)
+          ? organizationsData.data
+          : [];
+        
         const corporacionesList = Array.isArray(corporationsData) 
           ? corporationsData 
           : [];
-        
-        let campaniasList = Array.isArray(campaignsData) 
-          ? campaignsData 
-          : [];
 
-        // Filtrar campañas para admins de organización
-        if (roleId === '2' && organizationId) {
-          campaniasList = campaniasList.filter(
-            (campaign) => campaign.organizationId === parseInt(organizationId)
-          );
-        }
-
+        setOrganizations(organizationsList);
         setCorporations(corporacionesList);
-        setCampaigns(campaniasList);
+        setCampaigns([]);
+
+        // Si es admin de organización, preseleccionar su organización
+        if (roleId === '2' && organizationId) {
+          setFormData((prev) => ({
+            ...prev,
+            organizationId: organizationId,
+          }));
+        }
       } catch (err) {
         alert.error(
           err.message || "Error al cargar los datos",
@@ -85,6 +93,29 @@ export default function CreateCandidates() {
     };
     loadData();
   }, []);
+
+  // Cargar campañas cuando se selecciona una organización
+  useEffect(() => {
+    const loadCampaigns = async () => {
+      if (formData.organizationId) {
+        try {
+          const campaignsData = await getCampaignsByOrganization(formData.organizationId);
+          setCampaigns(Array.isArray(campaignsData) ? campaignsData : []);
+          // Resetear campaignId cuando cambia la organización
+          setFormData((prev) => ({
+            ...prev,
+            campaignId: "",
+          }));
+        } catch (err) {
+          console.error("Error al cargar campañas", err);
+          setCampaigns([]);
+        }
+      } else {
+        setCampaigns([]);
+      }
+    };
+    loadCampaigns();
+  }, [formData.organizationId]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -117,19 +148,12 @@ export default function CreateCandidates() {
     setLoading(true);
 
     try {
-      // Obtener organizationId de la campaña seleccionada
-      const selectedCampaign = campaigns.find(
-        (c) => c.id === parseInt(formData.campaignId)
-      );
-
-      const campaignOrganizationId = selectedCampaign?.organizationId || currentOrganizationId;
-
-      // 1. Crear usuario con roleId 3 (Candidato) y organizationId heredado
+      // 1. Crear usuario con roleId 3 (Candidato) y organizationId seleccionado
       const userResponse = await createUser({
         email: formData.email,
         password: formData.password,
         roleId: 3,
-        organizationId: campaignOrganizationId, // Pasar organizationId
+        organizationId: parseInt(formData.organizationId), // Usar organizationId seleccionado
       });
 
       if (!userResponse || !userResponse.id) {
@@ -157,6 +181,7 @@ export default function CreateCandidates() {
         name: "",
         party: "",
         number: "1",
+        organizationId: "",
         corporation_id: "",
         campaignId: "",
       });
@@ -399,6 +424,39 @@ export default function CreateCandidates() {
                 )}
               </div>
 
+              <div className="mb-4">
+                <label
+                  htmlFor="organizationId"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Organización <span className="text-red-500">*</span>
+                </label>
+                <select
+                  name="organizationId"
+                  id="organizationId"
+                  value={formData.organizationId}
+                  onChange={handleInputChange}
+                  disabled={userRole === 2}
+                  className={`
+                    mt-1 block w-full rounded-lg shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm border p-3
+                    ${formErrors.organizationId ? "border-red-500 bg-red-50" : "border-gray-300"}
+                    ${userRole === 2 ? "bg-gray-100 cursor-not-allowed" : ""}
+                  `}
+                >
+                  <option value="">Seleccionar organización</option>
+                  {organizations.map((org) => (
+                    <option key={org.id} value={org.id}>
+                      {org.name}
+                    </option>
+                  ))}
+                </select>
+                {formErrors.organizationId && (
+                  <p className="mt-1 text-sm text-red-500">
+                    {formErrors.organizationId}
+                  </p>
+                )}
+              </div>
+
               <div>
                 <label
                   htmlFor="campaignId"
@@ -411,12 +469,14 @@ export default function CreateCandidates() {
                   id="campaignId"
                   value={formData.campaignId}
                   onChange={handleInputChange}
+                  disabled={!formData.organizationId || campaigns.length === 0}
                   className={`
                     mt-1 block w-full rounded-lg shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm border p-3
                     ${formErrors.campaignId ? "border-red-500 bg-red-50" : "border-gray-300"}
+                    ${!formData.organizationId || campaigns.length === 0 ? "bg-gray-100 cursor-not-allowed" : ""}
                   `}
                 >
-                  <option value="">Seleccionar campaña</option>
+                  <option value="">{!formData.organizationId ? "Selecciona una organización primero" : "Seleccionar campaña"}</option>
                   {campaigns.map((campaign) => (
                     <option key={campaign.id} value={campaign.id}>
                       {campaign.name}

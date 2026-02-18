@@ -26,7 +26,7 @@ export default function Login() {
       notifyStorageChange();
 
       // Navegar inmediatamente
-      navigate("/app/inicio", { replace: true });
+      navigate("/app/dashboard", { replace: true });
     } catch (err) {
       setError(err.message || "Usuario o contraseña incorrectos");
     }

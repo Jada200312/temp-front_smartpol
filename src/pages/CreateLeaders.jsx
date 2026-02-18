@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import { createUser } from "../api/users";
 import { createLeader } from "../api/leaders";
-import { getAllCampaigns } from "../api/campaigns";
+import { getAllCampaigns, getCampaignsByOrganization } from "../api/campaigns";
+import { getOrganizations } from "../api/organizations";
 import { useAlert } from "../hooks/useAlert";
 import { useUser } from "../context/UserContext";
 import { ValidationRules, validateForm } from "../utils/errorHandler";
@@ -14,7 +15,10 @@ export default function CreateLeaders() {
   const alert = useAlert();
   const [loading, setLoading] = useState(false);
   const [loadingCampaigns, setLoadingCampaigns] = useState(true);
+  const [organizations, setOrganizations] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
+  const [userRole, setUserRole] = useState(null);
+  const [currentOrganizationId, setCurrentOrganizationId] = useState(null);
   const [formErrors, setFormErrors] = useState({});
   const [formData, setFormData] = useState({
     email: "",
@@ -24,6 +28,7 @@ export default function CreateLeaders() {
     document: "",
     municipality: "",
     phone: "",
+    organizationId: "",
     campaignId: "",
   });
 
@@ -34,24 +39,72 @@ export default function CreateLeaders() {
     name: [ValidationRules.required, ValidationRules.minLength(3)],
     document: [ValidationRules.required, ValidationRules.minLength(5)],
     municipality: [ValidationRules.required],
+    organizationId: [ValidationRules.required],
+    campaignId: [ValidationRules.required],
   };
 
-  // Cargar campañas al montar el componente
+  // Cargar organizaciones al montar el componente
   useEffect(() => {
-    const loadCampaigns = async () => {
+    const loadData = async () => {
       try {
-        const data = await getAllCampaigns();
-        setCampaigns(Array.isArray(data) ? data : []);
+        const roleId = localStorage.getItem('roleId');
+        const organizationId = localStorage.getItem('organizationId');
+
+        setUserRole(parseInt(roleId));
+        setCurrentOrganizationId(parseInt(organizationId));
+
+        const organizationsData = await getOrganizations();
+
+        const organizationsList = Array.isArray(organizationsData)
+          ? organizationsData
+          : Array.isArray(organizationsData?.data)
+          ? organizationsData.data
+          : [];
+
+        setOrganizations(organizationsList);
+        setCampaigns([]);
+
+        // Si es admin de organización, preseleccionar su organización
+        if (roleId === '2' && organizationId) {
+          setFormData((prev) => ({
+            ...prev,
+            organizationId: organizationId,
+          }));
+        }
       } catch (err) {
-        alert.error("Error al cargar las campañas");
-        console.error("Error:", err);
+        alert.error(
+          err.message || "Error al cargar los datos",
+          "Error al cargar",
+        );
       } finally {
         setLoadingCampaigns(false);
       }
     };
-
-    loadCampaigns();
+    loadData();
   }, []);
+
+  // Cargar campañas cuando se selecciona una organización
+  useEffect(() => {
+    const loadCampaigns = async () => {
+      if (formData.organizationId) {
+        try {
+          const campaignsData = await getCampaignsByOrganization(formData.organizationId);
+          setCampaigns(Array.isArray(campaignsData) ? campaignsData : []);
+          // Resetear campaignId cuando cambia la organización
+          setFormData((prev) => ({
+            ...prev,
+            campaignId: "",
+          }));
+        } catch (err) {
+          console.error("Error al cargar campañas", err);
+          setCampaigns([]);
+        }
+      } else {
+        setCampaigns([]);
+      }
+    };
+    loadCampaigns();
+  }, [formData.organizationId]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -84,22 +137,12 @@ export default function CreateLeaders() {
     setLoading(true);
 
     try {
-      // ✅ Obtener organizationId de la campaña seleccionada o del usuario actual
-      let organizationId = user?.organizationId;
-
-      if (formData.campaignId) {
-        const selectedCampaign = campaigns.find(
-          (c) => c.id === parseInt(formData.campaignId)
-        );
-        organizationId = selectedCampaign?.organizationId || user?.organizationId;
-      }
-
-      // 1. ✅ Crear usuario con roleId 4 (Lider) y organizationId del usuario autenticado
+      // 1. Crear usuario con roleId 4 (Lider) y organizationId seleccionado
       const userResponse = await createUser({
         email: formData.email,
         password: formData.password,
         roleId: 4,
-        organizationId: organizationId, // ✅ PASAR organizationId como en CreateCandidates
+        organizationId: parseInt(formData.organizationId), // Usar organizationId seleccionado
       });
 
       if (!userResponse.id) {
@@ -136,6 +179,7 @@ export default function CreateLeaders() {
         document: "",
         municipality: "",
         phone: "",
+        organizationId: "",
         campaignId: "",
       });
       setFormErrors({});
@@ -371,22 +415,61 @@ export default function CreateLeaders() {
               </div>
             </div>
 
+            {/* Organización */}
+            <div className="mb-4">
+              <label
+                htmlFor="organizationId"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Organización <span className="text-red-500">*</span>
+              </label>
+              <select
+                name="organizationId"
+                id="organizationId"
+                value={formData.organizationId}
+                onChange={handleInputChange}
+                disabled={userRole === 2}
+                className={`
+                  mt-1 block w-full rounded-lg shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm border p-3
+                  ${formErrors.organizationId ? "border-red-500 bg-red-50" : "border-gray-300"}
+                  ${userRole === 2 ? "bg-gray-100 cursor-not-allowed" : ""}
+                `}
+              >
+                <option value="">Seleccionar organización</option>
+                {organizations.map((org) => (
+                  <option key={org.id} value={org.id}>
+                    {org.name}
+                  </option>
+                ))}
+              </select>
+              {formErrors.organizationId && (
+                <p className="mt-1 text-sm text-red-500">
+                  {formErrors.organizationId}
+                </p>
+              )}
+            </div>
+
             {/* Campaña */}
             <div>
               <label
                 htmlFor="campaignId"
                 className="block text-sm font-medium text-gray-700"
               >
-                Campaña (Opcional)
+                Campaña <span className="text-red-500">*</span>
               </label>
               <select
                 name="campaignId"
                 id="campaignId"
                 value={formData.campaignId}
                 onChange={handleInputChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm border p-2"
+                disabled={!formData.organizationId || campaigns.length === 0}
+                className={`
+                  mt-1 block w-full rounded-lg shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm border p-3
+                  ${formErrors.campaignId ? "border-red-500 bg-red-50" : "border-gray-300"}
+                  ${!formData.organizationId || campaigns.length === 0 ? "bg-gray-100 cursor-not-allowed" : ""}
+                `}
               >
-                <option value="">Seleccionar campaña (opcional)</option>
+                <option value="">{!formData.organizationId ? "Selecciona una organización primero" : "Seleccionar campaña"}</option>
                 {loadingCampaigns ? (
                   <option disabled>Cargando campañas...</option>
                 ) : campaigns.length > 0 ? (
@@ -399,9 +482,11 @@ export default function CreateLeaders() {
                   <option disabled>No hay campañas disponibles</option>
                 )}
               </select>
-              <p className="text-xs text-gray-500 mt-1">
-                Puedes asignar el líder a una campaña ahora o hacerlo después
-              </p>
+              {formErrors.campaignId && (
+                <p className="mt-1 text-sm text-red-500">
+                  {formErrors.campaignId}
+                </p>
+              )}
             </div>
           </div>
 

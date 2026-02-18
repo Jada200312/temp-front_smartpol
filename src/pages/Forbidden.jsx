@@ -38,10 +38,10 @@ export default function Forbidden() {
         {/* Botones */}
         <div className="flex flex-col gap-3">
           <button
-            onClick={() => navigate("/app/inicio")}
+            onClick={() => navigate("/app/dashboard")}
             className="w-full px-6 py-3 bg-orange-600 text-white font-medium rounded-lg hover:bg-orange-700 transition-colors"
           >
-            Ir al Inicio
+            Ir al Dashboard
           </button>
           <button
             onClick={() => navigate(-1)}

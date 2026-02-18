@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { getVoterReport, getVoterReportForExport } from "../api/reports";
+import { getLeaderByUserId } from "../api/leaders";
+import { getCandidateByUserId } from "../api/candidates";
 import ReportFilters from "../components/ReportFilters";
 import AggregationCounters from "../components/AggregationCounters";
 import VotersTable from "../components/VotersTable";
 import { ProtectedComponent } from "../components/ProtectedComponent";
+import { useUser } from "../context/UserContext";
 
 export default function Reportes() {
+  const { user } = useUser();
   const [voters, setVoters] = useState([]);
   const [allVoters, setAllVoters] = useState([]); // Todos los votantes para búsqueda
   const [aggregations, setAggregations] = useState(null);
@@ -17,24 +21,130 @@ export default function Reportes() {
   const [pagination, setPagination] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [candidateId, setCandidateId] = useState(null);
+  const [loadingCandidateId, setLoadingCandidateId] = useState(
+    user?.roleId === 3,
+  );
+  const [leaderId, setLeaderId] = useState(null);
+  const [loadingLeaderId, setLoadingLeaderId] = useState(user?.roleId === 4);
+
+  // Cargar candidateId si el usuario es candidato, y leaderId si es líder
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Si es candidato, obtener su candidateId
+        if (user?.roleId === 3) {
+          try {
+            const candidate = await getCandidateByUserId(user.id);
+            if (candidate?.id) {
+              setCandidateId(candidate.id);
+            }
+          } catch (err) {
+            console.error("Error loading candidate:", err);
+          } finally {
+            setLoadingCandidateId(false);
+          }
+        } else {
+          setCandidateId(null);
+          setLoadingCandidateId(false);
+        }
+
+        // Si es líder, obtener su leaderId
+        if (user?.roleId === 4) {
+          try {
+            const leader = await getLeaderByUserId(user.id);
+            if (leader?.id) {
+              setLeaderId(leader.id);
+            }
+          } catch (err) {
+            console.error("Error loading leader:", err);
+          } finally {
+            setLoadingLeaderId(false);
+          }
+        } else {
+          setLeaderId(null);
+          setLoadingLeaderId(false);
+        }
+      } catch (err) {
+        setLoadingCandidateId(false);
+        setLoadingLeaderId(false);
+      }
+    };
+
+    if (user) {
+      loadData();
+    }
+  }, [user]);
 
   useEffect(() => {
+    // Protección: si es candidato o líder pero aún está cargando sus IDs, no ejecutar
+    if (user?.roleId === 3 && loadingCandidateId) {
+      return;
+    }
+    if (user?.roleId === 3 && !candidateId) {
+      return;
+    }
+    if (user?.roleId === 4 && loadingLeaderId) {
+      return;
+    }
+    if (user?.roleId === 4 && !leaderId) {
+      return;
+    }
+
     loadReport(filters, currentPage);
-  }, [filters, currentPage]);
+  }, [
+    filters,
+    currentPage,
+    candidateId,
+    loadingCandidateId,
+    leaderId,
+    loadingLeaderId,
+    user?.roleId,
+  ]);
 
   // Cargar todos los votantes cuando se activa la búsqueda
   useEffect(() => {
     if (search) {
+      // Protección: si es candidato o líder pero aún está cargando sus IDs, no ejecutar
+      if (user?.roleId === 3 && loadingCandidateId) {
+        return;
+      }
+      if (user?.roleId === 3 && !candidateId) {
+        return;
+      }
+      if (user?.roleId === 4 && loadingLeaderId) {
+        return;
+      }
+      if (user?.roleId === 4 && !leaderId) {
+        return;
+      }
+
       loadAllVoters();
     }
-  }, [search, filters]);
+  }, [
+    search,
+    filters,
+    candidateId,
+    loadingCandidateId,
+    leaderId,
+    loadingLeaderId,
+    user?.roleId,
+  ]);
 
   const loadReport = async (currentFilters, page = 1) => {
     setLoading(true);
     setError(null);
     try {
+      // Si el usuario es candidato o líder, agregar automáticamente su ID al filtro
+      let filtersToApply = { ...currentFilters };
+      if (user?.roleId === 3 && candidateId) {
+        filtersToApply.candidateId = candidateId;
+      } else if (user?.roleId === 4 && leaderId) {
+        filtersToApply.leaderId = leaderId;
+      }
+
       const response = await getVoterReport({
-        ...currentFilters,
+        ...filtersToApply,
         page,
         limit: 50,
       });
@@ -69,7 +179,15 @@ export default function Reportes() {
   const loadAllVoters = async () => {
     setLoadingAll(true);
     try {
-      const response = await getVoterReportForExport(activeFilters);
+      // Si el usuario es candidato o líder, agregar automáticamente su ID al filtro
+      let filtersToApply = { ...activeFilters };
+      if (user?.roleId === 3 && candidateId) {
+        filtersToApply.candidateId = candidateId;
+      } else if (user?.roleId === 4 && leaderId) {
+        filtersToApply.leaderId = leaderId;
+      }
+
+      const response = await getVoterReportForExport(filtersToApply);
       setAllVoters(response.data || []);
     } catch (error) {
       console.error("Error loading all voters for search:", error);

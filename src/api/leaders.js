@@ -2,6 +2,7 @@ import { API_URL, getAuthHeaders, apiCall } from './config';
 
 export async function getLeaders() {
   // Obtener todos los líderes sin paginación (con límite alto)
+  // Si el usuario es admin de campaña (roleId=2), el backend filtrará automáticamente por su organización
   return apiCall(`${API_URL}/leaders?limit=10000`, {
     headers: getAuthHeaders(),
   }, 'obtener líderes');

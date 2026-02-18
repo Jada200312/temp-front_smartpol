@@ -21,17 +21,11 @@ export default function Login() {
     try {
       const data = await login(email, password);
 
-      // Guardar todos los datos
-      localStorage.setItem("access_token", data.access_token);
-      localStorage.setItem("refresh_token", data.refresh_token);
-      localStorage.setItem("user_email", data.email);
-      localStorage.setItem("user_id", String(data.id));
-      localStorage.setItem("roleId", String(data.roleId));
-
-      // Notificar a UserContext que localStorage cambió (para la misma pestaña)
+      // El login() en auth.js ya guarda en localStorage
+      // Notificar a UserContext que localStorage cambió
       notifyStorageChange();
 
-      // Navegar inmediatamente sin esperar
+      // Navegar inmediatamente
       navigate("/app/inicio", { replace: true });
     } catch (err) {
       setError(err.message || "Usuario o contraseña incorrectos");

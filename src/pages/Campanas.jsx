@@ -19,7 +19,7 @@ export default function Campanas() {
   const navigate = useNavigate();
   const location = useLocation();
   const alert = useAlert();
-  
+
   const [currentUser, setCurrentUser] = useState(null);
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -55,7 +55,7 @@ export default function Campanas() {
         roleId: parseInt(roleId),
         organizationName,
       };
-      
+
       setCurrentUser(user);
       setIsInitialized(true);
     } else {
@@ -82,11 +82,11 @@ export default function Campanas() {
       }
 
       const campaignsData = Array.isArray(data.data) ? data.data : [];
-      
+
       let filteredData = campaignsData;
       if (currentUser?.organizationId) {
         filteredData = campaignsData.filter(
-          (campaign) => campaign.organizationId === currentUser.organizationId
+          (campaign) => campaign.organizationId === currentUser.organizationId,
         );
       }
 
@@ -207,7 +207,8 @@ export default function Campanas() {
             Gestión de campañas políticas registradas en la plataforma
             {currentUser?.organizationId && (
               <span className="block text-xs mt-1">
-                Organización: {currentUser?.organizationName} (ID: {currentUser?.organizationId})
+                Organización: {currentUser?.organizationName} (ID:{" "}
+                {currentUser?.organizationId})
               </span>
             )}
           </p>
@@ -215,14 +216,14 @@ export default function Campanas() {
 
         <button
           onClick={() => navigate("/app/crear-campanas")}
-          disabled={!can("campaigns:create")}
+          disabled={!can("campaigns:manage") && !can("campaigns:create")}
           title={
-            !can("campaigns:create")
+            !can("campaigns:manage") && !can("campaigns:create")
               ? "No tienes permiso para crear campañas"
               : ""
           }
           className={`flex items-center gap-2 px-6 py-3 rounded-xl shadow-md transition ${
-            can("campaigns:create")
+            can("campaigns:manage") || can("campaigns:create")
               ? "bg-orange-500 text-white shadow-orange-500/20 hover:bg-orange-600"
               : "bg-gray-300 text-gray-500 cursor-not-allowed"
           }`}
@@ -405,7 +406,9 @@ export default function Campanas() {
 
                     <td className="px-6 py-4 text-sm text-gray-700">
                       {campaign.startDate
-                        ? new Date(campaign.startDate).toLocaleDateString("es-ES")
+                        ? new Date(campaign.startDate).toLocaleDateString(
+                            "es-ES",
+                          )
                         : "-"}
                     </td>
 
@@ -428,7 +431,7 @@ export default function Campanas() {
                     </td>
 
                     <td className="px-6 py-4 flex gap-4">
-                      {can("campaigns:update") && (
+                      {(can("campaigns:manage") || can("campaigns:update")) && (
                         <button
                           onClick={() => handleEdit(campaign)}
                           className="text-gray-400 hover:text-orange-500 transition"
@@ -437,7 +440,7 @@ export default function Campanas() {
                           <PencilSquareIcon className="w-5 h-5" />
                         </button>
                       )}
-                      {can("campaigns:delete") && (
+                      {(can("campaigns:manage") || can("campaigns:delete")) && (
                         <button
                           onClick={() => handleDelete(campaign.id)}
                           className="text-gray-400 hover:text-red-500 transition"
@@ -446,11 +449,13 @@ export default function Campanas() {
                           <TrashIcon className="w-5 h-5" />
                         </button>
                       )}
-                      {!can("campaigns:update") && !can("campaigns:delete") && (
-                        <span className="text-gray-300 text-sm">
-                          Sin acceso
-                        </span>
-                      )}
+                      {!can("campaigns:manage") &&
+                        !can("campaigns:update") &&
+                        !can("campaigns:delete") && (
+                          <span className="text-gray-300 text-sm">
+                            Sin acceso
+                          </span>
+                        )}
                     </td>
                   </tr>
                 ))}

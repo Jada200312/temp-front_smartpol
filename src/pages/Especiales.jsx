@@ -166,7 +166,7 @@ export default function Especiales() {
             <ArrowLeftIcon className="h-5 w-5 mr-2" />
             Volver
           </button>
-          {can("users:create") && (
+          {(can("users:manage") || can("users:create")) && (
             <button
               onClick={() => navigate("/app/crear-especiales")}
               className="inline-flex items-center px-4 py-2 bg-orange-500 text-white rounded-md shadow-sm text-sm font-medium hover:bg-orange-600"
@@ -226,7 +226,7 @@ export default function Especiales() {
                     {new Date(especial.createdAt).toLocaleDateString("es-CO")}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                    {can("users:update") && (
+                    {(can("users:manage") || can("users:update")) && (
                       <button
                         onClick={() => handleEdit(especial)}
                         className="text-blue-600 hover:text-blue-900 inline-flex items-center"
@@ -235,7 +235,7 @@ export default function Especiales() {
                         Editar
                       </button>
                     )}
-                    {can("users:delete") && (
+                    {(can("users:manage") || can("users:delete")) && (
                       <button
                         onClick={() => handleDelete(especial.id)}
                         className="text-red-600 hover:text-red-900 inline-flex items-center"

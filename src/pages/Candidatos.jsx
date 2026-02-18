@@ -19,7 +19,7 @@ export default function Candidatos() {
   const navigate = useNavigate();
   const location = useLocation();
   const alert = useAlert();
-  
+
   const [currentUser, setCurrentUser] = useState(null);
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -53,7 +53,7 @@ export default function Candidatos() {
         organizationId: parseInt(organizationId),
         roleId: parseInt(roleId),
       };
-      
+
       setCurrentUser(user);
       setIsInitialized(true);
     } else {
@@ -77,7 +77,8 @@ export default function Candidatos() {
       // Filtrar candidatos si es admin de organización
       if (currentUser?.roleId === 2 && currentUser?.organizationId) {
         candidatesList = candidatesList.filter(
-          (candidate) => candidate.user?.organizationId === currentUser.organizationId
+          (candidate) =>
+            candidate.user?.organizationId === currentUser.organizationId,
         );
       }
 
@@ -195,14 +196,14 @@ export default function Candidatos() {
 
         <button
           onClick={() => navigate("/app/crear-candidatos")}
-          disabled={!can("candidates:create")}
+          disabled={!can("candidates:manage") && !can("candidates:create")}
           title={
-            !can("candidates:create")
+            !can("candidates:manage") && !can("candidates:create")
               ? "No tienes permiso para crear candidatos"
               : ""
           }
           className={`flex items-center gap-2 px-6 py-3 rounded-xl shadow-md transition ${
-            can("candidates:create")
+            can("candidates:manage") || can("candidates:create")
               ? "bg-orange-500 text-white shadow-orange-500/20 hover:bg-orange-600"
               : "bg-gray-300 text-gray-500 cursor-not-allowed"
           }`}
@@ -306,7 +307,9 @@ export default function Candidatos() {
 
       {!loading && candidates.length === 0 && (
         <div className="bg-white p-6 rounded-xl text-gray-500">
-          {search ? "No se encontraron resultados" : "No hay candidatos registrados"}
+          {search
+            ? "No se encontraron resultados"
+            : "No hay candidatos registrados"}
         </div>
       )}
 
@@ -346,7 +349,8 @@ export default function Candidatos() {
                     </td>
 
                     <td className="px-6 py-4 flex gap-4">
-                      {can("candidates:update") && (
+                      {(can("candidates:manage") ||
+                        can("candidates:update")) && (
                         <button
                           onClick={() => handleEdit(candidate)}
                           className="text-gray-400 hover:text-orange-500 transition"
@@ -355,7 +359,8 @@ export default function Candidatos() {
                           <PencilSquareIcon className="w-5 h-5" />
                         </button>
                       )}
-                      {can("candidates:delete") && (
+                      {(can("candidates:manage") ||
+                        can("candidates:delete")) && (
                         <button
                           onClick={() => handleDelete(candidate.id)}
                           className="text-gray-400 hover:text-red-500 transition"
@@ -364,7 +369,8 @@ export default function Candidatos() {
                           <TrashIcon className="w-5 h-5" />
                         </button>
                       )}
-                      {!can("candidates:update") &&
+                      {!can("candidates:manage") &&
+                        !can("candidates:update") &&
                         !can("candidates:delete") && (
                           <span className="text-gray-300 text-sm">
                             Sin acceso

@@ -148,14 +148,16 @@ export default function Organizaciones() {
 
         <button
           onClick={() => navigate("/app/crear-organizaciones")}
-          disabled={!can("organizations:create")}
+          disabled={
+            !can("organizations:manage") && !can("organizations:create")
+          }
           title={
-            !can("organizations:create")
+            !can("organizations:manage") && !can("organizations:create")
               ? "No tienes permiso para crear organizaciones"
               : ""
           }
           className={`flex items-center gap-2 px-6 py-3 rounded-xl shadow-md transition ${
-            can("organizations:create")
+            can("organizations:manage") || can("organizations:create")
               ? "bg-orange-500 text-white shadow-orange-500/20 hover:bg-orange-600"
               : "bg-gray-300 text-gray-500 cursor-not-allowed"
           }`}
@@ -294,7 +296,8 @@ export default function Organizaciones() {
                     </td>
 
                     <td className="px-6 py-4 flex gap-4">
-                      {can("organizations:update") && (
+                      {(can("organizations:manage") ||
+                        can("organizations:update")) && (
                         <button
                           onClick={() => handleEdit(organization)}
                           className="text-gray-400 hover:text-orange-500 transition"
@@ -303,7 +306,8 @@ export default function Organizaciones() {
                           <PencilSquareIcon className="w-5 h-5" />
                         </button>
                       )}
-                      {can("organizations:delete") && (
+                      {(can("organizations:manage") ||
+                        can("organizations:delete")) && (
                         <button
                           onClick={() => handleDelete(organization.id)}
                           className="text-gray-400 hover:text-red-500 transition"
@@ -312,7 +316,8 @@ export default function Organizaciones() {
                           <TrashIcon className="w-5 h-5" />
                         </button>
                       )}
-                      {!can("organizations:update") &&
+                      {!can("organizations:manage") &&
+                        !can("organizations:update") &&
                         !can("organizations:delete") && (
                           <span className="text-gray-300 text-sm">
                             Sin acceso

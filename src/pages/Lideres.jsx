@@ -125,7 +125,8 @@ export default function Lideres() {
 
       if (currentUser?.roleId === 2 && currentUser?.organizationId) {
         leadersList = leadersList.filter(
-          (leader) => leader.user?.organizationId === currentUser.organizationId
+          (leader) =>
+            leader.user?.organizationId === currentUser.organizationId,
         );
       }
 
@@ -281,14 +282,14 @@ export default function Lideres() {
         {currentUser?.roleId !== 3 && (
           <button
             onClick={() => navigate("/app/crear-lideres")}
-            disabled={!can("leaders:create")}
+            disabled={!can("leaders:manage") && !can("leaders:create")}
             title={
-              !can("leaders:create")
+              !can("leaders:manage") && !can("leaders:create")
                 ? "No tienes permiso para crear líderes"
                 : ""
             }
             className={`flex items-center gap-2 px-6 py-3 rounded-xl shadow-md transition ${
-              can("leaders:create")
+              can("leaders:manage") || can("leaders:create")
                 ? "bg-orange-500 text-white shadow-orange-500/20 hover:bg-orange-600"
                 : "bg-gray-300 text-gray-500 cursor-not-allowed"
             }`}
@@ -430,7 +431,9 @@ export default function Lideres() {
 
       {!loading && !error && leaders.length === 0 && (
         <div className="bg-white p-6 rounded-xl text-gray-500">
-          {search ? "No se encontraron resultados" : "No hay líderes registrados"}
+          {search
+            ? "No se encontraron resultados"
+            : "No hay líderes registrados"}
         </div>
       )}
 
@@ -488,7 +491,7 @@ export default function Lideres() {
                     </td>
 
                     <td className="px-6 py-4 flex gap-4">
-                      {can("leaders:update") && (
+                      {(can("leaders:manage") || can("leaders:update")) && (
                         <button
                           onClick={() => handleEdit(leader)}
                           className="text-gray-400 hover:text-orange-500 transition"
@@ -497,7 +500,7 @@ export default function Lideres() {
                           <PencilSquareIcon className="w-5 h-5" />
                         </button>
                       )}
-                      {can("leaders:delete") && (
+                      {(can("leaders:manage") || can("leaders:delete")) && (
                         <button
                           onClick={() => handleDelete(leader.id)}
                           className="text-gray-400 hover:text-red-500 transition"
@@ -506,7 +509,8 @@ export default function Lideres() {
                           <TrashIcon className="w-5 h-5" />
                         </button>
                       )}
-                      {!can("leaders:update") &&
+                      {!can("leaders:manage") &&
+                        !can("leaders:update") &&
                         !can("leaders:delete") && (
                           <span className="text-gray-300 text-sm">
                             Sin acceso

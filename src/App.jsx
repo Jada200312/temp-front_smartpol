@@ -91,146 +91,219 @@ function App() {
               </PrivateRoute>
             }
           >
-            {/* Dashboard - Ruta /app/dashboard - renderiza gráficos en Dashboard.jsx */}
+            {/* Dashboard - Ruta /app/dashboard - Todos los usuarios autenticados pueden acceder */}
             <Route path="dashboard" element={null} />
 
-            {/* Inicio - Todos pueden acceder */}
+            {/* Inicio - Todos los usuarios autenticados pueden acceder */}
             <Route path="inicio" element={<Inicio />} />
 
-            {/* Votantes - Superadmin, Admin campaña, Candidato, Líder, Digitador (todos) */}
-            <Route path="votantes" element={<Votantes />} />
+            {/* Votantes - Requiere permiso voters:read (solo lectura) */}
+            <Route
+              path="votantes"
+              element={
+                <PermissionRoute requiredPermission="voters:read">
+                  <Votantes />
+                </PermissionRoute>
+              }
+            />
 
-            {/* Organizaciones - Requiere permiso organizations:read */}
+            {/* Organizaciones - Requiere cualquier permiso de gestion */}
             <Route
               path="organizaciones"
               element={
-                <PermissionRoute requiredPermission="organizations:read">
+                <PermissionRoute
+                  requiredPermission={[
+                    "organizations:manage",
+                    "organizations:create",
+                    "organizations:update",
+                    "organizations:delete",
+                  ]}
+                >
                   <Organizaciones />
                 </PermissionRoute>
               }
             />
 
-            {/* Crear Organizaciones - Requiere permiso organizations:create */}
+            {/* Crear Organizaciones - Requiere create o manage */}
             <Route
               path="crear-organizaciones"
               element={
-                <PermissionRoute requiredPermission="organizations:create">
+                <PermissionRoute
+                  requiredPermission={[
+                    "organizations:manage",
+                    "organizations:create",
+                  ]}
+                >
                   <CreateOrganizaciones />
                 </PermissionRoute>
               }
             />
 
-            {/* Campañas - Requiere permiso campaigns:read */}
+            {/* Campanas - Requiere cualquier permiso de gestion */}
             <Route
               path="campanas"
               element={
-                <PermissionRoute requiredPermission="campaigns:read">
+                <PermissionRoute
+                  requiredPermission={[
+                    "campaigns:manage",
+                    "campaigns:create",
+                    "campaigns:update",
+                    "campaigns:delete",
+                  ]}
+                >
                   <Campanas />
                 </PermissionRoute>
               }
             />
 
-            {/* Crear Campañas - Requiere permiso campaigns:create */}
+            {/* Crear Campanas - Requiere create o manage */}
             <Route
               path="crear-campanas"
               element={
-                <PermissionRoute requiredPermission="campaigns:create">
+                <PermissionRoute
+                  requiredPermission={["campaigns:manage", "campaigns:create"]}
+                >
                   <CreateCampanas />
                 </PermissionRoute>
               }
             />
 
-            {/* Candidatos - Requiere permiso candidates:read */}
+            {/* Candidatos - Requiere cualquier permiso de gestion */}
             <Route
               path="candidatos"
               element={
-                <PermissionRoute requiredPermission="candidates:read">
+                <PermissionRoute
+                  requiredPermission={[
+                    "candidates:manage",
+                    "candidates:create",
+                    "candidates:update",
+                    "candidates:delete",
+                  ]}
+                >
                   <Candidatos />
                 </PermissionRoute>
               }
             />
 
-            {/* Líderes - Requiere permiso leaders:read */}
+            {/* Lideres - Requiere cualquier permiso de gestion */}
             <Route
               path="lideres"
               element={
-                <PermissionRoute requiredPermission="leaders:read">
+                <PermissionRoute
+                  requiredPermission={[
+                    "leaders:manage",
+                    "leaders:create",
+                    "leaders:update",
+                    "leaders:delete",
+                  ]}
+                >
                   <Lideres />
                 </PermissionRoute>
               }
             />
 
-            {/* Digitadores - Requiere permiso users:create */}
+            {/* Digitadores - Requiere cualquier permiso de gestion */}
             <Route
               path="digitadores"
               element={
-                <PermissionRoute requiredPermission="users:create">
+                <PermissionRoute
+                  requiredPermission={[
+                    "users:manage",
+                    "users:create",
+                    "users:update",
+                    "users:delete",
+                  ]}
+                >
                   <Digitadores />
                 </PermissionRoute>
               }
             />
 
-            {/* Usuarios Especiales - Requiere permiso users:create */}
+            {/* Usuarios Especiales - Requiere cualquier permiso de gestion */}
             <Route
               path="especiales"
               element={
-                <PermissionRoute requiredPermission="users:create">
+                <PermissionRoute
+                  requiredPermission={[
+                    "users:manage",
+                    "users:create",
+                    "users:update",
+                    "users:delete",
+                  ]}
+                >
                   <Especiales />
                 </PermissionRoute>
               }
             />
 
-            {/* Crear Candidatos - Requiere permiso candidates:create */}
+            {/* Crear Candidatos - Requiere create o manage */}
             <Route
               path="crear-candidatos"
               element={
-                <PermissionRoute requiredPermission="candidates:create">
+                <PermissionRoute
+                  requiredPermission={[
+                    "candidates:manage",
+                    "candidates:create",
+                  ]}
+                >
                   <CreateCandidates />
                 </PermissionRoute>
               }
             />
 
-            {/* Crear Líderes - Requiere permiso leaders:create */}
+            {/* Crear Lideres - Requiere create o manage */}
             <Route
               path="crear-lideres"
               element={
-                <PermissionRoute requiredPermission="leaders:create">
+                <PermissionRoute
+                  requiredPermission={["leaders:manage", "leaders:create"]}
+                >
                   <CreateLeaders />
                 </PermissionRoute>
               }
             />
 
-            {/* Crear Digitadores - Requiere permiso users:create */}
+            {/* Crear Digitadores - Requiere create o manage */}
             <Route
               path="crear-digitadores"
               element={
-                <PermissionRoute requiredPermission="users:create">
+                <PermissionRoute
+                  requiredPermission={["users:manage", "users:create"]}
+                >
                   <CreateDigitadores />
                 </PermissionRoute>
               }
             />
 
-            {/* Crear Usuarios Especiales - Requiere permiso users:create */}
+            {/* Crear Usuarios Especiales - Requiere create o manage */}
             <Route
               path="crear-especiales"
               element={
-                <PermissionRoute requiredPermission="users:create">
+                <PermissionRoute
+                  requiredPermission={["users:manage", "users:create"]}
+                >
                   <CreateEspeciales />
                 </PermissionRoute>
               }
             />
 
-            {/* Asignar Candidatos - Requiere permiso candidates:update */}
+            {/* Asignar Candidatos - Requiere manage, update, o delete */}
             <Route
               path="asignar-candidatos"
               element={
-                <PermissionRoute requiredPermission="candidates:update">
+                <PermissionRoute
+                  requiredPermission={[
+                    "candidates:manage",
+                    "candidates:update",
+                    "candidates:delete",
+                  ]}
+                >
                   <AssignCandidates />
                 </PermissionRoute>
               }
             />
 
-            {/* Reportes - Requiere permiso reports:read */}
+            {/* Reportes - Requiere permiso reports:read (solo lectura) */}
             <Route
               path="reportes"
               element={
@@ -240,7 +313,7 @@ function App() {
               }
             />
 
-            {/* Admin Permisos - Requiere permiso permissions:manage */}
+            {/* Admin Permisos - Requiere permiso permissions:manage (solo administradores) */}
             <Route
               path="admin-permisos"
               element={

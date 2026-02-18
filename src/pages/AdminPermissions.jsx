@@ -1,6 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeftIcon } from "@heroicons/react/24/outline";
+import {
+  ArrowLeftIcon,
+  ShieldCheckIcon,
+  UserGroupIcon,
+} from "@heroicons/react/24/outline";
 import {
   getRoles,
   getUsers,
@@ -120,14 +124,14 @@ export default function AdminPermissions() {
   // Handlers para asignar/revocar permisos de usuario
   const handleToggleUserPermission = async (
     permissionId,
-    isHeredado,
+    isFromRole,
     isRevocado,
     isCustom,
   ) => {
     try {
       let action;
 
-      if (isHeredado && !isRevocado) {
+      if (isFromRole && !isRevocado) {
         // Permiso heredado activo -> revocarlo (granted: false)
         action = revokeUserRolePermission(selectedUser.id, permissionId);
       } else if (isRevocado) {
@@ -142,182 +146,236 @@ export default function AdminPermissions() {
       }
 
       await action;
-      const updated = await getUserCustomPermissions(selectedUser.id);
-      setUserPermissions(updated);
+
+      // Refrescar ambos - permisos personalizados Y permisos del rol
+      const [updatedUserPerms, updatedRolePerms] = await Promise.all([
+        getUserCustomPermissions(selectedUser.id),
+        selectedUser.role
+          ? getRolePermissions(selectedUser.role.id)
+          : Promise.resolve([]),
+      ]);
+
+      setUserPermissions(updatedUserPerms);
+      setUserRolePermissions(updatedRolePerms);
+      setError(""); // Limpiar errores si el cambio fue exitoso
     } catch (err) {
       setError("Error al modificar permiso: " + err.message);
     }
   };
 
   return (
-    <div className="space-y-6">
-      {/* Encabezado */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            Administración de Permisos
-          </h1>
-          <p className="mt-2 text-gray-600">
-            Gestiona los permisos por rol y usuario
-          </p>
-        </div>
-        <button
-          onClick={() => navigate("/app/votantes")}
-          className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-        >
-          <ArrowLeftIcon className="h-5 w-5 mr-2" />
-          Volver
-        </button>
-      </div>
-
-      {/* Error message */}
-      {error && (
-        <div className="rounded-md bg-red-50 p-4 border border-red-200">
-          <p className="text-sm font-medium text-red-800">{error}</p>
-        </div>
-      )}
-
-      {/* Tabs */}
-      <div className="bg-white shadow rounded-lg">
-        <div className="flex border-b border-gray-200">
-          <button
-            onClick={() => {
-              setActiveTab("roles");
-              setSelectedRole(null);
-              setError("");
-            }}
-            className={`flex-1 py-4 px-4 text-center font-medium transition ${
-              activeTab === "roles"
-                ? "border-b-2 border-orange-500 text-orange-600"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            Permisos por Rol
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab("users");
-              setSelectedUser(null);
-              setError("");
-            }}
-            className={`flex-1 py-4 px-4 text-center font-medium transition ${
-              activeTab === "users"
-                ? "border-b-2 border-orange-500 text-orange-600"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            Permisos por Usuario
-          </button>
-        </div>
-
-        <div className="p-6">
-          {/* Tab: Permisos por Rol */}
-          {activeTab === "roles" && (
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Seleccionar Rol
-                </label>
-                <select
-                  value={selectedRole?.id || ""}
-                  onChange={(e) => {
-                    const role = roles.find(
-                      (r) => r.id === parseInt(e.target.value),
-                    );
-                    setSelectedRole(role || null);
-                  }}
-                  className="w-full border border-gray-300 rounded-md shadow-sm focus:border-orange-500 focus:ring-orange-500 p-2"
-                >
-                  <option value="">Seleccionar un rol...</option>
-                  {roles.map((role) => (
-                    <option key={role.id} value={role.id}>
-                      {role.name} {role.description && `- ${role.description}`}
-                    </option>
-                  ))}
-                </select>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-orange-50 to-amber-50 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Encabezado mejorado */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center justify-center h-14 w-14 rounded-xl bg-gradient-to-br from-orange-600 to-amber-600 shadow-lg">
+                <ShieldCheckIcon className="h-8 w-8 text-white" />
               </div>
-
-              {selectedRole && (
-                <div className="space-y-4">
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <p className="text-sm text-blue-800">
-                      <strong>Nota:</strong> Los permisos en{" "}
-                      <strong>color naranja</strong> están asignados a este rol.
-                      Haz clic en un permiso para asignarlo o revocarlo.
-                    </p>
-                  </div>
-
-                  <PermissionsGrid
-                    type="role"
-                    targetId={selectedRole.id}
-                    targetName={selectedRole.name}
-                    allPermissions={allPermissions}
-                    assignedPermissions={rolePermissions}
-                    onAssign={handleAssignRolePermission}
-                    onRevoke={handleRevokeRolePermission}
-                    loading={loading}
-                    error={error}
-                  />
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Tab: Permisos por Usuario */}
-          {activeTab === "users" && (
-            <div className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Seleccionar Usuario
-                </label>
-                <select
-                  value={selectedUser?.id || ""}
-                  onChange={(e) => {
-                    const user = users.find(
-                      (u) => u.id === parseInt(e.target.value),
-                    );
-                    setSelectedUser(user || null);
-                  }}
-                  className="w-full border border-gray-300 rounded-md shadow-sm focus:border-orange-500 focus:ring-orange-500 p-2"
-                >
-                  <option value="">Seleccionar un usuario...</option>
-                  {users.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.email} {user.role && `(${user.role.name})`}
-                    </option>
-                  ))}
-                </select>
+                <h1 className="text-4xl font-bold text-gray-900">
+                  Administración de Permisos
+                </h1>
+                <p className="mt-2 text-gray-600">
+                  Gestiona los permisos por rol y usuario de manera sencilla
+                </p>
               </div>
-
-              {selectedUser && (
-                <div className="space-y-4">
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <p className="text-sm text-blue-800">
-                      <strong>Nota:</strong> Los permisos en{" "}
-                      <strong>color naranja</strong> son heredados del rol{" "}
-                      <strong>{selectedUser.role?.name}</strong>. Los permisos
-                      en <strong>color verde</strong> son personalizaciones
-                      específicas para este usuario. Puedes{" "}
-                      <strong>revocar permisos heredados</strong> del rol o{" "}
-                      <strong>otorgar permisos adicionales</strong>.
-                    </p>
-                  </div>
-
-                  <PermissionsGrid
-                    type="user"
-                    targetId={selectedUser.id}
-                    targetName={selectedUser.email}
-                    allPermissions={allPermissions}
-                    assignedPermissions={userPermissions}
-                    rolePermissions={userRolePermissions}
-                    onToggle={handleToggleUserPermission}
-                    loading={loading}
-                    error={error}
-                  />
-                </div>
-              )}
             </div>
-          )}
+            <button
+              onClick={() => navigate("/app/votantes")}
+              className="inline-flex items-center gap-2 px-6 py-3 border-2 border-gray-300 rounded-lg shadow-sm text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 transition-all hover:border-gray-400"
+            >
+              <ArrowLeftIcon className="h-5 w-5" />
+              Volver
+            </button>
+          </div>
+        </div>
+
+        {/* Error message con mejor estilo */}
+        {error && (
+          <div className="mb-8 rounded-lg bg-red-50 p-4 border-2 border-red-200 shadow-sm">
+            <div className="flex items-start">
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-red-800">{error}</p>
+              </div>
+              <button
+                onClick={() => setError("")}
+                className="text-red-400 hover:text-red-600 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Tabs mejorados */}
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden mb-8">
+          <div className="flex border-b-2 border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+            <button
+              onClick={() => {
+                setActiveTab("roles");
+                setSelectedRole(null);
+                setError("");
+              }}
+              className={`flex-1 py-5 px-6 text-center font-bold text-lg transition-all flex items-center justify-center gap-2 ${
+                activeTab === "roles"
+                  ? "border-b-4 border-orange-600 text-orange-600 bg-orange-50"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+              }`}
+            >
+              <ShieldCheckIcon className="h-6 w-6" />
+              Permisos por Rol
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab("users");
+                setSelectedUser(null);
+                setError("");
+              }}
+              className={`flex-1 py-5 px-6 text-center font-bold text-lg transition-all flex items-center justify-center gap-2 ${
+                activeTab === "users"
+                  ? "border-b-4 border-orange-600 text-orange-600 bg-orange-50"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+              }`}
+            >
+              <UserGroupIcon className="h-6 w-6" />
+              Permisos por Usuario
+            </button>
+          </div>
+
+          <div className="p-8">
+            {/* Tab: Permisos por Rol */}
+            {activeTab === "roles" && (
+              <div className="space-y-8">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-3 uppercase tracking-wide">
+                    Seleccionar Rol
+                  </label>
+                  <select
+                    value={selectedRole?.id || ""}
+                    onChange={(e) => {
+                      const role = roles.find(
+                        (r) => r.id === parseInt(e.target.value),
+                      );
+                      setSelectedRole(role || null);
+                    }}
+                    className="w-full border-2 border-gray-300 rounded-lg shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-200 p-3 text-gray-900 font-medium transition-all"
+                  >
+                    <option value="">Seleccionar un rol...</option>
+                    {roles.map((role) => (
+                      <option key={role.id} value={role.id}>
+                        {role.name}{" "}
+                        {role.description && `- ${role.description}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {selectedRole && (
+                  <div className="space-y-6">
+                    <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-200 rounded-lg p-5">
+                      <p className="text-sm font-semibold text-orange-900 leading-relaxed">
+                        <span className="font-bold text-orange-600">
+                          💡 Tip:
+                        </span>{" "}
+                        Los permisos en{" "}
+                        <span className="font-bold text-emerald-600">
+                          color verde
+                        </span>{" "}
+                        están asignados a este rol. Haz clic en un permiso para
+                        asignarlo o revocarlo. Usa el botón{" "}
+                        <span className="font-bold text-orange-600">CRUD</span>{" "}
+                        para activar/desactivar todos los permisos de una
+                        sección.
+                      </p>
+                    </div>
+
+                    <PermissionsGrid
+                      type="role"
+                      targetId={selectedRole.id}
+                      targetName={selectedRole.name}
+                      allPermissions={allPermissions}
+                      assignedPermissions={rolePermissions}
+                      onAssign={handleAssignRolePermission}
+                      onRevoke={handleRevokeRolePermission}
+                      loading={loading}
+                      error={error}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Tab: Permisos por Usuario */}
+            {activeTab === "users" && (
+              <div className="space-y-8">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-3 uppercase tracking-wide">
+                    Seleccionar Usuario
+                  </label>
+                  <select
+                    value={selectedUser?.id || ""}
+                    onChange={(e) => {
+                      const user = users.find(
+                        (u) => u.id === parseInt(e.target.value),
+                      );
+                      setSelectedUser(user || null);
+                    }}
+                    className="w-full border-2 border-gray-300 rounded-lg shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-200 p-3 text-gray-900 font-medium transition-all"
+                  >
+                    <option value="">Seleccionar un usuario...</option>
+                    {users.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.email} {user.role && `(${user.role.name})`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {selectedUser && (
+                  <div className="space-y-6">
+                    <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-200 rounded-lg p-5">
+                      <p className="text-sm font-semibold text-orange-900 leading-relaxed">
+                        <span className="font-bold text-orange-600">
+                          💡 Tip:
+                        </span>{" "}
+                        Los permisos en{" "}
+                        <span className="font-bold text-orange-600">
+                          color naranja
+                        </span>{" "}
+                        son heredados del rol{" "}
+                        <span className="font-bold">
+                          {selectedUser.role?.name}
+                        </span>
+                        . Los en{" "}
+                        <span className="font-bold text-purple-600">
+                          color púrpura
+                        </span>{" "}
+                        son personalizaciones específicas. Los en{" "}
+                        <span className="font-bold text-red-600">
+                          color rojo
+                        </span>{" "}
+                        están revocados del rol.
+                      </p>
+                    </div>
+
+                    <PermissionsGrid
+                      type="user"
+                      targetId={selectedUser.id}
+                      targetName={selectedUser.email}
+                      allPermissions={allPermissions}
+                      assignedPermissions={userPermissions}
+                      rolePermissions={userRolePermissions}
+                      onToggle={handleToggleUserPermission}
+                      loading={loading}
+                      error={error}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

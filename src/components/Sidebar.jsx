@@ -12,42 +12,100 @@ export default function Sidebar({ isOpen, onClose }) {
   const isActive = (path) => location.pathname.startsWith(path);
 
   // Control de acceso basado en permisos
+  // Nueva estructura de permisos:
+  // - resource:read = acceso de lectura únicamente
+  // - resource:manage = gestión completa (crear, editar, eliminar) + mostrar en sidebar
   const canSeeDashboard = true; // Todos pueden ver dashboard
 
   const canSeeInicio = true; // Todos pueden ver inicio
 
-  const canSeeVotantes = can("voters:read"); // Requiere permiso para leer votantes
+  // Votantes: mostrar si tiene permiso de lectura
+  const canSeeVotantes = can("voters:read");
 
-  const canSeeOrganizaciones = can("organizations:read"); // Ver organizaciones
+  // Organizaciones: mostrar en sidebar si tiene manage O create O update O delete
+  const canSeeOrganizaciones = canAny([
+    "organizations:manage",
+    "organizations:create",
+    "organizations:update",
+    "organizations:delete",
+  ]);
 
-  const canSeeCampanas = can("campaigns:read"); // Ver campañas
+  // Campañas: mostrar en sidebar si tiene manage O create O update O delete
+  const canSeeCampanas = canAny([
+    "campaigns:manage",
+    "campaigns:create",
+    "campaigns:update",
+    "campaigns:delete",
+  ]);
 
-  const canSeeCandidatos = canAny(["candidates:read", "candidates:create"]); // Ver o crear candidatos
+  // Candidatos: mostrar en sidebar si tiene manage O create O update O delete
+  const canSeeCandidatos = canAny([
+    "candidates:manage",
+    "candidates:create",
+    "candidates:update",
+    "candidates:delete",
+  ]);
 
-  const canCreateCandidatos = can("candidates:create"); // Crear candidatos
+  // Líderes: mostrar en sidebar si tiene manage O create O update O delete
+  const canSeeLideres = canAny([
+    "leaders:manage",
+    "leaders:create",
+    "leaders:update",
+    "leaders:delete",
+  ]);
 
-  const canSeeLideres = canAny(["leaders:read", "leaders:create"]); // Ver o crear líderes
+  // Digitadores: mostrar si puede create O update O delete O manage usuarios
+  const canSeeDigitadores = canAny([
+    "users:manage",
+    "users:create",
+    "users:update",
+    "users:delete",
+  ]);
 
-  const canSeeDigitadores = can("users:create"); // Crear digitadores
+  // Usuarios Especiales: mostrar si puede manage O create O update O delete usuarios
+  const canSeeEspeciales = canAny([
+    "users:manage",
+    "users:create",
+    "users:update",
+    "users:delete",
+  ]);
 
-  const canSeeEspeciales = can("users:create"); // Ver usuarios especiales
+  // Asignar Candidatos: mostrar si puede manage O update O delete candidatos
+  const canSeeAsignarCandidatos = canAny([
+    "candidates:manage",
+    "candidates:create",
+    "candidates:update",
+    "candidates:delete",
+  ]);
 
-  const canSeeAsignarCandidatos = can("candidates:update"); // Editar/asignar candidatos
+  // Reportes: ver si tiene permiso de lectura
+  const canSeeReportes = can("reports:read");
 
-  const canSeeReportes = can("reports:read"); // Ver reportes
-
-  const canSeeAdminPermisos = can("permissions:manage"); // Gestionar permisos
+  // Admin Permisos: Gestionar permisos
+  const canSeeAdminPermisos = can("permissions:manage");
 
   // Para expandir el menú Gestión si alguno de sus items está disponible
   const canSeeGestion = canAny([
-    "organizations:read",
-    "campaigns:read",
-    "candidates:read",
+    "organizations:manage",
+    "organizations:create",
+    "organizations:update",
+    "organizations:delete",
+    "campaigns:manage",
+    "campaigns:create",
+    "campaigns:update",
+    "campaigns:delete",
+    "candidates:manage",
     "candidates:create",
-    "leaders:read",
-    "leaders:create",
-    "users:create",
     "candidates:update",
+    "candidates:delete",
+    "leaders:manage",
+    "leaders:create",
+    "leaders:update",
+    "leaders:delete",
+    "users:manage",
+    "users:create",
+    "users:update",
+    "users:delete",
   ]);
 
   return (
@@ -94,19 +152,6 @@ export default function Sidebar({ isOpen, onClose }) {
                       : "text-gray-600 hover:bg-orange-100 hover:text-orange-600"
                   }`}
               >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                  />
-                </svg>
                 <span className="ml-3">Dashboard</span>
               </Link>
             </li>

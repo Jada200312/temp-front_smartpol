@@ -75,7 +75,7 @@ export default function Digitadores() {
       if (currentUser?.organizationId) {
         digitadorList = digitadorList.filter(
           (digitador) =>
-            digitador.organizationId === currentUser.organizationId
+            digitador.organizationId === currentUser.organizationId,
         );
       }
 
@@ -203,14 +203,14 @@ export default function Digitadores() {
 
         <button
           onClick={() => navigate("/app/crear-digitadores")}
-          disabled={!can("users:create")}
+          disabled={!can("users:manage") && !can("users:create")}
           title={
-            !can("users:create")
+            !can("users:manage") && !can("users:create")
               ? "No tienes permiso para crear digitadores"
               : ""
           }
           className={`flex items-center gap-2 px-6 py-3 rounded-xl shadow-md transition ${
-            can("users:create")
+            can("users:manage") || can("users:create")
               ? "bg-orange-500 text-white shadow-orange-500/20 hover:bg-orange-600"
               : "bg-gray-300 text-gray-500 cursor-not-allowed"
           }`}
@@ -279,14 +279,14 @@ export default function Digitadores() {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
                         onClick={() => handleEdit(digitador)}
-                        disabled={!can("users:update")}
+                        disabled={!can("users:manage") && !can("users:update")}
                         title={
-                          !can("users:update")
+                          !can("users:manage") && !can("users:update")
                             ? "No tienes permiso para editar"
                             : ""
                         }
                         className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg transition mr-2 ${
-                          can("users:update")
+                          can("users:manage") || can("users:update")
                             ? "bg-blue-100 text-blue-600 hover:bg-blue-200"
                             : "bg-gray-100 text-gray-400 cursor-not-allowed"
                         }`}
@@ -296,14 +296,14 @@ export default function Digitadores() {
                       </button>
                       <button
                         onClick={() => handleDelete(digitador.id)}
-                        disabled={!can("users:delete")}
+                        disabled={!can("users:manage") && !can("users:delete")}
                         title={
-                          !can("users:delete")
+                          !can("users:manage") && !can("users:delete")
                             ? "No tienes permiso para eliminar"
                             : ""
                         }
                         className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg transition ${
-                          can("users:delete")
+                          can("users:manage") || can("users:delete")
                             ? "bg-red-100 text-red-600 hover:bg-red-200"
                             : "bg-gray-100 text-gray-400 cursor-not-allowed"
                         }`}

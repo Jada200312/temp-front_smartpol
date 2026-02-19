@@ -127,7 +127,7 @@ export const VotersByCandidate = ({ data = [] }) => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md hover:shadow-lg border border-gray-200 p-6 transition-all duration-300 h-full flex flex-col">
+    <div className="bg-white rounded-lg shadow-md hover:shadow-lg border border-gray-200 p-3 sm:p-6 transition-all duration-300 h-full flex flex-col">
       <div
         style={{ position: "relative", height: "340px" }}
         className="flex-shrink-0"

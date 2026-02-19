@@ -355,13 +355,13 @@ export default function Dashboard() {
       <div className="flex-1 flex flex-col">
         <Navbar onMenuClick={() => setSidebarOpen(true)} />
 
-        <main className="flex-1 p-4 sm:p-6 lg:p-8">
+        <main className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 overflow-auto">
           {/* Sección de estadísticas - Solo mostrar en /app/dashboard */}
           {isDashboardView && (
             <div>
               {/* ====== INDICADOR DE SINCRONIZACIÓN EN TIEMPO REAL ====== */}
-              <div className="mb-6 flex items-center justify-between">
-                <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+              <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-0">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h1>
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <div className="flex items-center gap-2">
                     {isSyncing ? (
@@ -385,7 +385,7 @@ export default function Dashboard() {
               </div>
 
               {/* ====== FILA 1: Cards de métricas ====== */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
                 {/* Card Votantes - Solo si tiene permiso voters:read */}
                 {can("voters:read") && (
                   <div className="metric-card metric-card-entrance metric-card-gradient bg-white rounded-lg shadow-sm p-6 border border-gray-200">
@@ -485,7 +485,7 @@ export default function Dashboard() {
 
               {/* ====== FILA 2B: Gráficos de Votantes (Partidos + Candidatos) ====== */}
               {user?.roleId === 2 && can("candidates:read") && (
-                <div className="flex flex-row gap-8 w-full">
+                <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 w-full">
                   {/* Gráfico de Votantes por Partido */}
                   <div className="flex-1 flex flex-col">
                     <VotersByParty

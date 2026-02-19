@@ -19,6 +19,13 @@ import {
   getVoterCountByParty,
 } from "../api/candidates";
 import { getLeaderByUserId, getLeadersWithPagination } from "../api/leaders";
+import {
+  UserGroupIcon,
+  UserIcon,
+  CheckCircleIcon,
+  StarIcon,
+} from "@heroicons/react/24/outline";
+import "../styles/dashboard-animations.css";
 
 export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -44,6 +51,8 @@ export default function Dashboard() {
     useState(false);
   const [votersByParty, setVotersByParty] = useState([]);
   const [loadingVotersByParty, setLoadingVotersByParty] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState(new Date());
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // Cargar candidateId o leaderId según el rol
   useEffect(() => {
@@ -277,6 +286,7 @@ export default function Dashboard() {
     if (!isDashboardView) return;
 
     const interval = setInterval(async () => {
+      setIsSyncing(true);
       try {
         // Recarga de votantes
         if (user) {
@@ -324,8 +334,12 @@ export default function Dashboard() {
             Array.isArray(partyVotersData) ? partyVotersData : [],
           );
         }
+
+        setLastSyncTime(new Date());
       } catch (err) {
         console.error("Error during auto-refresh:", err);
+      } finally {
+        setIsSyncing(false);
       }
     }, 5000); // Recarga cada 5 segundos
 
@@ -345,46 +359,125 @@ export default function Dashboard() {
           {/* Sección de estadísticas - Solo mostrar en /app/dashboard */}
           {isDashboardView && (
             <div>
+              {/* ====== INDICADOR DE SINCRONIZACIÓN EN TIEMPO REAL ====== */}
+              <div className="mb-6 flex items-center justify-between">
+                <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <div className="flex items-center gap-2">
+                    {isSyncing ? (
+                      <>
+                        <div className="w-2 h-2 bg-blue-500 rounded-full sync-dot"></div>
+                        <span className="text-xs font-medium text-blue-600">
+                          Sincronizando...
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircleIcon className="w-4 h-4 text-green-600" />
+                        <span className="text-xs font-medium text-green-600">
+                          Actualizado hace{" "}
+                          {Math.floor((new Date() - lastSyncTime) / 1000)}s
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* ====== FILA 1: Cards de métricas ====== */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
                 {/* Card Votantes - Solo si tiene permiso voters:read */}
                 {can("voters:read") && (
-                  <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
-                    <div className="flex flex-col items-center text-center">
-                      <p className="text-4xl font-bold text-orange-500">
-                        {loadingVoters ? "..." : totalVoters}
-                      </p>
-                      <p className="text-gray-600 text-xs sm:text-sm font-medium mt-2">
-                        Votantes
-                      </p>
+                  <div className="metric-card metric-card-entrance metric-card-gradient bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <p
+                          className={`text-3xl sm:text-4xl font-bold ${loadingVoters ? "metric-loading" : "number-update"} text-green-600`}
+                        >
+                          {loadingVoters ? (
+                            <span className="fade-in-out">...</span>
+                          ) : (
+                            totalVoters.toLocaleString()
+                          )}
+                        </p>
+                        <p className="text-gray-600 text-xs sm:text-sm font-medium mt-2">
+                          Votantes
+                        </p>
+                      </div>
+                      <div className="bg-green-100 p-3 rounded-lg">
+                        <UserGroupIcon className="w-6 h-6 text-green-600" />
+                      </div>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-gray-100">
+                      <span className="text-xs text-gray-500">
+                        {loadingVoters
+                          ? "Actualizando..."
+                          : "Actualizado en tiempo real"}
+                      </span>
                     </div>
                   </div>
                 )}
 
                 {/* Card Candidatos - Solo si tiene permiso candidates:read */}
                 {can("candidates:read") && (
-                  <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
-                    <div className="flex flex-col items-center text-center">
-                      <p className="text-4xl font-bold text-orange-500">
-                        {loadingCandidates ? "..." : totalCandidates}
-                      </p>
-                      <p className="text-gray-600 text-xs sm:text-sm font-medium mt-2">
-                        Candidatos
-                      </p>
+                  <div className="metric-card metric-card-entrance metric-card-gradient bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <p
+                          className={`text-3xl sm:text-4xl font-bold ${loadingCandidates ? "metric-loading" : "number-update"} text-orange-500`}
+                        >
+                          {loadingCandidates ? (
+                            <span className="fade-in-out">...</span>
+                          ) : (
+                            totalCandidates.toLocaleString()
+                          )}
+                        </p>
+                        <p className="text-gray-600 text-xs sm:text-sm font-medium mt-2">
+                          Candidatos
+                        </p>
+                      </div>
+                      <div className="bg-orange-100 p-3 rounded-lg">
+                        <StarIcon className="w-6 h-6 text-orange-500" />
+                      </div>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-gray-100">
+                      <span className="text-xs text-gray-500">
+                        {loadingCandidates
+                          ? "Actualizando..."
+                          : "Actualizado en tiempo real"}
+                      </span>
                     </div>
                   </div>
                 )}
 
                 {/* Card Líderes - Solo si tiene permiso leaders:read */}
                 {can("leaders:read") && (
-                  <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
-                    <div className="flex flex-col items-center text-center">
-                      <p className="text-4xl font-bold text-orange-500">
-                        {loadingLeaders ? "..." : totalLeaders}
-                      </p>
-                      <p className="text-gray-600 text-xs sm:text-sm font-medium mt-2">
-                        Líderes
-                      </p>
+                  <div className="metric-card metric-card-entrance metric-card-gradient bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <p
+                          className={`text-3xl sm:text-4xl font-bold ${loadingLeaders ? "metric-loading" : "number-update"} text-orange-500`}
+                        >
+                          {loadingLeaders ? (
+                            <span className="fade-in-out">...</span>
+                          ) : (
+                            totalLeaders.toLocaleString()
+                          )}
+                        </p>
+                        <p className="text-gray-600 text-xs sm:text-sm font-medium mt-2">
+                          Líderes
+                        </p>
+                      </div>
+                      <div className="bg-orange-100 p-3 rounded-lg">
+                        <UserIcon className="w-6 h-6 text-orange-500" />
+                      </div>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-gray-100">
+                      <span className="text-xs text-gray-500">
+                        {loadingLeaders
+                          ? "Actualizando..."
+                          : "Actualizado en tiempo real"}
+                      </span>
                     </div>
                   </div>
                 )}
@@ -394,27 +487,17 @@ export default function Dashboard() {
               {user?.roleId === 2 && can("candidates:read") && (
                 <div className="flex flex-row gap-8 w-full">
                   {/* Gráfico de Votantes por Partido */}
-                  <div
-                    className="flex justify-start items-center flex-1"
-                    style={{ height: "340px" }}
-                  >
-                    <div style={{ width: "100%", height: "100%" }}>
-                      <VotersByParty
-                        data={loadingVotersByParty ? [] : votersByParty}
-                      />
-                    </div>
+                  <div className="flex-1 flex flex-col">
+                    <VotersByParty
+                      data={loadingVotersByParty ? [] : votersByParty}
+                    />
                   </div>
 
                   {/* Gráfico de Votantes por Candidato */}
-                  <div
-                    className="flex justify-start items-center flex-1"
-                    style={{ height: "340px" }}
-                  >
-                    <div style={{ width: "100%", height: "100%" }}>
-                      <VotersByCandidate
-                        data={loadingVotersByCandidate ? [] : votersByCandidate}
-                      />
-                    </div>
+                  <div className="flex-1 flex flex-col">
+                    <VotersByCandidate
+                      data={loadingVotersByCandidate ? [] : votersByCandidate}
+                    />
                   </div>
                 </div>
               )}

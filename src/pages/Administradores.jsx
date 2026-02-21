@@ -5,6 +5,7 @@ import {
   deleteUser,
   updateUser,
 } from "../api/users";
+import { getOrganizations } from "../api/organizations";
 import { usePermission } from "../hooks/usePermission";
 import { useUser } from "../context/UserContext";
 import { useAlert } from "../hooks/useAlert";
@@ -34,9 +35,15 @@ export default function Administradores() {
   const [totalItems, setTotalItems] = useState(0);
   const [itemsPerPage] = useState(10);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Estados para organizaciones
+  const [organizations, setOrganizations] = useState([]);
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
+    organizationId: "",
   });
 
   // ✅ Validar que solo el superadmin (roleId=1) pueda acceder
@@ -66,6 +73,22 @@ export default function Administradores() {
     setIsInitialized(true);
   }, []);
 
+  // ✅ Cargar organizaciones
+  useEffect(() => {
+    const fetchOrganizations = async () => {
+      try {
+        const data = await getOrganizations();
+        setOrganizations(Array.isArray(data) ? data : data?.data || []);
+      } catch (err) {
+        console.error("Error loading organizations:", err);
+      }
+    };
+
+    if (isInitialized) {
+      fetchOrganizations();
+    }
+  }, [isInitialized]);
+
   // ✅ Cargar administradores con paginación
   const fetchAdministradores = async (page = 1, searchTerm = "") => {
     setLoading(true);
@@ -75,7 +98,7 @@ export default function Administradores() {
         2,
         page,
         itemsPerPage,
-        searchTerm,
+        searchTerm
       );
 
       // ✅ FILTRAR en FRONTEND por organizationId solo si es admin de organización
@@ -83,7 +106,7 @@ export default function Administradores() {
 
       if (currentUser?.roleId === 2 && currentUser?.organizationId) {
         adminList = adminList.filter(
-          (admin) => admin.organizationId === currentUser.organizationId,
+          (admin) => admin.organizationId === currentUser.organizationId
         );
       }
 
@@ -125,6 +148,7 @@ export default function Administradores() {
     setFormData({
       email: admin.email,
       password: "",
+      organizationId: admin.organizationId || "",
     });
     setShowModal(true);
   };
@@ -134,7 +158,7 @@ export default function Administradores() {
       "¿Estás seguro de que deseas eliminar este administrador?",
       "Confirmar eliminación",
       "Sí, eliminar",
-      "Cancelar",
+      "Cancelar"
     );
     if (!result.isConfirmed) return;
 
@@ -159,16 +183,23 @@ export default function Administradores() {
       return;
     }
 
+    setSaving(true);
     try {
       const updateData = { email: formData.email };
+
+      // Agregar organizationId si se seleccionó
+      if (formData.organizationId) {
+        updateData.organizationId = parseInt(formData.organizationId);
+      }
 
       // Solo actualizar contraseña si se proporciona una nueva
       if (formData.password && formData.password.trim()) {
         if (formData.password.length < 6) {
           alert.warning(
             "La contraseña debe tener al menos 6 caracteres",
-            "Contraseña débil",
+            "Contraseña débil"
           );
+          setSaving(false);
           return;
         }
         updateData.password = formData.password;
@@ -181,6 +212,8 @@ export default function Administradores() {
       fetchAdministradores(currentPage, search);
     } catch (err) {
       alert.apiError(err, "Error al actualizar administrador");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -194,6 +227,15 @@ export default function Administradores() {
 
   const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
+  };
+
+  // Función para obtener nombre de organización
+  const getOrganizationName = (admin) => {
+    if (admin.organization?.name) {
+      return admin.organization.name;
+    }
+    const org = organizations.find((o) => o.id === admin.organizationId);
+    return org?.name || "-";
   };
 
   return (
@@ -251,6 +293,9 @@ export default function Administradores() {
                     Email
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                    Organización
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                     Acciones
                   </th>
                 </tr>
@@ -261,6 +306,11 @@ export default function Administradores() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
                         {admin.email}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-700">
+                        {getOrganizationName(admin)}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -316,10 +366,56 @@ export default function Administradores() {
         </div>
       )}
 
+      {/* Vista móvil */}
+      {!loading && administradores.length > 0 && (
+        <div className="md:hidden space-y-4 mt-4">
+          {administradores.map((admin) => (
+            <div
+              key={admin.id}
+              className="bg-white rounded-xl shadow-md p-4 border border-gray-200"
+            >
+              <div className="font-bold text-gray-900 text-lg mb-2">
+                {admin.email}
+              </div>
+
+              <div className="space-y-2 text-sm text-gray-600 mb-4">
+                <div>
+                  <span className="font-semibold text-gray-900">
+                    Organización:
+                  </span>{" "}
+                  {getOrganizationName(admin)}
+                </div>
+              </div>
+
+              <div className="flex gap-4 pt-3 border-t">
+                {(can("users:manage") || can("users:update")) && (
+                  <button
+                    onClick={() => handleEdit(admin)}
+                    className="flex items-center gap-2 text-blue-500 hover:text-blue-600 flex-1 justify-center py-2 rounded-lg hover:bg-blue-50 transition"
+                  >
+                    <PencilSquareIcon className="w-4 h-4" />
+                    Editar
+                  </button>
+                )}
+                {(can("users:manage") || can("users:delete")) && (
+                  <button
+                    onClick={() => handleDelete(admin.id)}
+                    className="flex items-center gap-2 text-red-500 hover:text-red-600 flex-1 justify-center py-2 rounded-lg hover:bg-red-50 transition"
+                  >
+                    <TrashIcon className="w-4 h-4" />
+                    Eliminar
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Modal de edición */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-lg max-w-md w-full">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b">
               <h3 className="text-lg font-semibold text-gray-900">
                 Editar Administrador
@@ -330,6 +426,7 @@ export default function Administradores() {
                   setEditingAdmin(null);
                 }}
                 className="text-gray-400 hover:text-gray-600"
+                disabled={saving}
               >
                 ✕
               </button>
@@ -338,7 +435,7 @@ export default function Administradores() {
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email
+                  Email <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="email"
@@ -347,7 +444,33 @@ export default function Administradores() {
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-orange-500 focus:border-orange-500"
                   required
+                  disabled={saving}
                 />
+              </div>
+
+              {/* Campo de Organización */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Organización
+                </label>
+                <select
+                  name="organizationId"
+                  value={formData.organizationId}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-orange-500 focus:border-orange-500"
+                  disabled={saving}
+                >
+                  <option value="">Sin organización asignada</option>
+                  {organizations.map((org) => (
+                    <option key={org.id} value={org.id}>
+                      {org.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Selecciona la organización a la que pertenece este
+                  administrador
+                </p>
               </div>
 
               <div>
@@ -361,6 +484,7 @@ export default function Administradores() {
                   onChange={handleInputChange}
                   placeholder="Dejar en blanco para no cambiar"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-orange-500 focus:border-orange-500"
+                  disabled={saving}
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Mínimo 6 caracteres si se proporciona
@@ -370,9 +494,10 @@ export default function Administradores() {
               <div className="flex gap-3 pt-4">
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 transition"
+                  className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={saving}
                 >
-                  Guardar Cambios
+                  {saving ? "Guardando..." : "Guardar Cambios"}
                 </button>
                 <button
                   type="button"
@@ -380,7 +505,8 @@ export default function Administradores() {
                     setShowModal(false);
                     setEditingAdmin(null);
                   }}
-                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition"
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition disabled:opacity-50"
+                  disabled={saving}
                 >
                   Cancelar
                 </button>

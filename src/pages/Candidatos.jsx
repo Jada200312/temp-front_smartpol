@@ -5,6 +5,9 @@ import {
   deleteCandidate,
   updateCandidate,
 } from "../api/candidates";
+import { getOrganizations } from "../api/organizations";
+import { getCampaignsByOrganization } from "../api/campaigns";
+import { updateUser } from "../api/users";
 import { usePermission } from "../hooks/usePermission";
 import { useAlert } from "../hooks/useAlert";
 import Pagination from "../components/Pagination";
@@ -32,12 +35,24 @@ export default function Candidatos() {
   const [totalItems, setTotalItems] = useState(0);
   const [itemsPerPage] = useState(10);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Estados para organizaciones y campañas
+  const [organizations, setOrganizations] = useState([]);
+  const [filteredCampaigns, setFilteredCampaigns] = useState([]);
+  const [loadingCampaigns, setLoadingCampaigns] = useState(false);
+
   const [formData, setFormData] = useState({
     name: "",
     party: "",
     number: "",
+    organizationId: "",
     campaignId: "",
+    password: "",
   });
+
+  // Guardar organizationId original para comparar si cambió
+  const [originalOrganizationId, setOriginalOrganizationId] = useState("");
 
   // Cargar usuario del localStorage
   useEffect(() => {
@@ -61,6 +76,45 @@ export default function Candidatos() {
     }
   }, []);
 
+  // Cargar organizaciones
+  useEffect(() => {
+    const fetchOrganizations = async () => {
+      try {
+        const data = await getOrganizations();
+        setOrganizations(Array.isArray(data) ? data : data?.data || []);
+      } catch (err) {
+        console.error("Error loading organizations:", err);
+      }
+    };
+
+    if (isInitialized) {
+      fetchOrganizations();
+    }
+  }, [isInitialized]);
+
+  // Cargar campañas cuando cambia la organización seleccionada
+  useEffect(() => {
+    const fetchCampaigns = async () => {
+      if (!formData.organizationId) {
+        setFilteredCampaigns([]);
+        return;
+      }
+
+      setLoadingCampaigns(true);
+      try {
+        const data = await getCampaignsByOrganization(formData.organizationId);
+        setFilteredCampaigns(Array.isArray(data) ? data : data?.data || []);
+      } catch (err) {
+        console.error("Error loading campaigns:", err);
+        setFilteredCampaigns([]);
+      } finally {
+        setLoadingCampaigns(false);
+      }
+    };
+
+    fetchCampaigns();
+  }, [formData.organizationId]);
+
   // Cargar candidatos con paginación
   const fetchCandidates = async (page = 1, searchTerm = "") => {
     setLoading(true);
@@ -69,7 +123,7 @@ export default function Candidatos() {
       const data = await getCandidatesWithPagination(
         page,
         itemsPerPage,
-        searchTerm,
+        searchTerm
       );
 
       let candidatesList = Array.isArray(data.data) ? data.data : [];
@@ -78,7 +132,7 @@ export default function Candidatos() {
       if (currentUser?.roleId === 2 && currentUser?.organizationId) {
         candidatesList = candidatesList.filter(
           (candidate) =>
-            candidate.user?.organizationId === currentUser.organizationId,
+            candidate.user?.organizationId === currentUser.organizationId
         );
       }
 
@@ -117,10 +171,14 @@ export default function Candidatos() {
 
   const handleEdit = (candidate) => {
     setEditingCandidate(candidate);
+    const orgId =
+      candidate.user?.organizationId || candidate.organizationId || "";
+    setOriginalOrganizationId(orgId);
     setFormData({
-      name: candidate.name,
-      party: candidate.party,
-      number: candidate.number,
+      name: candidate.name || "",
+      party: candidate.party || "",
+      number: candidate.number || "",
+      organizationId: orgId,
       campaignId: candidate.campaignId || "",
       password: "",
     });
@@ -132,7 +190,7 @@ export default function Candidatos() {
       "¿Estás seguro de que deseas eliminar este candidato?",
       "Confirmar eliminación",
       "Sí, eliminar",
-      "Cancelar",
+      "Cancelar"
     );
     if (!result.isConfirmed) return;
 
@@ -151,48 +209,113 @@ export default function Candidatos() {
     e.preventDefault();
     if (!editingCandidate) return;
 
+    setSaving(true);
     try {
-      const updateData = {
+      // 1. Preparar datos para actualizar el candidato
+      const candidateUpdateData = {
         name: formData.name,
-        party: formData.party,
-        number: parseInt(formData.number) || 0,
-        ...(formData.campaignId && {
-          campaignId: parseInt(formData.campaignId),
-        }),
+        party: formData.party || null,
+        number: formData.number ? parseInt(formData.number) : null,
       };
 
-      // Solo agregar contraseña si se proporciona una nueva
+      // Agregar campaignId si se proporciona
+      if (formData.campaignId) {
+        candidateUpdateData.campaignId = parseInt(formData.campaignId);
+      }
+
+      // 2. Si cambió la organización, actualizar el usuario primero
+      const organizationChanged =
+        formData.organizationId &&
+        String(formData.organizationId) !== String(originalOrganizationId);
+
+      if (organizationChanged && editingCandidate.userId) {
+        try {
+          await updateUser(editingCandidate.userId, {
+            organizationId: parseInt(formData.organizationId),
+          });
+        } catch (userErr) {
+          console.error("Error updating user organization:", userErr);
+          alert.apiError(userErr, "Error al actualizar la organización del usuario");
+          setSaving(false);
+          return;
+        }
+      }
+
+      // 3. Actualizar el candidato
+      await updateCandidate(editingCandidate.id, candidateUpdateData);
+
+      // 4. Si se proporciona contraseña, actualizar el usuario
       if (formData.password && formData.password.trim()) {
         if (formData.password.length < 6) {
           alert.warning(
             "La contraseña debe tener al menos 6 caracteres",
-            "Contraseña débil",
+            "Contraseña débil"
           );
+          setSaving(false);
           return;
         }
-        updateData.password = formData.password;
+        
+        if (editingCandidate.userId) {
+          try {
+            await updateUser(editingCandidate.userId, {
+              password: formData.password,
+            });
+          } catch (passErr) {
+            console.error("Error updating password:", passErr);
+            // No bloquear si falla la contraseña, el candidato ya se actualizó
+            alert.warning("El candidato se actualizó pero hubo un error al cambiar la contraseña");
+          }
+        }
       }
 
-      await updateCandidate(editingCandidate.id, updateData);
       setShowModal(false);
       setEditingCandidate(null);
+      setOriginalOrganizationId("");
       alert.success("Candidato actualizado exitosamente");
       fetchCandidates(currentPage, search);
     } catch (err) {
+      console.error("Error completo:", err);
       alert.apiError(err, "Error al actualizar candidato");
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => {
+      // Si cambia la organización, resetear la campaña
+      if (name === "organizationId") {
+        return {
+          ...prev,
+          [name]: value,
+          campaignId: "",
+        };
+      }
+      return {
+        ...prev,
+        [name]: value,
+      };
+    });
   };
 
   const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
+  };
+
+  // Función para obtener nombre de organización
+  const getOrganizationName = (candidate) => {
+    if (candidate.user?.organization?.name) {
+      return candidate.user.organization.name;
+    }
+    const orgId = candidate.user?.organizationId || candidate.organizationId;
+    const org = organizations.find((o) => o.id === orgId);
+    return org?.name || "-";
+  };
+
+  // Función para obtener nombre de campaña
+  const getCampaignName = (candidate) => {
+    return candidate.campaign?.name || "-";
   };
 
   return (
@@ -238,7 +361,7 @@ export default function Candidatos() {
 
       {showModal && editingCandidate && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 max-h-screen overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-gray-900">
                 Editar Candidato
@@ -246,6 +369,7 @@ export default function Candidatos() {
               <button
                 onClick={() => setShowModal(false)}
                 className="text-gray-400 hover:text-gray-600"
+                disabled={saving}
               >
                 ✕
               </button>
@@ -263,6 +387,7 @@ export default function Candidatos() {
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
                   required
+                  disabled={saving}
                 />
               </div>
 
@@ -276,6 +401,7 @@ export default function Candidatos() {
                   value={formData.party}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                  disabled={saving}
                 />
               </div>
 
@@ -289,7 +415,76 @@ export default function Candidatos() {
                   value={formData.number}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                  disabled={saving}
                 />
+              </div>
+
+              {/* Campo de Organización */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Organización
+                </label>
+                <select
+                  name="organizationId"
+                  value={formData.organizationId}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                  disabled={currentUser?.roleId === 2 || saving}
+                >
+                  <option value="">Seleccionar organización</option>
+                  {organizations.map((org) => (
+                    <option key={org.id} value={org.id}>
+                      {org.name}
+                    </option>
+                  ))}
+                </select>
+                {currentUser?.roleId === 2 && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Solo puedes gestionar candidatos de tu organización
+                  </p>
+                )}
+                {currentUser?.roleId !== 2 &&
+                  formData.organizationId &&
+                  String(formData.organizationId) !==
+                    String(originalOrganizationId) && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      ⚠️ Al cambiar la organización, se actualizará el usuario
+                      asociado
+                    </p>
+                  )}
+              </div>
+
+              {/* Campo de Campaña */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Campaña
+                </label>
+                <select
+                  name="campaignId"
+                  value={formData.campaignId}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                  disabled={!formData.organizationId || loadingCampaigns || saving}
+                >
+                  <option value="">
+                    {loadingCampaigns
+                      ? "Cargando campañas..."
+                      : !formData.organizationId
+                        ? "Selecciona una organización primero"
+                        : "Seleccionar campaña"}
+                  </option>
+                  {filteredCampaigns.map((campaign) => (
+                    <option key={campaign.id} value={campaign.id}>
+                      {campaign.name}
+                    </option>
+                  ))}
+                </select>
+                {!formData.organizationId && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Selecciona una organización para ver las campañas
+                    disponibles
+                  </p>
+                )}
               </div>
 
               <div>
@@ -303,6 +498,7 @@ export default function Candidatos() {
                   onChange={handleInputChange}
                   placeholder="Dejar en blanco para no cambiar"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                  disabled={saving}
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Mínimo 6 caracteres si se proporciona
@@ -313,15 +509,17 @@ export default function Candidatos() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
+                  disabled={saving}
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition"
+                  className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={saving}
                 >
-                  Guardar
+                  {saving ? "Guardando..." : "Guardar"}
                 </button>
               </div>
             </form>
@@ -349,7 +547,14 @@ export default function Candidatos() {
             <table className="w-full table-auto">
               <thead className="bg-gray-100 border-b">
                 <tr>
-                  {["Nombre", "Partido", "Número", "Acciones"].map((h) => (
+                  {[
+                    "Nombre",
+                    "Partido",
+                    "Número",
+                    "Organización",
+                    "Campaña",
+                    "Acciones",
+                  ].map((h) => (
                     <th
                       key={h}
                       className="px-6 py-4 text-xs font-bold text-gray-700 uppercase tracking-wide text-left"
@@ -376,6 +581,14 @@ export default function Candidatos() {
 
                     <td className="px-6 py-4 text-sm text-gray-700 font-semibold">
                       {candidate.number || "-"}
+                    </td>
+
+                    <td className="px-6 py-4 text-sm text-gray-700">
+                      {getOrganizationName(candidate)}
+                    </td>
+
+                    <td className="px-6 py-4 text-sm text-gray-700">
+                      {getCampaignName(candidate)}
                     </td>
 
                     <td className="px-6 py-4 flex gap-4">
@@ -449,10 +662,20 @@ export default function Candidatos() {
                     {candidate.number}
                   </div>
                 )}
+                <div>
+                  <span className="font-semibold text-gray-900">
+                    Organización:
+                  </span>{" "}
+                  {getOrganizationName(candidate)}
+                </div>
+                <div>
+                  <span className="font-semibold text-gray-900">Campaña:</span>{" "}
+                  {getCampaignName(candidate)}
+                </div>
               </div>
 
               <div className="flex gap-4 pt-3 border-t">
-                {can("candidates:update") && (
+                {(can("candidates:manage") || can("candidates:update")) && (
                   <button
                     onClick={() => handleEdit(candidate)}
                     className="flex items-center gap-2 text-orange-500 hover:text-orange-600 flex-1 justify-center py-2 rounded-lg hover:bg-orange-50 transition"
@@ -461,7 +684,7 @@ export default function Candidatos() {
                     Editar
                   </button>
                 )}
-                {can("candidates:delete") && (
+                {(can("candidates:manage") || can("candidates:delete")) && (
                   <button
                     onClick={() => handleDelete(candidate.id)}
                     className="flex items-center gap-2 text-red-500 hover:text-red-600 flex-1 justify-center py-2 rounded-lg hover:bg-red-50 transition"
@@ -473,6 +696,14 @@ export default function Candidatos() {
               </div>
             </div>
           ))}
+
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            itemsPerPage={itemsPerPage}
+            onPageChange={handlePageChange}
+          />
         </div>
       )}
     </div>

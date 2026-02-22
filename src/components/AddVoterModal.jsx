@@ -179,24 +179,74 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
             form.identification,
           );
 
-          // Step 1: Check if voter is assigned
-          if (searchResult.status === "assigned") {
-            const leaderName = searchResult.assignedLeader
-              ? searchResult.assignedLeader.name
-              : "desconocido";
+          const currentOrganizationId = localStorage.getItem("organizationId");
 
-            alert.warning(
-              `La identificación ${form.identification} ya existe y está asignada al líder: ${leaderName}`,
-              "Votante ya asignado",
-            );
-            // Limpiar el campo de identificación
-            setForm((prev) => ({
-              ...prev,
-              identification: "",
-            }));
+          // Step 1: Check if voter is assigned in SAME organization
+          if (
+            searchResult.status === "assigned" &&
+            searchResult.assignedCandidates?.length > 0
+          ) {
+            const assignedOrganizationId =
+              searchResult.assignedCandidates[0]?.organizationId;
+
+            // Solo mostrar alerta si está en la misma organización
+            if (
+              currentOrganizationId &&
+              assignedOrganizationId &&
+              parseInt(currentOrganizationId) === assignedOrganizationId
+            ) {
+              const leaderName = searchResult.assignedLeader
+                ? searchResult.assignedLeader.name
+                : "desconocido";
+
+              alert.warning(
+                `La identificación ${form.identification} ya existe y está asignada al líder: ${leaderName}`,
+                "Votante ya asignado",
+              );
+              // Limpiar el campo de identificación
+              setForm((prev) => ({
+                ...prev,
+                identification: "",
+              }));
+              return; // Exit para evitar ejecutar el resto de validaciones
+            } else {
+              // Si no está en la misma organización, rellenar con datos del votante existente
+              const voterData = searchResult.voter;
+              if (voterData) {
+                setForm((prev) => ({
+                  ...prev,
+                  firstName: voterData.firstName || prev.firstName,
+                  lastName: voterData.lastName || prev.lastName,
+                  gender: voterData.gender || prev.gender,
+                  bloodType: voterData.bloodType || prev.bloodType,
+                  birthDate: voterData.birthDate || prev.birthDate,
+                  phone: voterData.phone || prev.phone,
+                  address: voterData.address || prev.address,
+                  departmentId:
+                    voterData.departmentId?.toString() || prev.departmentId,
+                  municipalityId:
+                    voterData.municipalityId?.toString() || prev.municipalityId,
+                  neighborhood: voterData.neighborhood || prev.neighborhood,
+                  email: voterData.email || prev.email,
+                  occupation: voterData.occupation || prev.occupation,
+                  votingBoothId:
+                    voterData.votingBoothId?.toString() || prev.votingBoothId,
+                  votingTableId:
+                    voterData.votingTableId?.toString() || prev.votingTableId,
+                  politicalStatus:
+                    voterData.politicalStatus || prev.politicalStatus,
+                }));
+
+                alert.success(
+                  `Votante encontrado. Los datos han sido auto-rellenados.`,
+                  "Datos completados",
+                );
+              }
+              return;
+            }
           }
           // Step 2: Check if voter is in history (auto-fill)
-          else if (searchResult.status === "in_history") {
+          if (searchResult.status === "in_history") {
             const historyData = searchResult.votersHistoryData;
             // Auto-fill the form with history data
             setForm((prev) => ({

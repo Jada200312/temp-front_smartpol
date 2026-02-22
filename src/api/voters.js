@@ -37,6 +37,22 @@ export async function getVoterByIdentification(identification) {
   }
 }
 
+export async function searchVoterByIdentification(identification) {
+  try {
+    const result = await apiCall(`${API_URL}/voters/search/by-identification/${identification}`, {
+      headers: getAuthHeaders(),
+    }, "buscar votante por identificación");
+    
+    return result;
+  } catch (error) {
+    // Si hay error, retornar objeto con status not_found
+    return {
+      status: 'not_found',
+      message: error.message || 'Error al buscar el votante',
+    };
+  }
+}
+
 export async function createVoter(voter) {
   return apiCall(`${API_URL}/voters`, {
     method: "POST",

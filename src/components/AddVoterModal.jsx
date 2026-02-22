@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getDepartments, getMunicipalities } from "../api/departments";
 import {
   createVoter,
@@ -7,6 +7,7 @@ import {
   getAssignedCandidates,
   updateAssignedCandidates,
   getVoterByIdentification,
+  searchVoterByIdentification,
 } from "../api/voters";
 import { getLeaders, getCandidatesByLeader } from "../api/leaders";
 import { getVotingBooths } from "../api/votingbooths";
@@ -49,6 +50,9 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
   const [error, setError] = useState("");
   const [assignedData, setAssignedData] = useState([]);
   const [initialLeaderId, setInitialLeaderId] = useState(null);
+
+  // Ref para rastrear la última identificación buscada y evitar búsquedas repetidas
+  const lastSearchedIdRef = useRef("");
 
   useEffect(() => {
     const loadData = async () => {
@@ -164,42 +168,76 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
   useEffect(() => {
     // Solo validar duplicados si estamos creando nuevo (no editando) y la identificación cambió
     if (form.identification && form.identification.trim() && !voter) {
+      // Evitar búsquedas repetidas de la misma identificación
+      if (lastSearchedIdRef.current === form.identification) {
+        return;
+      }
+
       const validateId = async () => {
         try {
-          const existing = await getVoterByIdentification(form.identification);
-          // Verificar que existing sea un objeto válido con un id
-          if (existing && typeof existing === "object" && existing.id) {
-            // Obtener información del líder asignado al usuario duplicado
-            let leaderInfo = "";
-            try {
-              const assignedData = await getAssignedCandidates(existing.id);
-              if (Array.isArray(assignedData) && assignedData.length > 0) {
-                const leaderName =
-                  assignedData[0].leader?.name || assignedData[0].leader_name;
-                if (leaderName) {
-                  leaderInfo = `\n\nEstá asignado al líder: ${leaderName}`;
-                }
-              }
-            } catch (error) {
-              console.error("Error obtiendo información del líder:", error);
-            }
+          const searchResult = await searchVoterByIdentification(
+            form.identification,
+          );
+
+          // Step 1: Check if voter is assigned
+          if (searchResult.status === "assigned") {
+            const leaderName = searchResult.assignedLeader
+              ? searchResult.assignedLeader.name
+              : "desconocido";
 
             alert.warning(
-              `La identificación ${form.identification} ya está registrada.${leaderInfo}`,
-              "Duplicación detectada",
+              `La identificación ${form.identification} ya existe y está asignada al líder: ${leaderName}`,
+              "Votante ya asignado",
             );
-            // Solo limpiar el campo de identificación, no todo el formulario
+            // Limpiar el campo de identificación
             setForm((prev) => ({
               ...prev,
               identification: "",
             }));
           }
+          // Step 2: Check if voter is in history (auto-fill)
+          else if (searchResult.status === "in_history") {
+            const historyData = searchResult.votersHistoryData;
+            // Auto-fill the form with history data
+            setForm((prev) => ({
+              ...prev,
+              firstName: historyData.firstName || prev.firstName,
+              lastName: historyData.lastName || prev.lastName,
+              gender: historyData.gender || prev.gender,
+              bloodType: historyData.bloodType || prev.bloodType,
+              birthDate: historyData.birthDate || prev.birthDate,
+              phone: historyData.phone || prev.phone,
+              address: historyData.address || prev.address,
+              departmentId:
+                historyData.departmentId?.toString() || prev.departmentId,
+              municipalityId:
+                historyData.municipalityId?.toString() || prev.municipalityId,
+              neighborhood: historyData.neighborhood || prev.neighborhood,
+              email: historyData.email || prev.email,
+              occupation: historyData.occupation || prev.occupation,
+              votingBoothId:
+                historyData.votingBoothId?.toString() || prev.votingBoothId,
+              votingTableId:
+                historyData.votingTableId?.toString() || prev.votingTableId,
+              politicalStatus:
+                historyData.politicalStatus || prev.politicalStatus,
+            }));
+
+            alert.success(
+              `Datos encontrados en el historial de votantes. Los campos han sido auto-rellenados.`,
+              "Datos completados",
+            );
+          }
+          // Step 3: Voter not found in any table - allow creation
+          // No alert needed, user can create a new voter
         } catch (error) {
           // Error silencioso en validación - no mostrar alertas de error
           console.error("Error validando identificación:", error);
         }
       };
 
+      // Actualizar ref con la última identificación buscada
+      lastSearchedIdRef.current = form.identification;
       const timer = setTimeout(validateId, 300);
       return () => clearTimeout(timer);
     }

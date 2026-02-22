@@ -52,24 +52,18 @@ export default function Sidebar({ isOpen, onClose }) {
     "leaders:delete",
   ]);
 
-  // Digitadores: mostrar si puede create O update O delete O manage usuarios
-  const canSeeDigitadores = canAny([
-    "users:manage",
-    "users:create",
-    "users:update",
-    "users:delete",
-  ]);
+  // Digitadores: mostrar si puede create O update O delete O manage usuarios (pero NO si es candidato)
+  const canSeeDigitadores =
+    user?.roleId !== 3 &&
+    canAny(["users:manage", "users:create", "users:update", "users:delete"]);
 
   // Administradores: mostrar SOLO para superadmin (roleId=1)
   const canSeeAdministradores = user?.roleId === 1;
 
-  // Usuarios Especiales: mostrar si puede manage O create O update O delete usuarios
-  const canSeeEspeciales = canAny([
-    "users:manage",
-    "users:create",
-    "users:update",
-    "users:delete",
-  ]);
+  // Usuarios Especiales: mostrar si puede manage O create O update O delete usuarios (pero NO si es candidato)
+  const canSeeEspeciales =
+    user?.roleId !== 3 &&
+    canAny(["users:manage", "users:create", "users:update", "users:delete"]);
 
   // Asignar Candidatos: mostrar si puede manage O update O delete candidatos
   const canSeeAsignarCandidatos = canAny([

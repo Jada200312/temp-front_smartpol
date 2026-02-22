@@ -337,14 +337,14 @@ export default function Personas() {
     : voters.map(enrichVoterData);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-50 to-white p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-50 to-white p-3 sm:p-4 md:p-6 lg:p-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between gap-4 mb-8">
-        <div>
-          <h2 className="text-3xl font-extrabold text-gray-900">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6 sm:mb-8">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900">
             Listado de Votantes
           </h2>
-          <p className="text-gray-500 text-sm mt-2 max-w-xl">
+          <p className="text-gray-500 text-xs sm:text-sm mt-2 max-w-xl">
             Gestión y control estratégico de personas registradas en la campaña
           </p>
         </div>
@@ -360,7 +360,7 @@ export default function Personas() {
               ? "No tienes permiso para crear votantes"
               : ""
           }
-          className={`flex items-center gap-2 px-6 py-3 rounded-xl shadow-md transition ${
+          className={`w-full sm:w-auto flex items-center justify-center sm:justify-start gap-2 px-4 sm:px-6 py-3 rounded-xl shadow-md transition text-sm sm:text-base ${
             can("voters:manage") || can("voters:create")
               ? "bg-orange-500 text-white shadow-orange-500/20 hover:bg-orange-600"
               : "bg-gray-300 text-gray-500 cursor-not-allowed"
@@ -372,13 +372,13 @@ export default function Personas() {
       </div>
 
       {/* Buscador */}
-      <div className="mb-8">
+      <div className="mb-6 sm:mb-8">
         <input
           type="text"
           placeholder="Buscar por nombre o identificación..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full sm:w-96 px-4 py-3 rounded-xl border border-gray-200 bg-white shadow-sm focus:ring-2 focus:ring-orange-500/30 focus:outline-none"
+          className="w-full px-3 sm:px-4 py-2 sm:py-3 rounded-xl border border-gray-200 bg-white shadow-sm focus:ring-2 focus:ring-orange-500/30 focus:outline-none text-sm sm:text-base"
         />
       </div>
 
@@ -393,17 +393,19 @@ export default function Personas() {
 
       {/* Estados */}
       {loading && (
-        <div className="bg-white p-6 rounded-xl shadow-sm">
+        <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm text-sm sm:text-base">
           Cargando votantes...
         </div>
       )}
 
       {error && (
-        <div className="bg-white p-6 rounded-xl text-red-600">{error}</div>
+        <div className="bg-white p-4 sm:p-6 rounded-xl text-red-600 text-sm sm:text-base">
+          {error}
+        </div>
       )}
 
       {!loading && !error && filteredVoters.length === 0 && (
-        <div className="bg-white p-6 rounded-xl text-gray-500">
+        <div className="bg-white p-4 sm:p-6 rounded-xl text-gray-500 text-sm sm:text-base">
           No se encontraron resultados
         </div>
       )}
@@ -412,7 +414,7 @@ export default function Personas() {
       {!loading && !error && filteredVoters.length > 0 && (
         <div className="hidden md:block bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full table-auto">
+            <table className="w-full table-auto text-sm">
               <thead className="bg-gray-100 border-b">
                 <tr>
                   {[
@@ -427,7 +429,7 @@ export default function Personas() {
                   ].map((h) => (
                     <th
                       key={h}
-                      className="px-6 py-4 text-xs font-bold text-gray-700 uppercase tracking-wide text-left"
+                      className="px-4 lg:px-6 py-3 lg:py-4 text-xs font-bold text-gray-700 uppercase tracking-wide text-left"
                     >
                       {h}
                     </th>
@@ -438,29 +440,29 @@ export default function Personas() {
               <tbody className="divide-y divide-gray-100">
                 {filteredVoters.map((v) => (
                   <tr key={v.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 text-sm font-semibold text-gray-900">
+                    <td className="px-4 lg:px-6 py-3 lg:py-4 text-sm font-semibold text-gray-900">
                       {v.firstName} {v.lastName}
                     </td>
 
-                    <td className="px-6 py-4 text-sm font-medium text-gray-800">
+                    <td className="px-4 lg:px-6 py-3 lg:py-4 text-sm font-medium text-gray-800">
                       {v.identification || "No registrado"}
                     </td>
 
-                    <td className="px-6 py-4 text-sm text-gray-700">
+                    <td className="px-4 lg:px-6 py-3 lg:py-4 text-sm text-gray-700">
                       {v.email || "No registrado"}
                     </td>
 
-                    <td className="px-6 py-4 text-sm text-gray-700 whitespace-nowrap">
+                    <td className="px-4 lg:px-6 py-3 lg:py-4 text-sm text-gray-700 whitespace-nowrap">
                       {v.phone || "No registrado"}
                     </td>
 
-                    <td className="px-6 py-4 text-sm text-gray-700 font-semibold">
+                    <td className="px-4 lg:px-6 py-3 lg:py-4 text-sm text-gray-700 font-semibold">
                       {v.votingBooth?.name && v.votingTableId
                         ? `${v.votingBooth.name} - ${v.votingTableId}`
                         : v.votingBooth?.name || "No registrado"}
                     </td>
 
-                    <td className="px-6 py-4 text-sm text-gray-700 font-semibold">
+                    <td className="px-4 lg:px-6 py-3 lg:py-4 text-sm text-gray-700 font-semibold">
                       {voterLeaders[v.id] ? (
                         <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
                           {voterLeaders[v.id]}
@@ -470,7 +472,7 @@ export default function Personas() {
                       )}
                     </td>
 
-                    <td className="px-6 py-4 text-sm text-gray-700">
+                    <td className="px-4 lg:px-6 py-3 lg:py-4 text-sm text-gray-700">
                       {voterCandidates[v.id] &&
                       voterCandidates[v.id].length > 0 ? (
                         <div className="flex flex-col gap-2">
@@ -488,7 +490,7 @@ export default function Personas() {
                       )}
                     </td>
 
-                    <td className="px-6 py-4 flex gap-4">
+                    <td className="px-4 lg:px-6 py-3 lg:py-4 text-sm flex gap-3 lg:gap-4">
                       {(can("voters:manage") || can("voters:update")) && (
                         <button
                           onClick={() => handleEdit(v)}
@@ -544,17 +546,17 @@ export default function Personas() {
 
       {/* ===== MOBILE ===== */}
       {!loading && !error && (
-        <div className="md:hidden space-y-4">
+        <div className="md:hidden space-y-3 sm:space-y-4">
           {filteredVoters.map((v) => (
             <div
               key={v.id}
-              className="bg-white rounded-xl shadow-md p-4 border border-gray-200"
+              className="bg-white rounded-xl shadow-md p-3 sm:p-4 border border-gray-200"
             >
-              <div className="font-bold text-gray-900 text-lg">
+              <div className="font-bold text-gray-900 text-base sm:text-lg">
                 {v.firstName} {v.lastName}
               </div>
 
-              <div className="text-sm text-gray-700 mt-3 space-y-2">
+              <div className="text-xs sm:text-sm text-gray-700 mt-3 space-y-2">
                 <div>
                   <b>ID:</b> {v.identification || "No registrado"}
                 </div>
@@ -599,7 +601,7 @@ export default function Personas() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-5 mt-4">
+              <div className="flex justify-end gap-2 sm:gap-3 lg:gap-4 mt-3 sm:mt-4">
                 {can("voters:update") && (
                   <button
                     onClick={() => handleEdit(v)}
@@ -631,8 +633,8 @@ export default function Personas() {
             />
           )}
           {search && (
-            <div className="mt-6 px-4 py-4 bg-gray-50 rounded-xl border border-gray-200">
-              <div className="text-xs text-gray-600 text-center">
+            <div className="mt-4 sm:mt-6 px-3 sm:px-4 py-3 sm:py-4 bg-gray-50 rounded-xl border border-gray-200">
+              <div className="text-xs sm:text-sm text-gray-600 text-center">
                 Mostrando{" "}
                 <span className="font-semibold">{filteredVoters.length}</span>{" "}
                 resultado

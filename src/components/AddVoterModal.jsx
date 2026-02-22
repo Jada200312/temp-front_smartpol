@@ -182,11 +182,19 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
           const currentOrganizationId = localStorage.getItem("organizationId");
 
           // Step 1: Check if voter is assigned in SAME organization
-          if (searchResult.status === "assigned" && searchResult.assignedCandidates?.length > 0) {
-            const assignedOrganizationId = searchResult.assignedCandidates[0]?.organizationId;
-            
+          if (
+            searchResult.status === "assigned" &&
+            searchResult.assignedCandidates?.length > 0
+          ) {
+            const assignedOrganizationId =
+              searchResult.assignedCandidates[0]?.organizationId;
+
             // Solo mostrar alerta si está en la misma organización
-            if (currentOrganizationId && assignedOrganizationId && parseInt(currentOrganizationId) === assignedOrganizationId) {
+            if (
+              currentOrganizationId &&
+              assignedOrganizationId &&
+              parseInt(currentOrganizationId) === assignedOrganizationId
+            ) {
               const leaderName = searchResult.assignedLeader
                 ? searchResult.assignedLeader.name
                 : "desconocido";
@@ -214,16 +222,21 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
                   birthDate: voterData.birthDate || prev.birthDate,
                   phone: voterData.phone || prev.phone,
                   address: voterData.address || prev.address,
-                  departmentId: voterData.departmentId?.toString() || prev.departmentId,
-                  municipalityId: voterData.municipalityId?.toString() || prev.municipalityId,
+                  departmentId:
+                    voterData.departmentId?.toString() || prev.departmentId,
+                  municipalityId:
+                    voterData.municipalityId?.toString() || prev.municipalityId,
                   neighborhood: voterData.neighborhood || prev.neighborhood,
                   email: voterData.email || prev.email,
                   occupation: voterData.occupation || prev.occupation,
-                  votingBoothId: voterData.votingBoothId?.toString() || prev.votingBoothId,
-                  votingTableId: voterData.votingTableId?.toString() || prev.votingTableId,
-                  politicalStatus: voterData.politicalStatus || prev.politicalStatus,
+                  votingBoothId:
+                    voterData.votingBoothId?.toString() || prev.votingBoothId,
+                  votingTableId:
+                    voterData.votingTableId?.toString() || prev.votingTableId,
+                  politicalStatus:
+                    voterData.politicalStatus || prev.politicalStatus,
                 }));
-                
+
                 alert.success(
                   `Votante encontrado. Los datos han sido auto-rellenados.`,
                   "Datos completados",

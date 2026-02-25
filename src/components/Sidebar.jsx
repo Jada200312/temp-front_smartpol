@@ -126,7 +126,7 @@ export default function Sidebar({ isOpen, onClose }) {
       >
         {/* Logo */}
         <div className="flex flex-col items-center justify-center px-6 py-8 border-b">
-          <img src={Logo} alt="SmartPol" className="w-24 mb-3" />
+          <img src={Logo} alt="SmartPol" className="w-34 mb-3" />
           <span className="text-xs text-gray-400 mt-1">
             Panel de administración
           </span>

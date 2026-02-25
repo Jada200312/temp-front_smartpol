@@ -18,7 +18,7 @@ export default function DiaD() {
           <div className="inline-block bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm font-semibold mb-4">
             ⚡ Votación en Vivo
           </div>
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-gray-900 leading-tight mb-3">
+          <h1 className="text-3xl font-extrabold text-gray-900 mb-3">
             Día D
           </h1>
           <p className="text-lg sm:text-xl text-gray-600 leading-relaxed max-w-2xl">

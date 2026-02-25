@@ -485,7 +485,7 @@ export default function Dashboard() {
                 )}
               </div>
 
-              {/* ====== FILA 2B: Gráficos de Votantes (Partidos + Candidatos) ====== */}
+              {/* ====== FILA 2A: Gráficos de Votantes (Partidos + Candidatos) ====== */}
               {user?.roleId === 2 && can("candidates:read") && (
                 <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 w-full">
                   {/* Gráfico de Votantes por Partido */}

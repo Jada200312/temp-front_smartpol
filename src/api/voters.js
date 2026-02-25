@@ -53,6 +53,22 @@ export async function searchVoterByIdentification(identification) {
   }
 }
 
+export async function searchVoterByIdentificationForDiaD(identification) {
+  try {
+    const result = await apiCall(`${API_URL}/voters/by-identification-diad/${identification}`, {
+      headers: getAuthHeaders(),
+    }, "buscar votante por identificación para Día D");
+    
+    return result;
+  } catch (error) {
+    // Si hay error, retornar objeto con status not_found
+    return {
+      status: 'not_found',
+      message: error.message || 'Error al buscar el votante',
+    };
+  }
+}
+
 export async function createVoter(voter) {
   return apiCall(`${API_URL}/voters`, {
     method: "POST",
@@ -138,4 +154,38 @@ export async function getVotersByLeaderWithAssignments(leaderId, page = 1, limit
   return apiCall(`${API_URL}/voters/by-leader/${leaderId}?page=${page}&limit=${limit}`, {
     headers: getAuthHeaders(),
   }, "obtener votantes del líder con asignaciones");
+}
+
+export async function getVotingStats() {
+  return apiCall(`${API_URL}/voters/stats`, {
+    headers: getAuthHeaders(),
+  }, "obtener estadísticas de votación");
+}
+
+export async function registerVote(identification) {
+  return apiCall(`${API_URL}/voters/register-vote`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ identification }),
+  }, "registrar voto");
+}
+
+export async function unregisterVote(identification) {
+  return apiCall(`${API_URL}/voters/unregister-vote`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ identification }),
+  }, "eliminar voto");
+}
+
+export async function getRegisteredVoters(page = 1, limit = 20) {
+  return apiCall(`${API_URL}/voters/list/registered?page=${page}&limit=${limit}`, {
+    headers: getAuthHeaders(),
+  }, "obtener votantes que ya votaron");
+}
+
+export async function getPendingVoters(page = 1, limit = 20) {
+  return apiCall(`${API_URL}/voters/list/pending?page=${page}&limit=${limit}`, {
+    headers: getAuthHeaders(),
+  }, "obtener votantes pendientes");
 }

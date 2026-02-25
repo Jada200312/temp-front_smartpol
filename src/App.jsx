@@ -26,11 +26,11 @@ import Forbidden from "./pages/Forbidden";
 import NotFound from "./pages/NotFound";
 import PrivateRoute from "./components/PrivateRoute";
 import PermissionRoute from "./components/PermissionRoute";
-import { usePermission } from "./hooks/usePermission";
 import Organizaciones from "./pages/Organizaciones";
 import CreateOrganizaciones from "./pages/CreateOrganizaciones";
 import Campanas from "./pages/Campanas";
 import CreateCampanas from "./pages/CreateCampanas";
+import DiaD from "./pages/DiaD";
 
 /**
  * Página de login con redirección automática si ya hay sesión
@@ -323,6 +323,16 @@ function App() {
               element={
                 <PermissionRoute requiredPermission="reports:read">
                   <Reportes />
+                </PermissionRoute>
+              }
+            />
+
+            {/* Día D - Panel de Votación - Requiere permiso voting:access */}
+            <Route
+              path="dia-d"
+              element={
+                <PermissionRoute requiredPermission="voting:access">
+                  <DiaD />
                 </PermissionRoute>
               }
             />

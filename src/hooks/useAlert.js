@@ -292,5 +292,48 @@ export function useAlert() {
         allowOutsideClick: false,
       });
     },
+
+    /**
+     * Alerta unificada que acepta tipo de alerta dinámico
+     * @param {string} message - Mensaje de la alerta
+     * @param {string} type - Tipo de alerta: 'success', 'error', 'warning', 'info'
+     * @param {string} title - Título de la alerta (opcional)
+     */
+    alert: (message, type = 'info', title = '') => {
+      const titles = {
+        success: '¡Éxito!',
+        error: 'Error',
+        warning: 'Advertencia',
+        info: 'Información',
+      };
+
+      const icons = {
+        success: 'success',
+        error: 'error',
+        warning: 'warning',
+        info: 'info',
+      };
+
+      const colors = {
+        success: '#16A34A',
+        error: '#EF4444',
+        warning: '#F97316',
+        info: '#3B82F6',
+      };
+
+      const alertTitle = title || titles[type] || 'Información';
+      const icon = icons[type] || 'info';
+      const color = colors[type] || '#3B82F6';
+
+      return Swal.fire({
+        icon: icon,
+        title: alertTitle,
+        text: message,
+        confirmButtonColor: color,
+        confirmButtonText: 'Aceptar',
+        buttonsStyling: true,
+        allowOutsideClick: false,
+      });
+    },
   };
 }

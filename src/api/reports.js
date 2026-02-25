@@ -14,7 +14,8 @@ export async function getVoterReport(filters = {}) {
   if (filters.candidateId) params.append("candidateId", filters.candidateId);
   if (filters.departmentId) params.append("departmentId", filters.departmentId);
   if (filters.municipalityId) params.append("municipalityId", filters.municipalityId);
-  if (filters.votingLocation) params.append("votingLocation", filters.votingLocation);
+  if (filters.votingBoothId) params.append("votingBoothId", filters.votingBoothId);
+  if (filters.votingTableId) params.append("votingTableId", filters.votingTableId);
 
   const url = `${API_URL}/voters/report/general?${params.toString()}`;
   console.log("Fetching:", url); // Para debug
@@ -43,7 +44,8 @@ export async function getVoterReportForExport(filters = {}) {
     if (filters.candidateId) params.append("candidateId", filters.candidateId);
     if (filters.departmentId) params.append("departmentId", filters.departmentId);
     if (filters.municipalityId) params.append("municipalityId", filters.municipalityId);
-    if (filters.votingLocation) params.append("votingLocation", filters.votingLocation);
+    if (filters.votingBoothId) params.append("votingBoothId", filters.votingBoothId);
+    if (filters.votingTableId) params.append("votingTableId", filters.votingTableId);
 
     const url = `${API_URL}/voters/report/general?${params.toString()}`;
     

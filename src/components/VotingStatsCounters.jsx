@@ -1,0 +1,346 @@
+import React, { useState, useEffect } from "react";
+import {
+  getVotingStats,
+  getRegisteredVoters,
+  getPendingVoters,
+} from "../api/voters";
+import { useAlert } from "../hooks/useAlert";
+import {
+  CheckCircleIcon,
+  ClockIcon,
+  UserGroupIcon,
+  ArrowPathIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
+
+export default function VotingStatsCounters({ refreshTrigger }) {
+  const [stats, setStats] = useState({
+    expected: 0,
+    registered: 0,
+    pending: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalType, setModalType] = useState(null);
+  const [modalData, setModalData] = useState({ data: [], pagination: {} });
+  const [modalLoading, setModalLoading] = useState(false);
+  const [modalPage, setModalPage] = useState(1);
+  const { alert } = useAlert();
+
+  const loadStats = async () => {
+    try {
+      const data = await getVotingStats();
+      setStats(data);
+    } catch (error) {
+      alert("Error al cargar estadísticas de votación", "error");
+      console.error("Error loading voting stats:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadStats();
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(loadStats, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Responder a actualizaciones externas (cuando se registra o elimina un voto)
+  useEffect(() => {
+    if (refreshTrigger > 0) {
+      setIsRefreshing(true);
+      loadStats().finally(() => setIsRefreshing(false));
+    }
+  }, [refreshTrigger]);
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    await loadStats();
+    setIsRefreshing(false);
+  };
+
+  const openVotersList = async (type) => {
+    setModalType(type);
+    setModalPage(1);
+    setModalLoading(true);
+    setModalOpen(true);
+
+    try {
+      const data =
+        type === "registered"
+          ? await getRegisteredVoters(1, 20)
+          : await getPendingVoters(1, 20);
+      setModalData(data);
+    } catch (error) {
+      alert("Error al cargar la lista de votantes", "error");
+      setModalOpen(false);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const loadMoreVoters = async (page) => {
+    setModalLoading(true);
+    try {
+      const data =
+        modalType === "registered"
+          ? await getRegisteredVoters(page, 20)
+          : await getPendingVoters(page, 20);
+      setModalData(data);
+      setModalPage(page);
+    } catch (error) {
+      alert("Error al cargar más votantes", "error");
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const getPercentage = (part, total) => {
+    if (total === 0) return 0;
+    return Math.round((part / total) * 100);
+  };
+
+  const registeredPercentage = getPercentage(stats.registered, stats.expected);
+  const pendingPercentage = getPercentage(stats.pending, stats.expected);
+
+  if (loading) {
+    return (
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-8 flex items-center justify-center min-h-56 border border-blue-100">
+        <div className="text-center">
+          <ArrowPathIcon className="w-10 h-10 text-blue-600 animate-spin mx-auto mb-3" />
+          <p className="text-gray-700 font-medium">
+            Cargando estadísticas en vivo...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* Progress Bar */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-sm font-semibold text-gray-700">
+            Progreso de Votación
+          </span>
+          <span className="text-sm font-bold text-blue-600">
+            {registeredPercentage}%
+          </span>
+        </div>
+        <div className="bg-gray-200 rounded-full h-4 overflow-hidden shadow-sm">
+          <div
+            className="h-full bg-gradient-to-r from-blue-500 via-green-500 to-emerald-600 transition-all duration-500 rounded-full"
+            style={{ width: `${registeredPercentage}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Counters Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6">
+        {/* Expected Votes Counter */}
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 sm:p-7 text-white shadow-lg hover:shadow-xl transition-shadow duration-300 border border-blue-400">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <p className="text-blue-100 text-sm font-medium mb-1">
+                Votos Esperados
+              </p>
+              <p className="text-4xl sm:text-5xl font-bold">{stats.expected}</p>
+            </div>
+            <UserGroupIcon className="w-12 h-12 text-blue-100 opacity-80" />
+          </div>
+          <div className="pt-4 border-t border-blue-400 border-opacity-50">
+            <p className="text-blue-100 text-sm">
+              Total de votantes registrados
+            </p>
+          </div>
+        </div>
+
+        {/* Registered Votes Counter */}
+        <div
+          onClick={() => openVotersList("registered")}
+          className="bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl p-6 sm:p-7 text-white shadow-lg hover:shadow-xl transition-all duration-300 border border-green-400 cursor-pointer group"
+        >
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <p className="text-emerald-100 text-sm font-medium mb-1">
+                Votos Registrados
+              </p>
+              <p className="text-4xl sm:text-5xl font-bold">
+                {stats.registered}
+              </p>
+            </div>
+            <CheckCircleIcon className="w-12 h-12 text-emerald-100 opacity-80 group-hover:scale-110 transition-transform" />
+          </div>
+          <div className="pt-4 border-t border-green-400 border-opacity-50">
+            <p className="text-emerald-100 text-sm">Hover para ver detalles</p>
+          </div>
+        </div>
+
+        {/* Pending Votes Counter */}
+        <div
+          onClick={() => openVotersList("pending")}
+          className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl p-6 sm:p-7 text-white shadow-lg hover:shadow-xl transition-all duration-300 border border-orange-400 cursor-pointer group"
+        >
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <p className="text-amber-100 text-sm font-medium mb-1">
+                Votos Pendientes
+              </p>
+              <p className="text-4xl sm:text-5xl font-bold">{stats.pending}</p>
+            </div>
+            <ClockIcon className="w-12 h-12 text-amber-100 opacity-80 group-hover:scale-110 transition-transform" />
+          </div>
+          <div className="pt-4 border-t border-orange-400 border-opacity-50">
+            <p className="text-amber-100 text-sm">Hover para ver detalles</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Modal de Lista de Votantes */}
+      {modalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col border border-gray-100">
+            {/* Modal Header */}
+            <div className="flex justify-between items-center px-6 sm:px-8 py-6 sm:py-7 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                {modalType === "registered" ? (
+                  <>
+                    <CheckCircleIcon className="w-6 h-6 text-green-600" />
+                    <h3 className="text-lg sm:text-xl font-bold text-gray-900">
+                      Votantes Registrados
+                    </h3>
+                  </>
+                ) : (
+                  <>
+                    <ClockIcon className="w-6 h-6 text-orange-600" />
+                    <h3 className="text-lg sm:text-xl font-bold text-gray-900">
+                      Votantes Pendientes
+                    </h3>
+                  </>
+                )}
+              </div>
+              <button
+                onClick={() => setModalOpen(false)}
+                className="p-2 hover:bg-white rounded-lg transition text-gray-500 hover:text-gray-700"
+              >
+                <XMarkIcon className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-6 sm:p-8">
+              {modalLoading && (
+                <div className="flex justify-center items-center min-h-64">
+                  <div className="text-center">
+                    <ArrowPathIcon className="w-10 h-10 text-blue-600 animate-spin mx-auto mb-3" />
+                    <p className="text-gray-600 font-medium">
+                      Cargando votantes...
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {!modalLoading && modalData.data.length === 0 && (
+                <div className="text-center text-gray-500 py-12">
+                  <UserGroupIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-lg font-medium">
+                    No hay votantes para mostrar
+                  </p>
+                </div>
+              )}
+
+              {!modalLoading && modalData.data.length > 0 && (
+                <div className="space-y-3 sm:space-y-4">
+                  {modalData.data.map((voter) => (
+                    <div
+                      key={voter.id}
+                      className={`flex items-start gap-4 p-4 sm:p-5 rounded-xl border-2 transition-all ${
+                        modalType === "registered"
+                          ? "bg-green-50 border-green-200 hover:border-green-400"
+                          : "bg-orange-50 border-orange-200 hover:border-orange-400"
+                      }`}
+                    >
+                      <div
+                        className={`p-2.5 rounded-lg flex-shrink-0 ${
+                          modalType === "registered"
+                            ? "bg-green-100"
+                            : "bg-orange-100"
+                        }`}
+                      >
+                        {modalType === "registered" ? (
+                          <CheckCircleIcon className="w-6 h-6 text-green-600" />
+                        ) : (
+                          <ClockIcon className="w-6 h-6 text-orange-600" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 text-sm sm:text-base truncate">
+                          {voter.firstName} {voter.lastName}
+                        </p>
+                        <p className="text-xs sm:text-sm text-gray-600 mt-1">
+                          📋 Cédula:{" "}
+                          <span className="font-mono font-semibold">
+                            {voter.identification}
+                          </span>
+                        </p>
+                        <p className="text-xs text-gray-500 truncate mt-1">
+                          {voter.email}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-2">
+                          📅{" "}
+                          {new Date(voter.createdAt).toLocaleDateString(
+                            "es-ES",
+                          )}{" "}
+                          -{" "}
+                          {new Date(voter.createdAt).toLocaleTimeString(
+                            "es-ES",
+                            { hour: "2-digit", minute: "2-digit" },
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer - Pagination */}
+            {!modalLoading && modalData.pagination?.pages > 1 && (
+              <div className="px-6 sm:px-8 py-5 sm:py-6 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-between items-center gap-4 flex-wrap">
+                <p className="text-sm text-gray-600 font-medium">
+                  Página{" "}
+                  <span className="font-bold text-gray-900">{modalPage}</span>{" "}
+                  de{" "}
+                  <span className="font-bold text-gray-900">
+                    {modalData.pagination.pages}
+                  </span>
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => loadMoreVoters(modalPage - 1)}
+                    disabled={modalPage === 1}
+                    className="px-4 py-2 border-2 border-gray-300 rounded-lg text-gray-700 font-semibold hover:bg-white hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  >
+                    ← Anterior
+                  </button>
+                  <button
+                    onClick={() => loadMoreVoters(modalPage + 1)}
+                    disabled={modalPage === modalData.pagination.pages}
+                    className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-gray-400 disabled:to-gray-400 text-white font-semibold rounded-lg disabled:cursor-not-allowed transition"
+                  >
+                    Siguiente →
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

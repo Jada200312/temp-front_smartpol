@@ -76,6 +76,9 @@ export default function Sidebar({ isOpen, onClose }) {
   // Reportes: ver si tiene permiso de lectura
   const canSeeReportes = can("reports:read");
 
+  // Día D: Panel de Votación - Requiere permiso voting:access (configurable desde admin-permisos)
+  const canSeeDiaD = can("voting:access");
+
   // Admin Permisos: Gestionar permisos
   const canSeeAdminPermisos = can("permissions:manage");
 
@@ -379,6 +382,24 @@ export default function Sidebar({ isOpen, onClose }) {
                     }`}
                 >
                   <span className="ml-3">Reportes</span>
+                </Link>
+              </li>
+            )}
+
+            {/* Día D - Panel de Votación */}
+            {canSeeDiaD && (
+              <li>
+                <Link
+                  to="/app/dia-d"
+                  onClick={onClose}
+                  className={`flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all
+                    ${
+                      isActive("/app/dia-d")
+                        ? "bg-orange-500 text-white shadow-md"
+                        : "text-gray-600 hover:bg-orange-100 hover:text-orange-600"
+                    }`}
+                >
+                  <span className="ml-3">Día D</span>
                 </Link>
               </li>
             )}

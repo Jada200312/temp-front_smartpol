@@ -280,95 +280,99 @@ export default function Reportes() {
       <div className="space-y-4 sm:space-y-6 pb-6 sm:pb-8">
         {/* Header */}
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-            Informe General de Votantes
-          </h1>
-          <p className="text-gray-600 text-sm sm:text-base mt-2">
-            Visualiza, analiza y exporta la información de votantes registrada
-            en SMARTPOL
-          </p>
-        </div>
-
-        {/* Buscador Local */}
-        <div className="mb-4 sm:mb-6">
-          <input
-            type="text"
-            placeholder="Buscar por nombre o identificación..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full px-3 sm:px-4 py-2 sm:py-3 rounded-xl border border-gray-200 bg-white shadow-sm focus:ring-2 focus:ring-orange-500/30 focus:outline-none text-sm sm:text-base"
-          />
-          {search && (
-            <p className="text-xs sm:text-sm text-gray-500 mt-2">
-              Mostrando{" "}
-              <span className="font-semibold">
-                {getFilteredVoters().length}
-              </span>{" "}
-              resultado{getFilteredVoters().length !== 1 ? "s" : ""} de búsqueda
+          {/* Header */}
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+              Informe General de Votantes
+            </h1>
+            <p className="text-gray-600 text-sm sm:text-base mt-2">
+              Visualiza, analiza y exporta la información de votantes registrada
+              en SMARTPOL
             </p>
+          </div>
+
+          {/* Buscador Local */}
+          <div className="mb-4 sm:mb-6">
+            <input
+              type="text"
+              placeholder="Buscar por nombre o identificación..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full px-3 sm:px-4 py-2 sm:py-3 rounded-xl border border-gray-200 bg-white shadow-sm focus:ring-2 focus:ring-orange-500/30 focus:outline-none text-sm sm:text-base"
+            />
+            {search && (
+              <p className="text-xs sm:text-sm text-gray-500 mt-2">
+                Mostrando{" "}
+                <span className="font-semibold">
+                  {getFilteredVoters().length}
+                </span>{" "}
+                resultado{getFilteredVoters().length !== 1 ? "s" : ""} de
+                búsqueda
+              </p>
+            )}
+          </div>
+
+          {/* Mensaje de Error */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-3 sm:px-4 py-2 sm:py-3 rounded-lg text-sm sm:text-base">
+              <p className="font-semibold">Error al cargar los datos</p>
+              <p className="text-xs sm:text-sm">{error}</p>
+              <p className="text-xs mt-2 text-red-600">
+                Verifica que el servidor backend esté ejecutándose en
+                http://localhost:3000
+              </p>
+            </div>
+          )}
+
+          {/* Filtros Dinámicos */}
+          {!error && (
+            <ReportFilters
+              onFiltersChange={handleFiltersChange}
+              aggregations={aggregations}
+            />
+          )}
+
+          {/* Contadores Interactivos */}
+          {aggregations && !error && (
+            <AggregationCounters
+              aggregations={aggregations}
+              onCounterClick={handleCounterClick}
+            />
+          )}
+
+          {/* Filtros activos */}
+          {Object.keys(activeFilters).length > 0 && !error && (
+            <div className="bg-blue-50 p-3 sm:p-4 rounded-lg border border-blue-200">
+              <p className="text-xs sm:text-sm font-semibold text-blue-900 mb-2">
+                Filtros activos:
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(activeFilters).map(([key, value]) => (
+                  <span
+                    key={key}
+                    className="px-2 sm:px-3 py-1 bg-blue-200 text-blue-900 rounded-full text-xs sm:text-sm font-medium"
+                  >
+                    {key}:{" "}
+                    {typeof value === "object" ? JSON.stringify(value) : value}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Tabla de Votantes */}
+          {!error && (
+            <VotersTable
+              voters={search ? getFilteredVoters() : voters}
+              filters={activeFilters}
+              loading={search ? loadingAll : loading}
+              pagination={search ? null : pagination}
+              currentPageProp={search ? 1 : currentPage}
+              onPageChange={search ? () => {} : handlePageChange}
+              onExportRequest={handleExportRequest}
+            />
           )}
         </div>
-
-        {/* Mensaje de Error */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-3 sm:px-4 py-2 sm:py-3 rounded-lg text-sm sm:text-base">
-            <p className="font-semibold">Error al cargar los datos</p>
-            <p className="text-xs sm:text-sm">{error}</p>
-            <p className="text-xs mt-2 text-red-600">
-              Verifica que el servidor backend esté ejecutándose en
-              http://localhost:3000
-            </p>
-          </div>
-        )}
-
-        {/* Filtros Dinámicos */}
-        {!error && (
-          <ReportFilters
-            onFiltersChange={handleFiltersChange}
-            aggregations={aggregations}
-          />
-        )}
-
-        {/* Contadores Interactivos */}
-        {aggregations && !error && (
-          <AggregationCounters
-            aggregations={aggregations}
-            onCounterClick={handleCounterClick}
-          />
-        )}
-
-        {/* Filtros activos */}
-        {Object.keys(activeFilters).length > 0 && !error && (
-          <div className="bg-blue-50 p-3 sm:p-4 rounded-lg border border-blue-200">
-            <p className="text-xs sm:text-sm font-semibold text-blue-900 mb-2">
-              Filtros activos:
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(activeFilters).map(([key, value]) => (
-                <span
-                  key={key}
-                  className="px-2 sm:px-3 py-1 bg-blue-200 text-blue-900 rounded-full text-xs sm:text-sm font-medium"
-                >
-                  {key}:{" "}
-                  {typeof value === "object" ? JSON.stringify(value) : value}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Tabla de Votantes */}
-        {!error && (
-          <VotersTable
-            voters={search ? getFilteredVoters() : voters}
-            filters={activeFilters}
-            loading={search ? loadingAll : loading}
-            pagination={search ? null : pagination}
-            currentPageProp={search ? 1 : currentPage}
-            onPageChange={search ? () => {} : handlePageChange}
-            onExportRequest={handleExportRequest}
-          />
-        )}
       </div>
     </ProtectedComponent>
   );

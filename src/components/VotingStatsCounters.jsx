@@ -161,10 +161,7 @@ export default function VotingStatsCounters({ refreshTrigger }) {
         </div>
 
         {/* Registered Votes Counter */}
-        <div
-          onClick={() => openVotersList("registered")}
-          className="bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl p-6 sm:p-7 text-white shadow-lg hover:shadow-xl transition-all duration-300 border border-green-400 cursor-pointer group"
-        >
+        <div className="bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl p-6 sm:p-7 text-white shadow-lg hover:shadow-xl transition-all duration-300 border border-green-400">
           <div className="flex items-start justify-between mb-4">
             <div>
               <p className="text-emerald-100 text-sm font-medium mb-1">
@@ -174,18 +171,17 @@ export default function VotingStatsCounters({ refreshTrigger }) {
                 {stats.registered}
               </p>
             </div>
-            <CheckCircleIcon className="w-12 h-12 text-emerald-100 opacity-80 group-hover:scale-110 transition-transform" />
+            <CheckCircleIcon className="w-12 h-12 text-emerald-100 opacity-80" />
           </div>
           <div className="pt-4 border-t border-green-400 border-opacity-50">
-            <p className="text-emerald-100 text-sm">Hover para ver detalles</p>
+            <p className="text-emerald-100 text-sm">
+              Total de votos registrados
+            </p>
           </div>
         </div>
 
         {/* Pending Votes Counter */}
-        <div
-          onClick={() => openVotersList("pending")}
-          className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl p-6 sm:p-7 text-white shadow-lg hover:shadow-xl transition-all duration-300 border border-orange-400 cursor-pointer group"
-        >
+        <div className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl p-6 sm:p-7 text-white shadow-lg hover:shadow-xl transition-all duration-300 border border-orange-400">
           <div className="flex items-start justify-between mb-4">
             <div>
               <p className="text-amber-100 text-sm font-medium mb-1">
@@ -193,10 +189,12 @@ export default function VotingStatsCounters({ refreshTrigger }) {
               </p>
               <p className="text-4xl sm:text-5xl font-bold">{stats.pending}</p>
             </div>
-            <ClockIcon className="w-12 h-12 text-amber-100 opacity-80 group-hover:scale-110 transition-transform" />
+            <ClockIcon className="w-12 h-12 text-amber-100 opacity-80" />
           </div>
           <div className="pt-4 border-t border-orange-400 border-opacity-50">
-            <p className="text-amber-100 text-sm">Hover para ver detalles</p>
+            <p className="text-amber-100 text-sm">
+              Votos que aún no han sido procesados
+            </p>
           </div>
         </div>
       </div>

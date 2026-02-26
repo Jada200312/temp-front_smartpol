@@ -245,6 +245,7 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
               return;
             }
           }
+
           // Step 2: Check if voter is in history (auto-fill)
           if (searchResult.status === "in_history") {
             const historyData = searchResult.votersHistoryData;

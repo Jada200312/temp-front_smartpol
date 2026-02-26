@@ -3,6 +3,7 @@ import { getAllLeaders } from "../api/leaders";
 import { getAllCandidates } from "../api/candidates";
 import { getDepartments, getMunicipalities } from "../api/departments";
 import { getCorporations } from "../api/corporations";
+import { getVotingBooths } from "../api/votingbooths";
 
 export default function ReportFilters({ onFiltersChange, aggregations = {} }) {
   const [filters, setFilters] = useState({
@@ -12,7 +13,8 @@ export default function ReportFilters({ onFiltersChange, aggregations = {} }) {
     candidateId: "",
     departmentId: "",
     municipalityId: "",
-    votingLocation: "",
+    votingBoothId: "",
+    votingTableId: "",
   });
 
   const [leaders, setLeaders] = useState([]);
@@ -21,24 +23,34 @@ export default function ReportFilters({ onFiltersChange, aggregations = {} }) {
   const [filteredCandidates, setFilteredCandidates] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [municipalities, setMunicipalities] = useState([]);
+  const [votingBooths, setVotingBooths] = useState([]);
+  const [filteredBooths, setFilteredBooths] = useState([]);
+  const [mesas, setMesas] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadOptions = async () => {
       try {
-        const [leadersData, candidatesData, corporationsData, departmentsData] =
-          await Promise.all([
-            getAllLeaders(),
-            getAllCandidates(),
-            getCorporations(),
-            getDepartments(),
-          ]);
+        const [
+          leadersData,
+          candidatesData,
+          corporationsData,
+          departmentsData,
+          boothsData,
+        ] = await Promise.all([
+          getAllLeaders(),
+          getAllCandidates(),
+          getCorporations(),
+          getDepartments(),
+          getVotingBooths(),
+        ]);
         setLeaders(Array.isArray(leadersData) ? leadersData : []);
         setCandidates(Array.isArray(candidatesData) ? candidatesData : []);
         setCorporations(
           Array.isArray(corporationsData) ? corporationsData : [],
         );
         setDepartments(Array.isArray(departmentsData) ? departmentsData : []);
+        setVotingBooths(Array.isArray(boothsData) ? boothsData : []);
         setFilteredCandidates(
           Array.isArray(candidatesData) ? candidatesData : [],
         );
@@ -48,6 +60,7 @@ export default function ReportFilters({ onFiltersChange, aggregations = {} }) {
         setCandidates([]);
         setCorporations([]);
         setDepartments([]);
+        setVotingBooths([]);
         setFilteredCandidates([]);
       } finally {
         setLoading(false);
@@ -63,9 +76,51 @@ export default function ReportFilters({ onFiltersChange, aggregations = {} }) {
       loadMunicipalities(filters.departmentId);
     } else {
       setMunicipalities([]);
-      setFilters((prev) => ({ ...prev, municipalityId: "" }));
+      setFilters((prev) => ({
+        ...prev,
+        municipalityId: "",
+        votingBoothId: "",
+        votingTableId: "",
+      }));
     }
   }, [filters.departmentId]);
+
+  // Cargar puestos de votación cuando cambia el municipio
+  useEffect(() => {
+    if (filters.municipalityId) {
+      const filtered = votingBooths.filter(
+        (booth) => booth.municipalityId === parseInt(filters.municipalityId),
+      );
+      setFilteredBooths(filtered);
+    } else {
+      setFilteredBooths([]);
+      setFilters((prev) => ({ ...prev, votingBoothId: "", votingTableId: "" }));
+    }
+  }, [filters.municipalityId, votingBooths]);
+
+  // Generar mesas cuando cambia el puesto de votación
+  useEffect(() => {
+    if (filters.votingBoothId) {
+      const selectedBooth = filteredBooths.find(
+        (booth) => booth.id === parseInt(filters.votingBoothId),
+      );
+      if (selectedBooth && selectedBooth.mesas) {
+        const mesasArray = Array.from(
+          { length: selectedBooth.mesas },
+          (_, i) => ({
+            number: i + 1,
+            label: `Mesa ${i + 1}`,
+          }),
+        );
+        setMesas(mesasArray);
+      } else {
+        setMesas([]);
+      }
+    } else {
+      setMesas([]);
+      setFilters((prev) => ({ ...prev, votingTableId: "" }));
+    }
+  }, [filters.votingBoothId, filteredBooths]);
 
   // Filtrar candidatos cuando cambia la corporación
   useEffect(() => {
@@ -109,9 +164,22 @@ export default function ReportFilters({ onFiltersChange, aggregations = {} }) {
       [key]: value,
     };
 
-    // Si cambia el departamento, resetea el municipio
+    // Si cambia el departamento, resetea el municipio y puesto de votación
     if (key === "departmentId" && value !== filters.departmentId) {
       newFilters.municipalityId = "";
+      newFilters.votingBoothId = "";
+      newFilters.votingTableId = "";
+    }
+
+    // Si cambia el municipio, resetea el puesto de votación
+    if (key === "municipalityId" && value !== filters.municipalityId) {
+      newFilters.votingBoothId = "";
+      newFilters.votingTableId = "";
+    }
+
+    // Si cambia el puesto de votación, resetea la mesa
+    if (key === "votingBoothId" && value !== filters.votingBoothId) {
+      newFilters.votingTableId = "";
     }
 
     setFilters(newFilters);
@@ -126,10 +194,13 @@ export default function ReportFilters({ onFiltersChange, aggregations = {} }) {
       candidateId: "",
       departmentId: "",
       municipalityId: "",
-      votingLocation: "",
+      votingBoothId: "",
+      votingTableId: "",
     };
     setFilters(emptyFilters);
     setMunicipalities([]);
+    setFilteredBooths([]);
+    setMesas([]);
     setFilteredCandidates(candidates);
     onFiltersChange(emptyFilters);
   };
@@ -284,20 +355,58 @@ export default function ReportFilters({ onFiltersChange, aggregations = {} }) {
           )}
         </div>
 
-        {/* Lugar de Votación */}
+        {/* Puesto de Votación */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Lugar de Votación
+            Puesto de Votación
           </label>
-          <input
-            type="text"
-            value={filters.votingLocation}
+          <select
+            value={filters.votingBoothId}
             onChange={(e) =>
-              handleFilterChange("votingLocation", e.target.value)
+              handleFilterChange("votingBoothId", e.target.value)
             }
-            placeholder="Buscar lugar de votación"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+            disabled={!filters.municipalityId || filteredBooths.length === 0}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
+          >
+            <option value="">Todos los puestos</option>
+            {filteredBooths.map((booth) => (
+              <option key={booth.id} value={booth.id}>
+                {booth.name || `Puesto ${booth.id}`}
+              </option>
+            ))}
+          </select>
+          {!filters.municipalityId && (
+            <p className="text-xs text-gray-400 mt-1">
+              Selecciona un municipio primero
+            </p>
+          )}
+        </div>
+
+        {/* Mesa */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Mesa
+          </label>
+          <select
+            value={filters.votingTableId}
+            onChange={(e) =>
+              handleFilterChange("votingTableId", e.target.value)
+            }
+            disabled={!filters.votingBoothId || mesas.length === 0}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
+          >
+            <option value="">Todas las mesas</option>
+            {mesas.map((mesa) => (
+              <option key={mesa.number} value={mesa.label}>
+                {mesa.label}
+              </option>
+            ))}
+          </select>
+          {!filters.votingBoothId && (
+            <p className="text-xs text-gray-400 mt-1">
+              Selecciona un puesto primero
+            </p>
+          )}
         </div>
       </div>
 

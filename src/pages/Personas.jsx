@@ -17,11 +17,8 @@ import { ProtectedComponent } from "../components/ProtectedComponent";
 import { usePermission } from "../hooks/usePermission";
 import { useAlert } from "../hooks/useAlert";
 import { useUser } from "../context/UserContext";
-import {
-  PlusIcon,
-  PencilSquareIcon,
-  TrashIcon,
-} from "@heroicons/react/24/outline";
+import AddButton from "../components/AddButton";
+import { PencilSquareIcon, TrashIcon } from "@heroicons/react/24/outline";
 
 export default function Personas() {
   const { can } = usePermission();
@@ -358,19 +355,20 @@ export default function Personas() {
   const filteredVoters = voters.map(enrichVoterData);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-50 to-white p-3 sm:p-4 md:p-6 lg:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-50 to-white p-4 sm:p-6 lg:p-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6 sm:mb-8">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8">
+        <div>
+          <h2 className="text-3xl font-extrabold text-gray-900">
             Listado de Votantes
           </h2>
-          <p className="text-gray-500 text-xs sm:text-sm mt-2 max-w-xl">
+          <p className="text-gray-500 text-sm mt-2 max-w-xl">
             Gestión y control estratégico de personas registradas en la campaña
           </p>
         </div>
 
-        <button
+        <AddButton
+          label="Agregar votante"
           onClick={() => {
             setEditingVoter(null);
             setShowModal(true);
@@ -381,25 +379,17 @@ export default function Personas() {
               ? "No tienes permiso para crear votantes"
               : ""
           }
-          className={`w-full sm:w-auto flex items-center justify-center sm:justify-start gap-2 px-4 sm:px-6 py-3 rounded-xl shadow-md transition text-sm sm:text-base ${
-            can("voters:manage") || can("voters:create")
-              ? "bg-orange-500 text-white shadow-orange-500/20 hover:bg-orange-600"
-              : "bg-gray-300 text-gray-500 cursor-not-allowed"
-          }`}
-        >
-          <PlusIcon className="w-5 h-5" />
-          Agregar votante
-        </button>
+        />
       </div>
 
       {/* Buscador */}
-      <div className="mb-6 sm:mb-8">
+      <div className="mb-8">
         <input
           type="text"
           placeholder="Buscar por nombre o identificación..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full px-3 sm:px-4 py-2 sm:py-3 rounded-xl border border-gray-200 bg-white shadow-sm focus:ring-2 focus:ring-orange-500/30 focus:outline-none text-sm sm:text-base"
+          className="w-full sm:w-96 px-4 py-3 rounded-xl border border-gray-200 bg-white shadow-sm focus:ring-2 focus:ring-orange-500/30 focus:outline-none"
         />
       </div>
 

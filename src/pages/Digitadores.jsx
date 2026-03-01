@@ -8,11 +8,8 @@ import {
 import { usePermission } from "../hooks/usePermission";
 import { useAlert } from "../hooks/useAlert";
 import Pagination from "../components/Pagination";
-import {
-  PlusIcon,
-  PencilSquareIcon,
-  TrashIcon,
-} from "@heroicons/react/24/outline";
+import AddButton from "../components/AddButton";
+import { PencilSquareIcon, TrashIcon } from "@heroicons/react/24/outline";
 
 export default function Digitadores() {
   const { can } = usePermission();
@@ -191,7 +188,7 @@ export default function Digitadores() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-50 to-white p-4 sm:p-6 lg:p-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8">
         <div>
           <h2 className="text-3xl font-extrabold text-gray-900">
             Listado de Digitadores
@@ -201,7 +198,8 @@ export default function Digitadores() {
           </p>
         </div>
 
-        <button
+        <AddButton
+          label="Agregar digitador"
           onClick={() => navigate("/app/crear-digitadores")}
           disabled={!can("users:manage") && !can("users:create")}
           title={
@@ -209,25 +207,17 @@ export default function Digitadores() {
               ? "No tienes permiso para crear digitadores"
               : ""
           }
-          className={`flex items-center gap-2 px-6 py-3 rounded-xl shadow-md transition ${
-            can("users:manage") || can("users:create")
-              ? "bg-orange-500 text-white shadow-orange-500/20 hover:bg-orange-600"
-              : "bg-gray-300 text-gray-500 cursor-not-allowed"
-          }`}
-        >
-          <PlusIcon className="w-5 h-5" />
-          Agregar digitador
-        </button>
+        />
       </div>
 
       {/* Search */}
-      <div className="mb-6">
+      <div className="mb-8">
         <input
           type="text"
           placeholder="Buscar por email..."
           value={search}
           onChange={(e) => handleSearchChange(e.target.value)}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-orange-500 focus:border-orange-500"
+          className="w-full sm:w-96 px-4 py-3 rounded-xl border border-gray-200 bg-white shadow-sm focus:ring-2 focus:ring-orange-500/30 focus:outline-none"
         />
       </div>
 

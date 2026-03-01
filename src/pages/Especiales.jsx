@@ -8,11 +8,8 @@ import {
 import { usePermission } from "../hooks/usePermission";
 import { useAlert } from "../hooks/useAlert";
 import Pagination from "../components/Pagination";
-import {
-  PlusIcon,
-  PencilSquareIcon,
-  TrashIcon,
-} from "@heroicons/react/24/outline";
+import AddButton from "../components/AddButton";
+import { PencilSquareIcon, TrashIcon } from "@heroicons/react/24/outline";
 
 export default function Especiales() {
   const { can } = usePermission();
@@ -146,43 +143,41 @@ export default function Especiales() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Encabezado */}
-      <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-50 to-white p-4 sm:p-6 lg:p-8">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h2 className="text-3xl font-extrabold text-gray-900">
             Usuarios Especiales
-          </h1>
-          <p className="mt-2 text-gray-600">
+          </h2>
+          <p className="text-gray-500 text-sm mt-2 max-w-xl">
             Gestiona los usuarios especiales del sistema
           </p>
         </div>
-        <div className="flex gap-2">
-          {(can("users:manage") || can("users:create")) && (
-            <button
-              onClick={() => navigate("/app/crear-especiales")}
-              className="inline-flex items-center px-4 py-2 bg-orange-500 text-white rounded-md shadow-sm text-sm font-medium hover:bg-orange-600"
-            >
-              <PlusIcon className="h-5 w-5 mr-2" />
-              Agregar Usuario Especial
-            </button>
-          )}
-        </div>
+
+        <AddButton
+          label="Agregar Usuario Especial"
+          onClick={() => navigate("/app/crear-especiales")}
+          disabled={!can("users:manage") && !can("users:create")}
+          title={
+            !can("users:manage") && !can("users:create")
+              ? "No tienes permiso para crear usuarios especiales"
+              : ""
+          }
+        />
       </div>
 
-      {/* Barra de búsqueda */}
-      <div className="bg-white shadow rounded-lg p-6">
+      <div className="mb-8">
         <input
           type="text"
           placeholder="Buscar por email..."
           value={search}
           onChange={(e) => handleSearchChange(e.target.value)}
-          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500"
+          className="w-full sm:w-96 px-4 py-3 rounded-xl border border-gray-200 bg-white shadow-sm focus:ring-2 focus:ring-orange-500/30 focus:outline-none"
         />
       </div>
 
       {/* Tabla de usuarios especiales */}
-      <div className="bg-white shadow rounded-lg overflow-hidden">
+      <div className="bg-white rounded-xl shadow-md overflow-hidden">
         {loading ? (
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>

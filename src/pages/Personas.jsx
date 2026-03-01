@@ -6,6 +6,7 @@ import {
   getVotersByLeaderWithAssignments,
   deleteVoter,
   getAllVotersWithAssignments,
+  searchVotersByNameOrIdentification,
 } from "../api/voters";
 import { getCandidateByUserId } from "../api/candidates";
 import { getLeaderByUserId } from "../api/leaders";
@@ -28,7 +29,6 @@ export default function Personas() {
   const alert = useAlert();
   const location = useLocation();
   const [voters, setVoters] = useState([]);
-  const [allVoters, setAllVoters] = useState([]); // Todos los votantes para búsqueda
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showModal, setShowModal] = useState(false);
@@ -40,6 +40,7 @@ export default function Personas() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalVoters, setTotalVoters] = useState(0);
   const [boothsMap, setBoothsMap] = useState({});
+  const [isSearching, setIsSearching] = useState(false);
   const [candidateId, setCandidateId] = useState(null);
   const [loadingCandidateId, setLoadingCandidateId] = useState(
     user?.roleId === 3,
@@ -48,6 +49,7 @@ export default function Personas() {
   const [loadingLeaderId, setLoadingLeaderId] = useState(user?.roleId === 4);
   const ITEMS_PER_PAGE = 20;
   const previousLocationKeyRef = useRef(location.key);
+  const abortControllerRef = useRef(null);
 
   // Cargar centros de votación, candidateId si es candidato y leaderId si es líder
   useEffect(() => {
@@ -162,22 +164,37 @@ export default function Personas() {
     }
   };
 
-  const fetchAllVoters = async () => {
+  const fetchSearchResults = async (page = 1) => {
+    if (!search.trim()) {
+      return;
+    }
+
+    // Cancelar búsqueda anterior si existe
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Crear nuevo AbortController
+    abortControllerRef.current = new AbortController();
+
+    setIsSearching(true);
     try {
-      // Obtener todos los votantes con sus asignaciones en una única request
-      const allVotersData = await getAllVotersWithAssignments(
-        user?.roleId,
-        user?.roleId === 3 ? candidateId : undefined,
-        user?.roleId === 4 ? leaderId : undefined,
+      const response = await searchVotersByNameOrIdentification(
+        search.trim(),
+        page,
+        ITEMS_PER_PAGE,
       );
 
-      setAllVoters(allVotersData);
+      setVoters(response.data || []);
+      setTotalVoters(response.total || 0);
+      setTotalPages(response.pages || 0);
+      setCurrentPage(page);
 
       // Extraer candidatos y líderes de la response
       const candidatesMap = {};
       const leadersMap = {};
 
-      allVotersData.forEach((voter) => {
+      (response.data || []).forEach((voter) => {
         // Mapear candidatos
         if (voter.candidates && voter.candidates.length > 0) {
           candidatesMap[voter.id] = voter.candidates
@@ -193,8 +210,13 @@ export default function Personas() {
 
       setVoterCandidates(candidatesMap);
       setVoterLeaders(leadersMap);
-    } catch {
-      setError("No se pudieron cargar los votantes");
+    } catch (err) {
+      // No mostrar error si fue cancelado por AbortController
+      if (err.name !== "AbortError") {
+        setError("No se pudieron cargar los resultados de búsqueda");
+      }
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -224,12 +246,21 @@ export default function Personas() {
     loadingLeaderId,
   ]);
 
-  // Cargar todos los votantes cuando el usuario comienza a buscar
+  // Cargar resultados cuando el usuario busca o reiniciar cuando borra la búsqueda
   useEffect(() => {
-    if (search) {
-      fetchAllVoters();
+    if (search.trim()) {
+      // Si hay búsqueda, cargar resultados de búsqueda desde página 1
+      setCurrentPage(1);
+      fetchSearchResults(1);
+    } else {
+      // Si la búsqueda está vacía, cancelar búsqueda anterior y volver a la lista normal
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      setCurrentPage(1);
+      fetchVoters(1);
     }
-  }, [search, candidateId ?? null, leaderId ?? null, user]);
+  }, [search]);
 
   // Refrescar cuando se llega desde la creación o cuando se clickea en el sidebar de Votantes
   useEffect(() => {
@@ -281,7 +312,6 @@ export default function Personas() {
   const handleVoterSaved = async () => {
     // Resetear búsqueda y estado completamente
     setSearch("");
-    setAllVoters([]);
     setCurrentPage(1);
     setVoterCandidates({});
     setVoterLeaders({});
@@ -325,16 +355,7 @@ export default function Personas() {
     return enriched;
   };
 
-  const filteredVoters = search
-    ? allVoters.map(enrichVoterData).filter((v) => {
-        const fullName = `${v.firstName} ${v.lastName}`.toLowerCase();
-        const identification = v.identification?.toLowerCase() || "";
-        return (
-          fullName.includes(search.toLowerCase()) ||
-          identification.includes(search.toLowerCase())
-        );
-      })
-    : voters.map(enrichVoterData);
+  const filteredVoters = voters.map(enrichVoterData);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-50 to-white p-3 sm:p-4 md:p-6 lg:p-8">
@@ -522,24 +543,14 @@ export default function Personas() {
           </div>
 
           {/* Pagination Controls - Desktop */}
-          {!search && (
+          {totalPages > 1 && (
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
-              onPageChange={setCurrentPage}
+              onPageChange={search ? fetchSearchResults : setCurrentPage}
               totalItems={totalVoters}
               itemsPerPage={ITEMS_PER_PAGE}
             />
-          )}
-          {search && (
-            <div className="mt-6 px-4 py-4 bg-gray-50 border-t border-gray-200 rounded-b-xl">
-              <div className="text-sm text-gray-600">
-                Mostrando{" "}
-                <span className="font-semibold">{filteredVoters.length}</span>{" "}
-                resultado
-                {filteredVoters.length !== 1 ? "s" : ""} de búsqueda
-              </div>
-            </div>
           )}
         </div>
       )}
@@ -623,24 +634,14 @@ export default function Personas() {
           ))}
 
           {/* Pagination Controls - Mobile */}
-          {!search && (
+          {totalPages > 1 && (
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
-              onPageChange={setCurrentPage}
+              onPageChange={search ? fetchSearchResults : setCurrentPage}
               totalItems={totalVoters}
               itemsPerPage={ITEMS_PER_PAGE}
             />
-          )}
-          {search && (
-            <div className="mt-4 sm:mt-6 px-3 sm:px-4 py-3 sm:py-4 bg-gray-50 rounded-xl border border-gray-200">
-              <div className="text-xs sm:text-sm text-gray-600 text-center">
-                Mostrando{" "}
-                <span className="font-semibold">{filteredVoters.length}</span>{" "}
-                resultado
-                {filteredVoters.length !== 1 ? "s" : ""} de búsqueda
-              </div>
-            </div>
           )}
         </div>
       )}

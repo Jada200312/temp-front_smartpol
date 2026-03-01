@@ -20,7 +20,6 @@ export default function Reportes() {
   const [activeFilters, setActiveFilters] = useState({});
   const [pagination, setPagination] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [search, setSearch] = useState("");
   const [candidateId, setCandidateId] = useState(null);
   const [loadingCandidateId, setLoadingCandidateId] = useState(
     user?.roleId === 3,
@@ -102,35 +101,6 @@ export default function Reportes() {
     user?.roleId,
   ]);
 
-  // Cargar todos los votantes cuando se activa la búsqueda
-  useEffect(() => {
-    if (search) {
-      // Protección: si es candidato o líder pero aún está cargando sus IDs, no ejecutar
-      if (user?.roleId === 3 && loadingCandidateId) {
-        return;
-      }
-      if (user?.roleId === 3 && !candidateId) {
-        return;
-      }
-      if (user?.roleId === 4 && loadingLeaderId) {
-        return;
-      }
-      if (user?.roleId === 4 && !leaderId) {
-        return;
-      }
-
-      loadAllVoters();
-    }
-  }, [
-    search,
-    filters,
-    candidateId,
-    loadingCandidateId,
-    leaderId,
-    loadingLeaderId,
-    user?.roleId,
-  ]);
-
   const loadReport = async (currentFilters, page = 1) => {
     setLoading(true);
     setError(null);
@@ -201,8 +171,6 @@ export default function Reportes() {
     setFilters(newFilters);
     setActiveFilters(newFilters);
     setCurrentPage(1); // Reset a página 1
-    setSearch(""); // Limpiar búsqueda al cambiar filtros
-    setAllVoters([]); // Limpiar votantes en búsqueda
   };
 
   const handlePageChange = (page) => {
@@ -247,22 +215,6 @@ export default function Reportes() {
     setCurrentPage(1); // Reset a página 1
   };
 
-  // Filtrar votantes localmente por búsqueda
-  const getFilteredVoters = () => {
-    if (!search) {
-      return voters;
-    }
-
-    return allVoters.filter((v) => {
-      const fullName = `${v.firstName} ${v.lastName}`.toLowerCase();
-      const identification = v.identification?.toLowerCase() || "";
-      return (
-        fullName.includes(search.toLowerCase()) ||
-        identification.includes(search.toLowerCase())
-      );
-    });
-  };
-
   return (
     <ProtectedComponent
       permission="reports:read"
@@ -289,27 +241,6 @@ export default function Reportes() {
               Visualiza, analiza y exporta la información de votantes registrada
               en SMARTPOL
             </p>
-          </div>
-
-          {/* Buscador Local */}
-          <div className="mb-4 sm:mb-6">
-            <input
-              type="text"
-              placeholder="Buscar por nombre o identificación..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full px-3 sm:px-4 py-2 sm:py-3 rounded-xl border border-gray-200 bg-white shadow-sm focus:ring-2 focus:ring-orange-500/30 focus:outline-none text-sm sm:text-base"
-            />
-            {search && (
-              <p className="text-xs sm:text-sm text-gray-500 mt-2">
-                Mostrando{" "}
-                <span className="font-semibold">
-                  {getFilteredVoters().length}
-                </span>{" "}
-                resultado{getFilteredVoters().length !== 1 ? "s" : ""} de
-                búsqueda
-              </p>
-            )}
           </div>
 
           {/* Mensaje de Error */}
@@ -363,12 +294,12 @@ export default function Reportes() {
           {/* Tabla de Votantes */}
           {!error && (
             <VotersTable
-              voters={search ? getFilteredVoters() : voters}
+              voters={voters}
               filters={activeFilters}
-              loading={search ? loadingAll : loading}
-              pagination={search ? null : pagination}
-              currentPageProp={search ? 1 : currentPage}
-              onPageChange={search ? () => {} : handlePageChange}
+              loading={loading}
+              pagination={pagination}
+              currentPageProp={currentPage}
+              onPageChange={handlePageChange}
               onExportRequest={handleExportRequest}
             />
           )}

@@ -11,10 +11,11 @@ import { getAllCampaigns } from "../api/campaigns";
 import { usePermission } from "../hooks/usePermission";
 import { useAlert } from "../hooks/useAlert";
 import Pagination from "../components/Pagination";
+import AddButton from "../components/AddButton";
 import {
-  PlusIcon,
   PencilSquareIcon,
   TrashIcon,
+  EyeIcon,
 } from "@heroicons/react/24/outline";
 
 export default function Lideres() {
@@ -280,7 +281,7 @@ export default function Lideres() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-50 to-white p-4 sm:p-6 lg:p-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8">
         <div>
           <h2 className="text-3xl font-extrabold text-gray-900">
             Listado de Líderes
@@ -293,7 +294,8 @@ export default function Lideres() {
         </div>
 
         {currentUser?.roleId !== 3 && (
-          <button
+          <AddButton
+            label="Agregar líder"
             onClick={() => navigate("/app/crear-lideres")}
             disabled={!can("leaders:manage") && !can("leaders:create")}
             title={
@@ -301,15 +303,7 @@ export default function Lideres() {
                 ? "No tienes permiso para crear líderes"
                 : ""
             }
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl shadow-md transition ${
-              can("leaders:manage") || can("leaders:create")
-                ? "bg-orange-500 text-white shadow-orange-500/20 hover:bg-orange-600"
-                : "bg-gray-300 text-gray-500 cursor-not-allowed"
-            }`}
-          >
-            <PlusIcon className="w-5 h-5" />
-            Agregar líder
-          </button>
+          />
         )}
       </div>
 

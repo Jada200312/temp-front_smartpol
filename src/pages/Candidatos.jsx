@@ -11,11 +11,8 @@ import { updateUser } from "../api/users";
 import { usePermission } from "../hooks/usePermission";
 import { useAlert } from "../hooks/useAlert";
 import Pagination from "../components/Pagination";
-import {
-  PlusIcon,
-  PencilSquareIcon,
-  TrashIcon,
-} from "@heroicons/react/24/outline";
+import AddButton from "../components/AddButton";
+import { PencilSquareIcon, TrashIcon } from "@heroicons/react/24/outline";
 
 export default function Candidatos() {
   const { can } = usePermission();
@@ -123,7 +120,7 @@ export default function Candidatos() {
       const data = await getCandidatesWithPagination(
         page,
         itemsPerPage,
-        searchTerm
+        searchTerm,
       );
 
       let candidatesList = Array.isArray(data.data) ? data.data : [];
@@ -132,7 +129,7 @@ export default function Candidatos() {
       if (currentUser?.roleId === 2 && currentUser?.organizationId) {
         candidatesList = candidatesList.filter(
           (candidate) =>
-            candidate.user?.organizationId === currentUser.organizationId
+            candidate.user?.organizationId === currentUser.organizationId,
         );
       }
 
@@ -190,7 +187,7 @@ export default function Candidatos() {
       "¿Estás seguro de que deseas eliminar este candidato?",
       "Confirmar eliminación",
       "Sí, eliminar",
-      "Cancelar"
+      "Cancelar",
     );
     if (!result.isConfirmed) return;
 
@@ -235,7 +232,10 @@ export default function Candidatos() {
           });
         } catch (userErr) {
           console.error("Error updating user organization:", userErr);
-          alert.apiError(userErr, "Error al actualizar la organización del usuario");
+          alert.apiError(
+            userErr,
+            "Error al actualizar la organización del usuario",
+          );
           setSaving(false);
           return;
         }
@@ -249,12 +249,12 @@ export default function Candidatos() {
         if (formData.password.length < 6) {
           alert.warning(
             "La contraseña debe tener al menos 6 caracteres",
-            "Contraseña débil"
+            "Contraseña débil",
           );
           setSaving(false);
           return;
         }
-        
+
         if (editingCandidate.userId) {
           try {
             await updateUser(editingCandidate.userId, {
@@ -263,7 +263,9 @@ export default function Candidatos() {
           } catch (passErr) {
             console.error("Error updating password:", passErr);
             // No bloquear si falla la contraseña, el candidato ya se actualizó
-            alert.warning("El candidato se actualizó pero hubo un error al cambiar la contraseña");
+            alert.warning(
+              "El candidato se actualizó pero hubo un error al cambiar la contraseña",
+            );
           }
         }
       }
@@ -320,7 +322,7 @@ export default function Candidatos() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-50 to-white p-4 sm:p-6 lg:p-8">
-      <div className="flex flex-col sm:flex-row justify-between gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8">
         <div>
           <h2 className="text-3xl font-extrabold text-gray-900">
             Listado de Candidatos
@@ -330,7 +332,8 @@ export default function Candidatos() {
           </p>
         </div>
 
-        <button
+        <AddButton
+          label="Agregar candidato"
           onClick={() => navigate("/app/crear-candidatos")}
           disabled={!can("candidates:manage") && !can("candidates:create")}
           title={
@@ -338,15 +341,7 @@ export default function Candidatos() {
               ? "No tienes permiso para crear candidatos"
               : ""
           }
-          className={`flex items-center gap-2 px-6 py-3 rounded-xl shadow-md transition ${
-            can("candidates:manage") || can("candidates:create")
-              ? "bg-orange-500 text-white shadow-orange-500/20 hover:bg-orange-600"
-              : "bg-gray-300 text-gray-500 cursor-not-allowed"
-          }`}
-        >
-          <PlusIcon className="w-5 h-5" />
-          Agregar candidato
-        </button>
+        />
       </div>
 
       <div className="mb-8">
@@ -464,7 +459,9 @@ export default function Candidatos() {
                   value={formData.campaignId}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
-                  disabled={!formData.organizationId || loadingCampaigns || saving}
+                  disabled={
+                    !formData.organizationId || loadingCampaigns || saving
+                  }
                 >
                   <option value="">
                     {loadingCampaigns

@@ -12,6 +12,7 @@ import {
   ArrowPathIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
+import "../styles/dashboard-animations.css";
 
 export default function VotingStatsCounters({ refreshTrigger }) {
   const [stats, setStats] = useState({
@@ -122,79 +123,89 @@ export default function VotingStatsCounters({ refreshTrigger }) {
 
   return (
     <>
-      {/* Progress Bar */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-semibold text-gray-700">
-            Progreso de Votación
-          </span>
-          <span className="text-sm font-bold text-blue-600">
-            {registeredPercentage}%
-          </span>
-        </div>
-        <div className="bg-gray-200 rounded-full h-4 overflow-hidden shadow-sm">
-          <div
-            className="h-full bg-gradient-to-r from-blue-500 via-green-500 to-emerald-600 transition-all duration-500 rounded-full"
-            style={{ width: `${registeredPercentage}%` }}
-          />
-        </div>
-      </div>
-
       {/* Counters Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {/* Expected Votes Counter */}
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 sm:p-7 text-white shadow-lg hover:shadow-xl transition-shadow duration-300 border border-blue-400">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <p className="text-blue-100 text-sm font-medium mb-1">
+        <div className="metric-card metric-card-entrance metric-card-gradient bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <p
+                className={`text-3xl sm:text-4xl font-bold ${loading ? "metric-loading" : "number-update"} text-green-600`}
+              >
+                {loading ? (
+                  <span className="fade-in-out">...</span>
+                ) : (
+                  stats.expected.toLocaleString()
+                )}
+              </p>
+              <p className="text-gray-600 text-xs sm:text-sm font-medium mt-2">
                 Votos Esperados
               </p>
-              <p className="text-4xl sm:text-5xl font-bold">{stats.expected}</p>
             </div>
-            <UserGroupIcon className="w-12 h-12 text-blue-100 opacity-80" />
+            <div className="bg-green-100 p-3 rounded-lg">
+              <UserGroupIcon className="w-6 h-6 text-green-600" />
+            </div>
           </div>
-          <div className="pt-4 border-t border-blue-400 border-opacity-50">
-            <p className="text-blue-100 text-sm">
-              Total de votantes registrados
-            </p>
+          <div className="mt-4 pt-3 border-t border-gray-100">
+            <span className="text-xs text-gray-500">
+              {loading ? "Actualizando..." : "Actualizado en tiempo real"}
+            </span>
           </div>
         </div>
 
         {/* Registered Votes Counter */}
-        <div className="bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl p-6 sm:p-7 text-white shadow-lg hover:shadow-xl transition-all duration-300 border border-green-400">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <p className="text-emerald-100 text-sm font-medium mb-1">
+        <div className="metric-card metric-card-entrance metric-card-gradient bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <p
+                className={`text-3xl sm:text-4xl font-bold ${loading ? "metric-loading" : "number-update"} text-green-600`}
+              >
+                {loading ? (
+                  <span className="fade-in-out">...</span>
+                ) : (
+                  stats.registered.toLocaleString()
+                )}
+              </p>
+              <p className="text-gray-600 text-xs sm:text-sm font-medium mt-2">
                 Votos Registrados
               </p>
-              <p className="text-4xl sm:text-5xl font-bold">
-                {stats.registered}
-              </p>
             </div>
-            <CheckCircleIcon className="w-12 h-12 text-emerald-100 opacity-80" />
+            <div className="bg-green-100 p-3 rounded-lg">
+              <CheckCircleIcon className="w-6 h-6 text-green-600" />
+            </div>
           </div>
-          <div className="pt-4 border-t border-green-400 border-opacity-50">
-            <p className="text-emerald-100 text-sm">
-              Total de votos registrados
-            </p>
+          <div className="mt-4 pt-3 border-t border-gray-100">
+            <span className="text-xs text-gray-500">
+              {loading ? "Actualizando..." : "Actualizado en tiempo real"}
+            </span>
           </div>
         </div>
 
         {/* Pending Votes Counter */}
-        <div className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl p-6 sm:p-7 text-white shadow-lg hover:shadow-xl transition-all duration-300 border border-orange-400">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <p className="text-amber-100 text-sm font-medium mb-1">
+        <div className="metric-card metric-card-entrance metric-card-gradient bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <p
+                className={`text-3xl sm:text-4xl font-bold ${loading ? "metric-loading" : "number-update"} text-orange-500`}
+              >
+                {loading ? (
+                  <span className="fade-in-out">...</span>
+                ) : (
+                  stats.pending.toLocaleString()
+                )}
+              </p>
+              <p className="text-gray-600 text-xs sm:text-sm font-medium mt-2">
                 Votos Pendientes
               </p>
-              <p className="text-4xl sm:text-5xl font-bold">{stats.pending}</p>
             </div>
-            <ClockIcon className="w-12 h-12 text-amber-100 opacity-80" />
+            <div className="bg-orange-100 p-3 rounded-lg">
+              <ClockIcon className="w-6 h-6 text-orange-500" />
+            </div>
           </div>
-          <div className="pt-4 border-t border-orange-400 border-opacity-50">
-            <p className="text-amber-100 text-sm">
-              Votos que aún no han sido procesados
-            </p>
+          <div className="mt-4 pt-3 border-t border-gray-100">
+            <span className="text-xs text-gray-500">
+              {loading ? "Actualizando..." : "Actualizado en tiempo real"}
+            </span>
           </div>
         </div>
       </div>

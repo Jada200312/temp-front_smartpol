@@ -673,153 +673,155 @@ export default function VotersTable({
       </div>
 
       {/* Vista Desktop - Tabla */}
-      <div className="hidden md:block overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-100 border-b border-gray-200">
-            <tr>
-              <th
-                className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200"
-                onClick={() => handleSort("firstName")}
-              >
-                Nombre <SortIcon column="firstName" />
-              </th>
-              <th
-                className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200"
-                onClick={() => handleSort("lastName")}
-              >
-                Apellido <SortIcon column="lastName" />
-              </th>
-              <th className="px-4 py-3 text-left font-semibold text-gray-700">
-                Identificación
-              </th>
-              <th className="px-4 py-3 text-left font-semibold text-gray-700">
-                Género
-              </th>
-              <th className="px-4 py-3 text-left font-semibold text-gray-700">
-                Teléfono
-              </th>
-              <th className="px-4 py-3 text-left font-semibold text-gray-700">
-                Departamento
-              </th>
-              <th className="px-4 py-3 text-left font-semibold text-gray-700">
-                Municipio
-              </th>
-              <th className="px-4 py-3 text-left font-semibold text-gray-700">
-                Centro de Votación
-              </th>
-              <th className="px-4 py-3 text-left font-semibold text-gray-700">
-                Candidatos
-              </th>
-              <th className="px-4 py-3 text-left font-semibold text-gray-700">
-                Líderes
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedVoters.length === 0 ? (
+      <div className="hidden md:block bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-100 border-b border-gray-200">
               <tr>
-                <td colSpan="10" className="px-4 py-12 text-center">
-                  <div className="flex flex-col items-center justify-center">
-                    <svg
-                      className="w-12 h-12 text-gray-400 mb-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1.5}
-                        d="M20 21l-4.35-4.35m0 0A7.5 7.5 0 103.5 3.5a7.5 7.5 0 0013.15 13.15z"
-                      />
-                    </svg>
-                    <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                      No hay votantes
-                    </h3>
-                    <p className="text-gray-500 text-sm max-w-md">
-                      No se encontraron votantes con los filtros seleccionados.
-                      Intenta ajustar los criterios de búsqueda o limpiar los
-                      filtros.
-                    </p>
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              sortedVoters.map((voter, idx) => (
-                <tr
-                  key={voter.id}
-                  className={`border-b border-gray-200 ${
-                    idx % 2 === 0 ? "bg-white" : "bg-gray-50"
-                  } hover:bg-blue-50 transition`}
+                <th
+                  className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200"
+                  onClick={() => handleSort("firstName")}
                 >
-                  <td className="px-4 py-3 text-gray-700">
-                    {voter.firstName || "N/A"}
-                  </td>
-                  <td className="px-4 py-3 text-gray-700">
-                    {voter.lastName || "N/A"}
-                  </td>
-                  <td className="px-4 py-3 text-gray-600 text-xs font-mono">
-                    {voter.identification || "N/A"}
-                  </td>
-                  <td className="px-4 py-3 text-gray-700">
-                    {voter.gender === "M"
-                      ? "Masculino"
-                      : voter.gender === "F"
-                        ? "Femenino"
-                        : "Otro"}
-                  </td>
-                  <td className="px-4 py-3 text-gray-700">
-                    {voter.phone || "N/A"}
-                  </td>
-                  <td className="px-4 py-3 text-gray-700">
-                    {voter.department?.name || "N/A"}
-                  </td>
-                  <td className="px-4 py-3 text-gray-700">
-                    {voter.municipality?.name || "N/A"}
-                  </td>
-                  <td className="px-4 py-3 text-gray-700 text-sm font-semibold">
-                    {voter.votingBooth?.name && voter.votingTableId
-                      ? `${voter.votingBooth.name} - ${voter.votingTableId}`
-                      : voter.votingBooth?.name || "N/A"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1">
-                      {voter.candidates && voter.candidates.length > 0 ? (
-                        voter.candidates.map((candidate) => (
-                          <span
-                            key={candidate.id}
-                            className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded"
-                            title={candidate.party || "Sin partido"}
-                          >
-                            {candidate.name || "Sin nombre"}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-xs text-gray-400">N/A</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1">
-                      {voter.leaders && voter.leaders.length > 0 ? (
-                        voter.leaders.map((leader) => (
-                          <span
-                            key={leader.id}
-                            className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded"
-                          >
-                            {leader.name || "Sin nombre"}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-xs text-gray-400">N/A</span>
-                      )}
+                  Nombre <SortIcon column="firstName" />
+                </th>
+                <th
+                  className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200"
+                  onClick={() => handleSort("lastName")}
+                >
+                  Apellido <SortIcon column="lastName" />
+                </th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                  Identificación
+                </th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                  Género
+                </th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                  Teléfono
+                </th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                  Departamento
+                </th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                  Municipio
+                </th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                  Centro de Votación
+                </th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                  Candidatos
+                </th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                  Líderes
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedVoters.length === 0 ? (
+                <tr>
+                  <td colSpan="10" className="px-4 py-12 text-center">
+                    <div className="flex flex-col items-center justify-center">
+                      <svg
+                        className="w-12 h-12 text-gray-400 mb-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M20 21l-4.35-4.35m0 0A7.5 7.5 0 103.5 3.5a7.5 7.5 0 0013.15 13.15z"
+                        />
+                      </svg>
+                      <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                        No hay votantes
+                      </h3>
+                      <p className="text-gray-500 text-sm max-w-md">
+                        No se encontraron votantes con los filtros
+                        seleccionados. Intenta ajustar los criterios de búsqueda
+                        o limpiar los filtros.
+                      </p>
                     </div>
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                sortedVoters.map((voter, idx) => (
+                  <tr
+                    key={voter.id}
+                    className={`border-b border-gray-200 ${
+                      idx % 2 === 0 ? "bg-white" : "bg-gray-50"
+                    } hover:bg-blue-50 transition`}
+                  >
+                    <td className="px-4 py-3 text-gray-700">
+                      {voter.firstName || "N/A"}
+                    </td>
+                    <td className="px-4 py-3 text-gray-700">
+                      {voter.lastName || "N/A"}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 text-xs font-mono">
+                      {voter.identification || "N/A"}
+                    </td>
+                    <td className="px-4 py-3 text-gray-700">
+                      {voter.gender === "M"
+                        ? "Masculino"
+                        : voter.gender === "F"
+                          ? "Femenino"
+                          : "Otro"}
+                    </td>
+                    <td className="px-4 py-3 text-gray-700">
+                      {voter.phone || "N/A"}
+                    </td>
+                    <td className="px-4 py-3 text-gray-700">
+                      {voter.department?.name || "N/A"}
+                    </td>
+                    <td className="px-4 py-3 text-gray-700">
+                      {voter.municipality?.name || "N/A"}
+                    </td>
+                    <td className="px-4 py-3 text-gray-700 text-sm font-semibold">
+                      {voter.votingBooth?.name && voter.votingTableId
+                        ? `${voter.votingBooth.name} - ${voter.votingTableId}`
+                        : voter.votingBooth?.name || "N/A"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-1">
+                        {voter.candidates && voter.candidates.length > 0 ? (
+                          voter.candidates.map((candidate) => (
+                            <span
+                              key={candidate.id}
+                              className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded"
+                              title={candidate.party || "Sin partido"}
+                            >
+                              {candidate.name || "Sin nombre"}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-gray-400">N/A</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-1">
+                        {voter.leaders && voter.leaders.length > 0 ? (
+                          voter.leaders.map((leader) => (
+                            <span
+                              key={leader.id}
+                              className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded"
+                            >
+                              {leader.name || "Sin nombre"}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-gray-400">N/A</span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Vista Móvil - Tarjetas */}

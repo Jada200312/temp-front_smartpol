@@ -8,11 +8,8 @@ import {
 import { usePermission } from "../hooks/usePermission";
 import { useAlert } from "../hooks/useAlert";
 import Pagination from "../components/Pagination";
-import {
-  PlusIcon,
-  PencilSquareIcon,
-  TrashIcon,
-} from "@heroicons/react/24/outline";
+import AddButton from "../components/AddButton";
+import { PencilSquareIcon, TrashIcon } from "@heroicons/react/24/outline";
 
 export default function Campanas() {
   const { can } = usePermission();
@@ -195,7 +192,7 @@ export default function Campanas() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-50 to-white p-4 sm:p-6 lg:p-8">
-      <div className="flex flex-col sm:flex-row justify-between gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8">
         <div>
           <h2 className="text-3xl font-extrabold text-gray-900">
             Listado de Campañas
@@ -211,7 +208,8 @@ export default function Campanas() {
           </p>
         </div>
 
-        <button
+        <AddButton
+          label="Agregar campaña"
           onClick={() => navigate("/app/crear-campanas")}
           disabled={!can("campaigns:manage") && !can("campaigns:create")}
           title={
@@ -219,15 +217,7 @@ export default function Campanas() {
               ? "No tienes permiso para crear campañas"
               : ""
           }
-          className={`flex items-center gap-2 px-6 py-3 rounded-xl shadow-md transition ${
-            can("campaigns:manage") || can("campaigns:create")
-              ? "bg-orange-500 text-white shadow-orange-500/20 hover:bg-orange-600"
-              : "bg-gray-300 text-gray-500 cursor-not-allowed"
-          }`}
-        >
-          <PlusIcon className="w-5 h-5" />
-          Agregar campaña
-        </button>
+        />
       </div>
 
       <div className="mb-8">

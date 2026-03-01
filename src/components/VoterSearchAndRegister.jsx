@@ -19,13 +19,12 @@ export default function VoterSearchAndRegister({ onVoteRegistered }) {
   const [searchResult, setSearchResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [registering, setRegistering] = useState(false);
-  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-  const { alert } = useAlert();
+  const alert = useAlert();
 
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!identification.trim()) {
-      alert("Por favor, ingresa una cédula", "warning");
+      alert.warning("Por favor, ingresa una cédula");
       return;
     }
 
@@ -35,10 +34,10 @@ export default function VoterSearchAndRegister({ onVoteRegistered }) {
       setSearchResult(result);
 
       if (result.status === "not_found") {
-        alert("Votante no encontrado", "warning");
+        alert.warning("Votante no encontrado");
       }
     } catch (error) {
-      alert("Error al buscar votante: " + error.message, "error");
+      alert.error("Error al buscar votante: " + error.message);
       setSearchResult(null);
     } finally {
       setLoading(false);
@@ -46,12 +45,23 @@ export default function VoterSearchAndRegister({ onVoteRegistered }) {
   };
 
   const handleRegisterVote = async () => {
+    if (!searchResult?.voter) return;
+
+    const voter = searchResult.voter;
+    const result = await alert.confirm(
+      `¿Estás seguro de que deseas registrar el voto de ${voter.firstName} ${voter.lastName}?`,
+      "Confirmar Registro",
+      "Sí, registrar",
+      "Cancelar",
+    );
+
+    if (!result.isConfirmed) return;
+
     setRegistering(true);
     try {
       const response = await registerVote(identification);
-      alert(
+      alert.success(
         `Voto registrado para ${response.firstName} ${response.lastName}`,
-        "success",
       );
 
       // Pequeño delay para asegurar la persistencia en BD
@@ -59,7 +69,6 @@ export default function VoterSearchAndRegister({ onVoteRegistered }) {
 
       setIdentification("");
       setSearchResult(null);
-      setConfirmDialogOpen(false);
 
       // Callback para actualizar el padre (panel de contadores)
       if (onVoteRegistered) {
@@ -67,9 +76,9 @@ export default function VoterSearchAndRegister({ onVoteRegistered }) {
       }
     } catch (error) {
       if (error.message?.includes("ya ha votado")) {
-        alert("Este votante ya ha registrado su voto", "warning");
+        alert.warning("Este votante ya ha registrado su voto");
       } else {
-        alert("Error al registrar voto: " + error.message, "error");
+        alert.error("Error al registrar voto: " + error.message);
       }
     } finally {
       setRegistering(false);
@@ -77,12 +86,23 @@ export default function VoterSearchAndRegister({ onVoteRegistered }) {
   };
 
   const handleUnregisterVote = async () => {
+    if (!searchResult?.voter) return;
+
+    const voter = searchResult.voter;
+    const result = await alert.confirm(
+      `¿Estás seguro de que deseas eliminar el voto de ${voter.firstName} ${voter.lastName}? Volverá al estado pendiente.`,
+      "Eliminar Voto",
+      "Sí, eliminar",
+      "Cancelar",
+    );
+
+    if (!result.isConfirmed) return;
+
     setRegistering(true);
     try {
       const response = await unregisterVote(identification);
-      alert(
+      alert.success(
         `Voto eliminado para ${response.firstName} ${response.lastName}`,
-        "success",
       );
 
       // Pequeño delay para asegurar la persistencia en BD
@@ -90,7 +110,6 @@ export default function VoterSearchAndRegister({ onVoteRegistered }) {
 
       setIdentification("");
       setSearchResult(null);
-      setConfirmDialogOpen(false);
 
       // Callback para actualizar el padre (panel de contadores)
       if (onVoteRegistered) {
@@ -98,9 +117,9 @@ export default function VoterSearchAndRegister({ onVoteRegistered }) {
       }
     } catch (error) {
       if (error.message?.includes("no ha registrado")) {
-        alert("Este votante no ha registrado su voto", "warning");
+        alert.warning("Este votante no ha registrado su voto");
       } else {
-        alert("Error al eliminar voto: " + error.message, "error");
+        alert.error("Error al eliminar voto: " + error.message);
       }
     } finally {
       setRegistering(false);
@@ -224,12 +243,14 @@ export default function VoterSearchAndRegister({ onVoteRegistered }) {
 
           {/* Action Button */}
           <button
-            onClick={() => setConfirmDialogOpen(true)}
+            onClick={() =>
+              voter.hasVoted ? handleUnregisterVote() : handleRegisterVote()
+            }
             disabled={registering}
             className={`w-full font-bold py-3 sm:py-4 px-4 rounded-lg transition duration-300 flex items-center justify-center gap-2 text-white ${
               voter.hasVoted
                 ? "bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 disabled:from-gray-400 disabled:to-gray-400"
-                : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-400 disabled:to-gray-400"
+                : "bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 disabled:from-gray-400 disabled:to-gray-400"
             }`}
           >
             {voter.hasVoted ? (
@@ -308,7 +329,7 @@ export default function VoterSearchAndRegister({ onVoteRegistered }) {
           <button
             type="submit"
             disabled={loading}
-            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-gray-400 disabled:to-gray-400 text-white font-bold py-3 sm:py-4 px-6 sm:px-8 rounded-xl transition duration-300 flex items-center gap-2 whitespace-nowrap shadow-lg hover:shadow-xl"
+            className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-bold py-3 sm:py-4 px-6 sm:px-8 rounded-xl transition duration-300 flex items-center gap-2 whitespace-nowrap shadow-lg hover:shadow-xl"
           >
             {loading ? (
               <>
@@ -327,74 +348,6 @@ export default function VoterSearchAndRegister({ onVoteRegistered }) {
 
       {/* Search Results */}
       {renderVoterInfo()}
-
-      {/* Confirmation Dialog */}
-      {confirmDialogOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 sm:p-8 border border-gray-100">
-            <div
-              className={`flex items-center justify-center w-14 h-14 mx-auto rounded-full mb-5 ${
-                searchResult?.voter?.hasVoted ? "bg-red-100" : "bg-green-100"
-              }`}
-            >
-              {searchResult?.voter?.hasVoted ? (
-                <TrashIcon className="w-7 h-7 text-red-600" />
-              ) : (
-                <CheckCircleIcon className="w-7 h-7 text-green-600" />
-              )}
-            </div>
-            <h3 className="text-xl sm:text-2xl font-bold text-center mb-3 text-gray-900">
-              {searchResult?.voter?.hasVoted
-                ? "Eliminar Voto"
-                : "Confirmar Registro"}
-            </h3>
-            <div className="mb-6 text-center">
-              <p className="text-gray-600 text-sm mb-2">
-                <span className="block font-semibold text-gray-900 text-base mb-1">
-                  {searchResult?.voter?.firstName}{" "}
-                  {searchResult?.voter?.lastName}
-                </span>
-                {searchResult?.voter?.hasVoted
-                  ? "Este votante volverá al estado pendiente"
-                  : "Se registrará su voto en el sistema"}
-              </p>
-              <p className="text-xs text-gray-500 bg-gray-50 rounded-lg py-2 px-3 inline-block">
-                Cédula: {searchResult?.voter?.identification}
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setConfirmDialogOpen(false)}
-                disabled={registering}
-                className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg text-gray-700 font-bold hover:bg-gray-50 disabled:opacity-50 transition"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={
-                  searchResult?.voter?.hasVoted
-                    ? handleUnregisterVote
-                    : handleRegisterVote
-                }
-                disabled={registering}
-                className={`flex-1 px-4 py-3 text-white font-bold rounded-lg transition duration-300 ${
-                  searchResult?.voter?.hasVoted
-                    ? "bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 disabled:from-gray-400 disabled:to-gray-400"
-                    : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-400 disabled:to-gray-400"
-                }`}
-              >
-                {registering
-                  ? searchResult?.voter?.hasVoted
-                    ? "Eliminando..."
-                    : "Registrando..."
-                  : searchResult?.voter?.hasVoted
-                    ? "Eliminar"
-                    : "Confirmar"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

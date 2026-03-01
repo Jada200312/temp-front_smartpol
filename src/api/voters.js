@@ -189,3 +189,9 @@ export async function getPendingVoters(page = 1, limit = 20) {
     headers: getAuthHeaders(),
   }, "obtener votantes pendientes");
 }
+
+export async function searchVotersByNameOrIdentification(search, page = 1, limit = 20) {
+  return apiCall(`${API_URL}/voters/search/by-name-or-identification?q=${encodeURIComponent(search)}&page=${page}&limit=${limit}`, {
+    headers: getAuthHeaders(),
+  }, "buscar votantes por nombre o identificación");
+}

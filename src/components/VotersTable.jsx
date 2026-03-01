@@ -22,7 +22,7 @@ export default function VotersTable({
   const [departmentsMap, setDepartmentsMap] = useState({});
   const [municipalitiesMap, setMunicipalitiesMap] = useState({});
   const [sortConfig, setSortConfig] = useState({
-    key: "id",
+    key: "firstName",
     direction: "asc",
   });
   const [isExporting, setIsExporting] = useState(false);
@@ -176,7 +176,6 @@ export default function VotersTable({
 
     // Construir columnas dinámicamente
     const baseColumns = [
-      { header: "ID", key: "ID", width: 8 },
       { header: "Nombre", key: "Nombre", width: 16 },
       { header: "Apellido", key: "Apellido", width: 16 },
       { header: "Identificación", key: "Identificación", width: 16 },
@@ -259,7 +258,6 @@ export default function VotersTable({
     processed.forEach((rowData, rowIndex) => {
       // Construir el objeto de fila con candidatos por corporación
       const finalRowData = {
-        ID: rowData.ID,
         Nombre: rowData.Nombre,
         Apellido: rowData.Apellido,
         Identificación: rowData.Identificación,
@@ -350,7 +348,6 @@ export default function VotersTable({
           : "N/A";
 
       return {
-        ID: voter.id,
         Nombre: voter.firstName || "N/A",
         Apellido: voter.lastName || "N/A",
         Identificación: voter.identification || "N/A",
@@ -419,7 +416,6 @@ export default function VotersTable({
     const sortedCorporations = Array.from(corporations).sort();
 
     const baseHeaders = [
-      "ID",
       "Nombre",
       "Apellido",
       "Identificación",
@@ -513,7 +509,6 @@ export default function VotersTable({
     const sortedCorporations = Array.from(corporations).sort();
 
     const baseHeaders = [
-      "ID",
       "Nombre",
       "Apellido",
       "Identificación",
@@ -684,12 +679,6 @@ export default function VotersTable({
             <tr>
               <th
                 className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200"
-                onClick={() => handleSort("id")}
-              >
-                ID <SortIcon column="id" />
-              </th>
-              <th
-                className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200"
                 onClick={() => handleSort("firstName")}
               >
                 Nombre <SortIcon column="firstName" />
@@ -729,7 +718,7 @@ export default function VotersTable({
           <tbody>
             {sortedVoters.length === 0 ? (
               <tr>
-                <td colSpan="11" className="px-4 py-12 text-center">
+                <td colSpan="10" className="px-4 py-12 text-center">
                   <div className="flex flex-col items-center justify-center">
                     <svg
                       className="w-12 h-12 text-gray-400 mb-4"
@@ -763,9 +752,6 @@ export default function VotersTable({
                     idx % 2 === 0 ? "bg-white" : "bg-gray-50"
                   } hover:bg-blue-50 transition`}
                 >
-                  <td className="px-4 py-3 text-gray-700">
-                    {voter.id || "N/A"}
-                  </td>
                   <td className="px-4 py-3 text-gray-700">
                     {voter.firstName || "N/A"}
                   </td>
@@ -871,9 +857,6 @@ export default function VotersTable({
                   <h3 className="font-bold text-gray-900 text-sm sm:text-base">
                     {voter.firstName || "N/A"} {voter.lastName || "N/A"}
                   </h3>
-                  <p className="text-xs text-gray-500">
-                    ID: {voter.id || "N/A"}
-                  </p>
                 </div>
                 <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded whitespace-nowrap">
                   {voter.gender === "M"

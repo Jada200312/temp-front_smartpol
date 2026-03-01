@@ -11,6 +11,13 @@ export default function Sidebar({ isOpen, onClose }) {
   const [expandedMenu, setExpandedMenu] = useState(null);
   const isActive = (path) => location.pathname.startsWith(path);
 
+  // Cerrar solo en mobile
+  const handleLinkClick = () => {
+    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+      onClose();
+    }
+  };
+
   // Control de acceso basado en permisos
   // Nueva estructura de permisos:
   // - resource:read = acceso de lectura únicamente
@@ -111,17 +118,16 @@ export default function Sidebar({ isOpen, onClose }) {
       {/* Overlay mobile */}
       <div
         onClick={onClose}
-        className={`fixed inset-0 bg-black/40 z-40 transition-opacity
-          ${isOpen ? "opacity-100 visible" : "opacity-0 invisible"}
-          lg:hidden`}
+        className={`fixed inset-0 bg-black/40 z-20 transition-opacity lg:hidden
+          ${isOpen ? "opacity-100 visible" : "opacity-0 invisible pointer-events-none"}`}
       />
 
       <aside
         className={`
-          fixed inset-y-0 left-0 z-50 w-60 bg-white border-r border-gray-100 shadow-sm
-          flex flex-col transform transition-transform duration-300
+          fixed lg:static inset-y-0 left-0 z-30 w-60 max-h-screen lg:max-h-none overflow-y-auto lg:overflow-visible bg-white border-r border-gray-100 shadow-sm
+          flex flex-col transition-all duration-300
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
-          lg:static lg:translate-x-0
+          ${isOpen ? "" : "lg:hidden"}
         `}
       >
         {/* Logo */}
@@ -139,7 +145,7 @@ export default function Sidebar({ isOpen, onClose }) {
             <li>
               <Link
                 to="/app/dashboard"
-                onClick={onClose}
+                onClick={handleLinkClick}
                 className={`flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all
                   ${
                     isActive("/app/dashboard") || location.pathname === "/app"
@@ -156,7 +162,7 @@ export default function Sidebar({ isOpen, onClose }) {
               <li>
                 <Link
                   to="/app/votantes"
-                  onClick={onClose}
+                  onClick={handleLinkClick}
                   className={`flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all
                     ${
                       isActive("/app/votantes")
@@ -217,7 +223,7 @@ export default function Sidebar({ isOpen, onClose }) {
                       <li>
                         <Link
                           to="/app/organizaciones"
-                          onClick={onClose}
+                          onClick={handleLinkClick}
                           className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all
                             ${
                               isActive("/app/organizaciones")
@@ -236,7 +242,7 @@ export default function Sidebar({ isOpen, onClose }) {
                       <li>
                         <Link
                           to="/app/campanas"
-                          onClick={onClose}
+                          onClick={handleLinkClick}
                           className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all
                             ${
                               isActive("/app/campanas")
@@ -255,7 +261,7 @@ export default function Sidebar({ isOpen, onClose }) {
                       <li>
                         <Link
                           to="/app/candidatos"
-                          onClick={onClose}
+                          onClick={handleLinkClick}
                           className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all
                             ${
                               isActive("/app/candidatos")
@@ -274,7 +280,7 @@ export default function Sidebar({ isOpen, onClose }) {
                       <li>
                         <Link
                           to="/app/lideres"
-                          onClick={onClose}
+                          onClick={handleLinkClick}
                           className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all
                             ${
                               isActive("/app/lideres")
@@ -293,7 +299,7 @@ export default function Sidebar({ isOpen, onClose }) {
                       <li>
                         <Link
                           to="/app/digitadores"
-                          onClick={onClose}
+                          onClick={handleLinkClick}
                           className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all
                             ${
                               isActive("/app/digitadores")
@@ -312,7 +318,7 @@ export default function Sidebar({ isOpen, onClose }) {
                       <li>
                         <Link
                           to="/app/administradores"
-                          onClick={onClose}
+                          onClick={handleLinkClick}
                           className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all
                             ${
                               isActive("/app/administradores")
@@ -331,7 +337,7 @@ export default function Sidebar({ isOpen, onClose }) {
                       <li>
                         <Link
                           to="/app/especiales"
-                          onClick={onClose}
+                          onClick={handleLinkClick}
                           className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all
                             ${
                               isActive("/app/especiales")
@@ -350,7 +356,7 @@ export default function Sidebar({ isOpen, onClose }) {
                       <li>
                         <Link
                           to="/app/asignar-candidatos"
-                          onClick={onClose}
+                          onClick={handleLinkClick}
                           className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all
                             ${
                               isActive("/app/asignar-candidatos")
@@ -373,7 +379,7 @@ export default function Sidebar({ isOpen, onClose }) {
               <li>
                 <Link
                   to="/app/reportes"
-                  onClick={onClose}
+                  onClick={handleLinkClick}
                   className={`flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all
                     ${
                       isActive("/app/reportes")
@@ -391,7 +397,7 @@ export default function Sidebar({ isOpen, onClose }) {
               <li>
                 <Link
                   to="/app/dia-d"
-                  onClick={onClose}
+                  onClick={handleLinkClick}
                   className={`flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all
                     ${
                       isActive("/app/dia-d")
@@ -409,7 +415,7 @@ export default function Sidebar({ isOpen, onClose }) {
               <li>
                 <Link
                   to="/app/admin-permisos"
-                  onClick={onClose}
+                  onClick={handleLinkClick}
                   className={`flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all
                     ${
                       isActive("/app/admin-permisos")

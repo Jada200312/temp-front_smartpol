@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../context/UserContext";
+import { Bars3Icon } from "@heroicons/react/24/outline";
 
-export default function Navbar({ onMenuClick }) {
+export default function Navbar({ onMenuClick, isSidebarOpen }) {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef(null);
   const buttonRef = useRef(null);
@@ -31,14 +32,15 @@ export default function Navbar({ onMenuClick }) {
   };
 
   return (
-    <header className="h-16 bg-white border-b border-gray-100 px-4 sm:px-6 flex items-center justify-between relative">
-      {/* Mobile menu */}
+    <header className="h-16 bg-white border-b border-gray-100 px-4 sm:px-6 flex items-center justify-between relative z-50">
+      {/* Menu toggle - Visible en todas las pantallas */}
       <button
         onClick={onMenuClick}
-        className="lg:hidden p-2 rounded-md hover:bg-gray-100"
-        aria-label="Abrir menú"
+        type="button"
+        className="p-2 rounded-md hover:bg-gray-100 transition-colors"
+        aria-label="Abrir/cerrar menú"
       >
-        ☰
+        <Bars3Icon className="w-6 h-6 text-gray-700" />
       </button>
 
       {/* Spacer */}

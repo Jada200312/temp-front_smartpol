@@ -63,3 +63,19 @@ export async function getVoterReportForExport(filters = {}) {
 
   return { data: allData };
 }
+
+export async function getAnalysisReport(filters = {}) {
+  const params = new URLSearchParams();
+
+  // Agregar filtros solo si tienen valor
+  if (filters.departmentId) params.append("departmentId", filters.departmentId);
+  if (filters.municipalityId) params.append("municipalityId", filters.municipalityId);
+  if (filters.votingBoothId) params.append("votingBoothId", filters.votingBoothId);
+  if (filters.votingTableId) params.append("votingTableId", filters.votingTableId);
+
+  const url = `${API_URL}/voters/report/analysis?${params.toString()}`;
+
+  return apiCall(url, {
+    headers: getAuthHeaders(),
+  }, "obtener reporte de análisis");
+}

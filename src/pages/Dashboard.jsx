@@ -351,9 +351,7 @@ export default function Dashboard() {
         <div>
           {/* ====== INDICADOR DE SINCRONIZACIÓN EN TIEMPO REAL ====== */}
           <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-0">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-              Dashboard
-            </h1>
+            <h1 className="page-title">Dashboard</h1>
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <div className="flex items-center gap-2">
                 {isSyncing ? (

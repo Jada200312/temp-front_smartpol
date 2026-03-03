@@ -29,12 +29,12 @@ export default function CreateCampanas() {
   // Obtener usuario al montar el componente
   useEffect(() => {
     try {
-      const userId = localStorage.getItem('user_id');
-      const userEmail = localStorage.getItem('user_email');
-      const roleId = localStorage.getItem('roleId');
-      const organizationId = localStorage.getItem('organizationId');
-      const orgName = localStorage.getItem('organizationName');
-      
+      const userId = localStorage.getItem("user_id");
+      const userEmail = localStorage.getItem("user_email");
+      const roleId = localStorage.getItem("roleId");
+      const organizationId = localStorage.getItem("organizationId");
+      const orgName = localStorage.getItem("organizationName");
+
       if (userId) {
         const user = {
           id: parseInt(userId),
@@ -62,7 +62,7 @@ export default function CreateCampanas() {
         setLoadingOrgs(false);
       }
     } catch (err) {
-      console.error('Error al obtener usuario:', err);
+      console.error("Error al obtener usuario:", err);
       alert.error("Error al cargar información del usuario");
       setLoadingOrgs(false);
     }
@@ -94,11 +94,13 @@ export default function CreateCampanas() {
         }
         orgsData = Array.from(uniqueOrgs.values());
       }
-      
-      const orgsArray = Array.isArray(orgsData) ? orgsData : (orgsData?.data || []);
+
+      const orgsArray = Array.isArray(orgsData)
+        ? orgsData
+        : orgsData?.data || [];
       console.log("Organizaciones cargadas:", orgsArray);
       setOrganizations(orgsArray);
-      
+
       if (orgsArray.length > 0) {
         setFormData((prev) => ({
           ...prev,
@@ -117,7 +119,12 @@ export default function CreateCampanas() {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : (name === "organizationId" ? parseInt(value) || "" : value),
+      [name]:
+        type === "checkbox"
+          ? checked
+          : name === "organizationId"
+            ? parseInt(value) || ""
+            : value,
     }));
   };
 
@@ -134,14 +141,17 @@ export default function CreateCampanas() {
       return;
     }
 
-    if (parseInt(currentUser.roleId) === ROLE_SUPER_ADMIN && !formData.organizationId) {
+    if (
+      parseInt(currentUser.roleId) === ROLE_SUPER_ADMIN &&
+      !formData.organizationId
+    ) {
       alert.error("Debes seleccionar una organización");
       return;
     }
 
     const startDate = new Date(formData.startDate);
     const endDate = new Date(formData.endDate);
-    
+
     if (startDate >= endDate) {
       alert.error("La fecha de inicio debe ser anterior a la fecha de fin");
       return;
@@ -160,7 +170,7 @@ export default function CreateCampanas() {
 
       // Asignar organización según el rol
       if (parseInt(currentUser.roleId) === ROLE_ORG_ADMIN) {
-        const orgId = localStorage.getItem('organizationId');
+        const orgId = localStorage.getItem("organizationId");
         if (orgId) {
           dataToSend.organizationId = parseInt(orgId);
         }
@@ -222,9 +232,7 @@ export default function CreateCampanas() {
           <ArrowLeftIcon className="w-5 h-5 text-gray-600" />
         </button>
         <div>
-          <h2 className="text-3xl font-extrabold text-gray-900">
-            Crear Nueva Campaña
-          </h2>
+          <h2 className="page-title">Crear Nueva Campaña</h2>
           <p className="text-gray-500 text-sm mt-1">
             Completa el formulario para registrar una nueva campaña política
           </p>

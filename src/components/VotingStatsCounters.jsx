@@ -14,7 +14,10 @@ import {
 } from "@heroicons/react/24/outline";
 import "../styles/dashboard-animations.css";
 
-export default function VotingStatsCounters({ refreshTrigger }) {
+export default function VotingStatsCounters({
+  refreshTrigger,
+  onFilterSelect,
+}) {
   const [stats, setStats] = useState({
     expected: 0,
     registered: 0,
@@ -126,8 +129,12 @@ export default function VotingStatsCounters({ refreshTrigger }) {
       {/* Counters Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {/* Expected Votes Counter */}
-        <div className="metric-card metric-card-entrance metric-card-gradient bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-          <div className="flex items-start justify-between">
+        <button
+          onClick={() => onFilterSelect && onFilterSelect("expected")}
+          disabled={!onFilterSelect}
+          className="metric-card metric-card-entrance metric-card-gradient bg-white rounded-lg shadow-sm p-6 border border-gray-200 hover:shadow-md transition-all disabled:cursor-default"
+        >
+          <div className="flex items-start justify-between text-left">
             <div className="flex-1">
               <p
                 className={`text-3xl sm:text-4xl font-bold ${loading ? "metric-loading" : "number-update"} text-green-600`}
@@ -151,11 +158,15 @@ export default function VotingStatsCounters({ refreshTrigger }) {
               {loading ? "Actualizando..." : "Actualizado en tiempo real"}
             </span>
           </div>
-        </div>
+        </button>
 
         {/* Registered Votes Counter */}
-        <div className="metric-card metric-card-entrance metric-card-gradient bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-          <div className="flex items-start justify-between">
+        <button
+          onClick={() => onFilterSelect && onFilterSelect("registered")}
+          disabled={!onFilterSelect}
+          className="metric-card metric-card-entrance metric-card-gradient bg-white rounded-lg shadow-sm p-6 border border-gray-200 hover:shadow-md transition-all disabled:cursor-default"
+        >
+          <div className="flex items-start justify-between text-left">
             <div className="flex-1">
               <p
                 className={`text-3xl sm:text-4xl font-bold ${loading ? "metric-loading" : "number-update"} text-green-600`}
@@ -179,11 +190,15 @@ export default function VotingStatsCounters({ refreshTrigger }) {
               {loading ? "Actualizando..." : "Actualizado en tiempo real"}
             </span>
           </div>
-        </div>
+        </button>
 
         {/* Pending Votes Counter */}
-        <div className="metric-card metric-card-entrance metric-card-gradient bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-          <div className="flex items-start justify-between">
+        <button
+          onClick={() => onFilterSelect && onFilterSelect("pending")}
+          disabled={!onFilterSelect}
+          className="metric-card metric-card-entrance metric-card-gradient bg-white rounded-lg shadow-sm p-6 border border-gray-200 hover:shadow-md transition-all disabled:cursor-default"
+        >
+          <div className="flex items-start justify-between text-left">
             <div className="flex-1">
               <p
                 className={`text-3xl sm:text-4xl font-bold ${loading ? "metric-loading" : "number-update"} text-orange-500`}
@@ -207,7 +222,7 @@ export default function VotingStatsCounters({ refreshTrigger }) {
               {loading ? "Actualizando..." : "Actualizado en tiempo real"}
             </span>
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Modal de Lista de Votantes */}

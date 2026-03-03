@@ -9,14 +9,16 @@ import {
   getVoterByIdentification,
   searchVoterByIdentification,
 } from "../api/voters";
-import { getLeaders, getCandidatesByLeader } from "../api/leaders";
+import { getLeaders, getCandidatesByLeader, getLeaderByUserId } from "../api/leaders";
 import { getVotingBooths } from "../api/votingbooths";
 import { usePermission } from "../hooks/usePermission";
+import { useUser } from "../context/UserContext";
 import { useAlert } from "../hooks/useAlert";
 import { XMarkIcon } from "@heroicons/react/24/solid";
 
 export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
   const { can } = usePermission();
+  const { user } = useUser();
   const alert = useAlert();
   const [form, setForm] = useState({
     firstName: voter?.firstName || "",
@@ -63,6 +65,22 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
           ? leadersData
           : leadersData?.data || [];
         setLeaders(leadersList);
+
+        // Si el usuario es un líder (roleId=4) y es nuevo votante (no es edición), preseleccionar su líder
+        if (user?.roleId === 4 && user?.id && !voter) {
+          try {
+            const userLeader = await getLeaderByUserId(user.id);
+            if (userLeader && userLeader.id) {
+              // Preseleccionar el líder del usuario
+              setForm((p) => ({
+                ...p,
+                leaderId: userLeader.id.toString(),
+              }));
+            }
+          } catch (err) {
+            console.error("Error loading user's leader:", err);
+          }
+        }
       } catch (err) {
         console.error("Error loading leaders:", err);
       }
@@ -88,7 +106,7 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
         }
       });
     }
-  }, [voter]);
+  }, [voter, user]);
 
   useEffect(() => {
     if (form.departmentId) {

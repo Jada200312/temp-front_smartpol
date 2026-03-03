@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../context/UserContext";
-import { Bars3Icon } from "@heroicons/react/24/outline";
+import { Bars3Icon, KeyIcon } from "@heroicons/react/24/outline";
+import ChangePasswordModal from "./ChangePasswordModal";
 
 export default function Navbar({ onMenuClick, isSidebarOpen }) {
   const [open, setOpen] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
   const dropdownRef = useRef(null);
   const buttonRef = useRef(null);
   const navigate = useNavigate();
@@ -29,6 +31,11 @@ export default function Navbar({ onMenuClick, isSidebarOpen }) {
   const handleLogout = () => {
     logout();
     navigate("/");
+  };
+
+  const handleChangePassword = () => {
+    setOpen(false);
+    setShowChangePassword(true);
   };
 
   return (
@@ -99,6 +106,19 @@ export default function Navbar({ onMenuClick, isSidebarOpen }) {
           </div>
 
           <div className="p-2">
+            {/* Show "Change Password" only for admins (roleId 1 or 2) */}
+            {(user?.roleId === 1 || user?.roleId === 2) && (
+              <button
+                onClick={handleChangePassword}
+                className="w-full flex items-center justify-center gap-2
+                           px-4 py-2 rounded-xl mb-2
+                           bg-blue-500 text-white text-sm font-medium
+                           hover:bg-blue-600 transition-colors"
+              >
+                <KeyIcon className="w-4 h-4" />
+                Cambiar Contraseña
+              </button>
+            )}
             <button
               onClick={handleLogout}
               className="w-full flex items-center justify-center gap-2
@@ -111,6 +131,12 @@ export default function Navbar({ onMenuClick, isSidebarOpen }) {
           </div>
         </div>
       )}
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        isOpen={showChangePassword}
+        onClose={() => setShowChangePassword(false)}
+      />
     </header>
   );
 }

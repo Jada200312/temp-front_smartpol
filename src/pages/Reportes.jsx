@@ -234,9 +234,7 @@ export default function Reportes() {
         <div>
           {/* Header */}
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-              Informe General de Votantes
-            </h1>
+            <h1 className="page-title">Informe General de Votantes</h1>
             <p className="text-gray-600 text-sm sm:text-base mt-2">
               Visualiza, analiza y exporta la información de votantes registrada
               en SMARTPOL

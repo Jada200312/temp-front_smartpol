@@ -50,8 +50,8 @@ export default function CreateCandidates() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const roleId = localStorage.getItem('roleId');
-        const organizationId = localStorage.getItem('organizationId');
+        const roleId = localStorage.getItem("roleId");
+        const organizationId = localStorage.getItem("organizationId");
 
         setUserRole(parseInt(roleId));
         setCurrentOrganizationId(parseInt(organizationId));
@@ -61,14 +61,14 @@ export default function CreateCandidates() {
           getCorporations(),
         ]);
 
-        const organizationsList = Array.isArray(organizationsData) 
-          ? organizationsData 
+        const organizationsList = Array.isArray(organizationsData)
+          ? organizationsData
           : Array.isArray(organizationsData?.data)
-          ? organizationsData.data
-          : [];
-        
-        const corporacionesList = Array.isArray(corporationsData) 
-          ? corporationsData 
+            ? organizationsData.data
+            : [];
+
+        const corporacionesList = Array.isArray(corporationsData)
+          ? corporationsData
           : [];
 
         setOrganizations(organizationsList);
@@ -76,7 +76,7 @@ export default function CreateCandidates() {
         setCampaigns([]);
 
         // Si es admin de organización, preseleccionar su organización
-        if (roleId === '2' && organizationId) {
+        if (roleId === "2" && organizationId) {
           setFormData((prev) => ({
             ...prev,
             organizationId: organizationId,
@@ -99,7 +99,9 @@ export default function CreateCandidates() {
     const loadCampaigns = async () => {
       if (formData.organizationId) {
         try {
-          const campaignsData = await getCampaignsByOrganization(formData.organizationId);
+          const campaignsData = await getCampaignsByOrganization(
+            formData.organizationId,
+          );
           setCampaigns(Array.isArray(campaignsData) ? campaignsData : []);
           // Resetear campaignId cuando cambia la organización
           setFormData((prev) => ({
@@ -167,7 +169,9 @@ export default function CreateCandidates() {
         number: parseInt(formData.number, 10) || 1,
         corporation_id: parseInt(formData.corporation_id, 10),
         userId: userResponse.id,
-        campaignId: formData.campaignId ? parseInt(formData.campaignId, 10) : null,
+        campaignId: formData.campaignId
+          ? parseInt(formData.campaignId, 10)
+          : null,
       };
 
       await createCandidate(candidateData);
@@ -210,9 +214,7 @@ export default function CreateCandidates() {
             <ArrowLeftIcon className="w-5 h-5 text-gray-600" />
           </button>
           <div>
-            <h1 className="text-3xl font-extrabold text-gray-900">
-              Crear Candidato
-            </h1>
+            <h1 className="page-title">Crear Candidato</h1>
             <p className="text-gray-500 text-sm mt-1">
               Completa el formulario para registrar un nuevo candidato
             </p>
@@ -246,7 +248,9 @@ export default function CreateCandidates() {
                   placeholder="candidato@example.com"
                 />
                 {formErrors.email && (
-                  <p className="mt-1 text-sm text-red-500">{formErrors.email}</p>
+                  <p className="mt-1 text-sm text-red-500">
+                    {formErrors.email}
+                  </p>
                 )}
               </div>
 
@@ -476,7 +480,11 @@ export default function CreateCandidates() {
                     ${!formData.organizationId || campaigns.length === 0 ? "bg-gray-100 cursor-not-allowed" : ""}
                   `}
                 >
-                  <option value="">{!formData.organizationId ? "Selecciona una organización primero" : "Seleccionar campaña"}</option>
+                  <option value="">
+                    {!formData.organizationId
+                      ? "Selecciona una organización primero"
+                      : "Seleccionar campaña"}
+                  </option>
                   {campaigns.map((campaign) => (
                     <option key={campaign.id} value={campaign.id}>
                       {campaign.name}

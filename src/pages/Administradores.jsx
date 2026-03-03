@@ -98,7 +98,7 @@ export default function Administradores() {
         2,
         page,
         itemsPerPage,
-        searchTerm
+        searchTerm,
       );
 
       // ✅ FILTRAR en FRONTEND por organizationId solo si es admin de organización
@@ -106,7 +106,7 @@ export default function Administradores() {
 
       if (currentUser?.roleId === 2 && currentUser?.organizationId) {
         adminList = adminList.filter(
-          (admin) => admin.organizationId === currentUser.organizationId
+          (admin) => admin.organizationId === currentUser.organizationId,
         );
       }
 
@@ -158,7 +158,7 @@ export default function Administradores() {
       "¿Estás seguro de que deseas eliminar este administrador?",
       "Confirmar eliminación",
       "Sí, eliminar",
-      "Cancelar"
+      "Cancelar",
     );
     if (!result.isConfirmed) return;
 
@@ -197,7 +197,7 @@ export default function Administradores() {
         if (formData.password.length < 6) {
           alert.warning(
             "La contraseña debe tener al menos 6 caracteres",
-            "Contraseña débil"
+            "Contraseña débil",
           );
           setSaving(false);
           return;
@@ -239,13 +239,11 @@ export default function Administradores() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-50 to-white p-4 sm:p-6 lg:p-8">
+    <>
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between gap-4 mb-8">
         <div>
-          <h2 className="text-3xl font-extrabold text-gray-900">
-            Listado de Administradores
-          </h2>
+          <h1 className="page-title">Listado de Administradores</h1>
           <p className="text-gray-500 text-sm mt-2 max-w-xl">
             Gestión de administradores registrados en tu organización
           </p>
@@ -515,6 +513,6 @@ export default function Administradores() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

@@ -9,7 +9,11 @@ import {
   getVoterByIdentification,
   searchVoterByIdentification,
 } from "../api/voters";
-import { getLeaders, getCandidatesByLeader, getLeaderByUserId } from "../api/leaders";
+import {
+  getLeaders,
+  getCandidatesByLeader,
+  getLeaderByUserId,
+} from "../api/leaders";
 import { getVotingBooths } from "../api/votingbooths";
 import { usePermission } from "../hooks/usePermission";
 import { useUser } from "../context/UserContext";

@@ -321,12 +321,10 @@ export default function Candidatos() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-50 to-white p-4 sm:p-6 lg:p-8">
+    <>
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8">
         <div>
-          <h2 className="text-3xl font-extrabold text-gray-900">
-            Listado de Candidatos
-          </h2>
+          <h1 className="page-title">Listado de Candidatos</h1>
           <p className="text-gray-500 text-sm mt-2 max-w-xl">
             Gestión de candidatos registrados en la plataforma
           </p>
@@ -703,6 +701,6 @@ export default function Candidatos() {
           />
         </div>
       )}
-    </div>
+    </>
   );
 }

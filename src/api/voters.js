@@ -195,3 +195,9 @@ export async function searchVotersByNameOrIdentification(search, page = 1, limit
     headers: getAuthHeaders(),
   }, "buscar votantes por nombre o identificación");
 }
+
+export async function searchVotersByTrackingFilter(status, identification, page = 1, limit = 20) {
+  return apiCall(`${API_URL}/voters/list/search-by-tracking-filter?status=${status}&identification=${encodeURIComponent(identification)}&page=${page}&limit=${limit}`, {
+    headers: getAuthHeaders(),
+  }, "buscar votantes por filtro de seguimiento");
+}

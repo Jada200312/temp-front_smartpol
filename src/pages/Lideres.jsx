@@ -279,13 +279,11 @@ export default function Lideres() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-50 to-white p-4 sm:p-6 lg:p-8">
+    <>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8">
         <div>
-          <h2 className="text-3xl font-extrabold text-gray-900">
-            Listado de Líderes
-          </h2>
+          <h1 className="page-title">Listado de Líderes</h1>
           <p className="text-gray-500 text-sm mt-2 max-w-xl">
             {currentUser?.roleId === 3
               ? "Tus líderes comunitarios asignados"
@@ -627,6 +625,6 @@ export default function Lideres() {
           ))}
         </div>
       )}
-    </div>
+    </>
   );
 }

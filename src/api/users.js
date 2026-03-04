@@ -54,3 +54,11 @@ export async function deleteUser(id) {
     headers: getAuthHeaders(),
   }, 'eliminar usuario');
 }
+
+export async function changeOwnPassword(newPassword) {
+  return apiCall(`${API_URL}/users/change-password`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ newPassword }),
+  }, 'cambiar contraseña');
+}

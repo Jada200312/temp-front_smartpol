@@ -1,45 +1,132 @@
 import React, { useState } from "react";
 import VoterSearchAndRegister from "../components/VoterSearchAndRegister";
 import VotingStatsCounters from "../components/VotingStatsCounters";
+import VotersTrackingTable from "../components/VotersTrackingTable";
+import AnalysisFilters from "../components/AnalysisFilters";
+import AnalysisTable from "../components/AnalysisTable";
 
 export default function DiaD() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [activeTab, setActiveTab] = useState("registro");
+  const [trackingFilter, setTrackingFilter] = useState("expected");
+  const [analysisFilters, setAnalysisFilters] = useState({});
 
   const handleVoteAction = () => {
     // Incrementar el trigger para forzar actualización en VotingStatsCounters
     setRefreshTrigger((prev) => prev + 1);
   };
 
+  const handleFilterSelect = (filter) => {
+    setTrackingFilter(filter);
+    setActiveTab("seguimiento");
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
-      {/* Main Grid Layout */}
-      <div className="max-w-6xl mx-auto">
-        {/* Stats Section */}
-        <div className="mb-10 sm:mb-12 lg:mb-14">
-          <VotingStatsCounters refreshTrigger={refreshTrigger} />
+    <>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8">
+        <div>
+          <h1 className="page-title">Día D</h1>
+          <p className="text-gray-500 text-sm mt-2 max-w-xl">
+            Registro, seguimiento y análisis integral del proceso electoral en
+            tiempo real
+          </p>
         </div>
+      </div>
 
-        {/* Search Section */}
-        <div className="mb-8">
-          <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-7 lg:p-9 border border-gray-100">
-            {/* Section Header */}
-            <div className="mb-8 sm:mb-9">
-              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-                Registrar Voto
-              </h2>
-              <p className="text-gray-600 text-base sm:text-lg leading-relaxed">
-                Busca al votante por su número de cédula y registra su voto de
-                forma segura
-              </p>
-            </div>
-
-            {/* Search Component */}
-            <div className="bg-white rounded-xl p-6 sm:p-8 border border-gray-100">
-              <VoterSearchAndRegister onVoteRegistered={handleVoteAction} />
-            </div>
+      {/* Tabs Navigation */}
+      <div className="mb-8">
+        <div className="border-b border-gray-200">
+          <div className="flex space-x-8">
+            <button
+              onClick={() => setActiveTab("registro")}
+              className={`py-4 px-2 font-semibold text-lg transition-colors duration-200 ${
+                activeTab === "registro"
+                  ? "border-b-4 border-blue-600 text-blue-600"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              Registro
+            </button>
+            <button
+              onClick={() => setActiveTab("seguimiento")}
+              className={`py-4 px-2 font-semibold text-lg transition-colors duration-200 ${
+                activeTab === "seguimiento"
+                  ? "border-b-4 border-blue-600 text-blue-600"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              Seguimiento
+            </button>
+            <button
+              onClick={() => setActiveTab("analisis")}
+              className={`py-4 px-2 font-semibold text-lg transition-colors duration-200 ${
+                activeTab === "analisis"
+                  ? "border-b-4 border-blue-600 text-blue-600"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              Análisis
+            </button>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Main Grid Layout */}
+      <div className="w-full">
+        {/* Tab Content */}
+        {activeTab === "registro" && (
+          <>
+            {/* Stats Section */}
+            <div className="mb-10 sm:mb-12 lg:mb-14">
+              <VotingStatsCounters
+                refreshTrigger={refreshTrigger}
+                onFilterSelect={handleFilterSelect}
+              />
+            </div>
+
+            {/* Search Section */}
+            <div className="mb-8">
+              <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-7 lg:p-9 border border-gray-100">
+                {/* Section Header */}
+                <div className="mb-8 sm:mb-9">
+                  <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+                    Registrar Voto
+                  </h2>
+                  <p className="text-gray-600 text-base sm:text-lg leading-relaxed">
+                    Busca al votante por su número de cédula y registra su voto
+                    de forma segura
+                  </p>
+                </div>
+
+                {/* Search Component */}
+                <div className="bg-white rounded-xl p-6 sm:p-8 border border-gray-100">
+                  <VoterSearchAndRegister onVoteRegistered={handleVoteAction} />
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {activeTab === "seguimiento" && (
+          <VotersTrackingTable
+            refreshTrigger={refreshTrigger}
+            initialFilter={trackingFilter}
+          />
+        )}
+
+        {activeTab === "analisis" && (
+          <div>
+            {/* Filtros Section */}
+            <div className="mb-6">
+              <AnalysisFilters onFiltersChange={setAnalysisFilters} />
+            </div>
+
+            {/* Tabla Section */}
+            <AnalysisTable filters={analysisFilters} />
+          </div>
+        )}
+      </div>
+    </>
   );
 }

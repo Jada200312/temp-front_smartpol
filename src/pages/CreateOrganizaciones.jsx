@@ -98,9 +98,7 @@ export default function CreateOrganizaciones() {
           <ArrowLeftIcon className="w-5 h-5 text-gray-600" />
         </button>
         <div>
-          <h2 className="text-3xl font-extrabold text-gray-900">
-            Crear Nueva Organización
-          </h2>
+          <h2 className="page-title">Crear Nueva Organización</h2>
           <p className="text-gray-500 text-sm mt-1">
             Crea una organización y asigna un administrador
           </p>

@@ -355,13 +355,11 @@ export default function Personas() {
   const filteredVoters = voters.map(enrichVoterData);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-50 to-white p-4 sm:p-6 lg:p-8">
+    <>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8">
         <div>
-          <h2 className="text-3xl font-extrabold text-gray-900">
-            Listado de Votantes
-          </h2>
+          <h1 className="page-title">Listado de Votantes</h1>
           <p className="text-gray-500 text-sm mt-2 max-w-xl">
             Gestión y control estratégico de personas registradas en la campaña
           </p>
@@ -635,6 +633,6 @@ export default function Personas() {
           )}
         </div>
       )}
-    </div>
+    </>
   );
 }

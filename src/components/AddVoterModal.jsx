@@ -712,6 +712,7 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
                 value={form.leaderId}
                 onChange={handleChange}
                 required
+                disabled={user?.roleId === 4}
               >
                 <option value="">Seleccione</option>
                 {leaders.map((l) => (
@@ -759,6 +760,7 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
                 value={form.leaderId}
                 onChange={handleChange}
                 required
+                disabled={user?.roleId === 4}
               >
                 <option value="">Seleccione</option>
                 {leaders.map((l) => (
@@ -838,7 +840,7 @@ export default function AddVoterModal({ onClose, onVoterAdded, voter }) {
   );
 }
 
-function Select({ label, children, required, ...props }) {
+function Select({ label, children, required, disabled, ...props }) {
   return (
     <div>
       <label className="text-sm font-medium text-gray-700">
@@ -847,7 +849,10 @@ function Select({ label, children, required, ...props }) {
       </label>
       <select
         {...props}
-        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-orange-400"
+        disabled={disabled}
+        className={`mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-orange-400 ${
+          disabled ? "bg-gray-100 cursor-not-allowed text-gray-500" : ""
+        }`}
       >
         {children}
       </select>

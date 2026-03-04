@@ -176,6 +176,10 @@ export default function Personas() {
 
     setIsSearching(true);
     try {
+      // El backend filtra automáticamente por rol del usuario
+      // - Candidato: solo sus votantes
+      // - Líder: solo sus votantes
+      // - Admin: todos los votantes
       const response = await searchVotersByNameOrIdentification(
         search.trim(),
         page,

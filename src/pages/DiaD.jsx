@@ -27,10 +27,6 @@ export default function DiaD() {
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8">
         <div>
           <h1 className="page-title">Día D</h1>
-          <p className="text-gray-500 text-sm mt-2 max-w-xl">
-            Registro, seguimiento y análisis integral del proceso electoral en
-            tiempo real
-          </p>
         </div>
       </div>
 
@@ -78,7 +74,7 @@ export default function DiaD() {
         {activeTab === "registro" && (
           <>
             {/* Stats Section */}
-            <div className="mb-10 sm:mb-12 lg:mb-14">
+            <div className="mb-4">
               <VotingStatsCounters
                 refreshTrigger={refreshTrigger}
                 onFilterSelect={handleFilterSelect}
@@ -88,17 +84,10 @@ export default function DiaD() {
             {/* Search Section */}
             <div className="mb-8">
               <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-7 lg:p-9 border border-gray-100">
-                {/* Section Header */}
-                <div className="mb-8 sm:mb-9">
-                  <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-                    Registrar Voto
-                  </h2>
-                  <p className="text-gray-600 text-base sm:text-lg leading-relaxed">
-                    Busca al votante por su número de cédula y registra su voto
-                    de forma segura
-                  </p>
-                </div>
-
+                <p className="text-gray-600 text-base sm:text-lg leading-relaxed mb-6">
+                  Busca al votante por su número de cédula y registra su voto de
+                  forma segura
+                </p>
                 {/* Search Component */}
                 <div className="bg-white rounded-xl p-6 sm:p-8 border border-gray-100">
                   <VoterSearchAndRegister onVoteRegistered={handleVoteAction} />

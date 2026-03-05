@@ -1,8 +1,20 @@
 import { useNavigate } from "react-router-dom";
 import { LockClosedIcon } from "@heroicons/react/24/outline";
+import { usePermission } from "../hooks/usePermission";
 
 export default function Forbidden() {
   const navigate = useNavigate();
+  const { can } = usePermission();
+
+  const handleGoToDashboard = () => {
+    // Si tiene acceso a dashboard, ir a dashboard
+    if (can("dashboard:read")) {
+      navigate("/app/dashboard");
+    } else {
+      // Si no tiene acceso, ir a votantes (página alternativa)
+      navigate("/app/votantes");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 flex items-center justify-center px-4">
@@ -38,7 +50,7 @@ export default function Forbidden() {
         {/* Botones */}
         <div className="flex flex-col gap-3">
           <button
-            onClick={() => navigate("/app/dashboard")}
+            onClick={handleGoToDashboard}
             className="w-full px-6 py-3 bg-orange-600 text-white font-medium rounded-lg hover:bg-orange-700 transition-colors"
           >
             Ir al Dashboard

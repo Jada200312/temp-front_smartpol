@@ -31,6 +31,7 @@ import CreateOrganizaciones from "./pages/CreateOrganizaciones";
 import Campanas from "./pages/Campanas";
 import CreateCampanas from "./pages/CreateCampanas";
 import DiaD from "./pages/DiaD";
+import AppRedirect from "./components/AppRedirect";
 
 /**
  * Página de login con redirección automática si ya hay sesión
@@ -40,9 +41,10 @@ function LoginPage() {
   const { user, isLoading } = useUser();
 
   useEffect(() => {
-    // Si hay usuario y ya termina de cargar, redirigir
+    // Si hay usuario y ya termina de cargar, redirigir a /app
+    // Dejar que el componente AppRedirect maneje la lógica de permisos
     if (!isLoading && user) {
-      navigate("/app/dashboard", { replace: true });
+      navigate("/app", { replace: true });
     }
   }, [user, isLoading, navigate]);
 
@@ -347,8 +349,8 @@ function App() {
               }
             />
 
-            {/* Ruta por defecto dentro de Dashboard - redirigir a dashboard */}
-            <Route index element={<Navigate to="dashboard" replace />} />
+            {/* Ruta por defecto dentro de Dashboard - redirigir según permisos */}
+            <Route index element={<AppRedirect />} />
           </Route>
 
           {/* Ruta de acceso denegado */}

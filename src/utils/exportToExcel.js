@@ -242,3 +242,140 @@ export const exportAnalysisToExcel = async (tableData, fileName = "Análisis_Vot
   document.body.removeChild(link);
   window.URL.revokeObjectURL(url);
 };
+
+export const exportTrackingToExcel = async (voters, filterType = "expected", fileName = "Seguimiento_Votantes") => {
+  if (!voters || voters.length === 0) {
+    alert("No hay datos para exportar");
+    return;
+  }
+
+  // Simular tiempo de procesamiento para mostrar animación
+  await new Promise(resolve => setTimeout(resolve, 800));
+
+  // Crear workbook con exceljs para estilos avanzados
+  const workbook = new Workbook();
+  const worksheet = workbook.addWorksheet("Seguimiento de Votantes");
+
+  // Definir columnas
+  worksheet.columns = [
+    { header: "Identificación", key: "Identificacion", width: 18 },
+    { header: "Nombre", key: "Nombre", width: 20 },
+    { header: "Apellido", key: "Apellido", width: 20 },
+    { header: "Género", key: "Genero", width: 12 },
+    { header: "Teléfono", key: "Telefono", width: 16 },
+    { header: "Email", key: "Email", width: 26 },
+    { header: "Departamento", key: "Departamento", width: 18 },
+    { header: "Municipio", key: "Municipio", width: 18 },
+    { header: "Centro de Votación", key: "CentroVotacion", width: 25 },
+    { header: "Mesa", key: "Mesa", width: 10 },
+  ];
+
+  // Estilos para headers
+  const headerFill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF0066B2" },
+  };
+
+  const headerFont = {
+    bold: true,
+    color: { argb: "FFFFFFFF" },
+    size: 11,
+  };
+
+  const headerAlignment = {
+    horizontal: "center",
+    vertical: "center",
+    wrapText: true,
+  };
+
+  const headerBorder = {
+    left: { style: "thin", color: { argb: "FF000000" } },
+    right: { style: "thin", color: { argb: "FF000000" } },
+    top: { style: "thin", color: { argb: "FF000000" } },
+    bottom: { style: "medium", color: { argb: "FF000000" } },
+  };
+
+  // Aplicar estilos al header
+  worksheet.getRow(1).height = 28;
+  worksheet.getRow(1).eachCell((cell) => {
+    cell.fill = headerFill;
+    cell.font = headerFont;
+    cell.alignment = headerAlignment;
+    cell.border = headerBorder;
+  });
+
+  // Estilos para datos
+  const dataBorder = {
+    left: { style: "thin", color: { argb: "FFD3D3D3" } },
+    right: { style: "thin", color: { argb: "FFD3D3D3" } },
+    top: { style: "thin", color: { argb: "FFD3D3D3" } },
+    bottom: { style: "thin", color: { argb: "FFD3D3D3" } },
+  };
+
+  const dataAlignment = {
+    horizontal: "left",
+    vertical: "center",
+    wrapText: true,
+  };
+
+  const dataFont = {
+    size: 10,
+    color: { argb: "FF000000" },
+  };
+
+  const lightGrayFill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFF5F5F5" },
+  };
+
+  // Agregar datos de votantes
+  voters.forEach((voter, index) => {
+    const row = worksheet.getRow(index + 2);
+    row.values = {
+      Identificacion: voter.identification || "N/A",
+      Nombre: voter.firstName || "N/A",
+      Apellido: voter.lastName || "N/A",
+      Genero: voter.gender === "M" ? "Masculino" : voter.gender === "F" ? "Femenino" : "Otro",
+      Telefono: voter.phone || "N/A",
+      Email: voter.email || "N/A",
+      Departamento: voter.department?.name || "N/A",
+      Municipio: voter.municipality?.name || "N/A",
+      CentroVotacion: voter.votingBooth?.name || "N/A",
+      Mesa: voter.votingTableId || "N/A",
+    };
+
+    row.height = 18;
+    row.eachCell((cell) => {
+      cell.border = dataBorder;
+      cell.alignment = dataAlignment;
+      cell.font = dataFont;
+
+      // Alternar colores de fila
+      if (index % 2 === 0) {
+        cell.fill = lightGrayFill;
+      }
+    });
+  });
+
+  // Congelar primera fila
+  worksheet.views = [{ state: "frozen", ySplit: 1, xSplit: 0 }];
+
+  // Generar nombre de archivo con fecha y tipo de filtro
+  const timestamp = new Date().toISOString().split("T")[0];
+  const filterLabel = filterType === "registered" ? "Registrados" : filterType === "pending" ? "Pendientes" : "Esperados";
+  const fullFileName = `${fileName}_${filterLabel}_${timestamp}.xlsx`;
+
+  // Generar buffer y descargar
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fullFileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+};

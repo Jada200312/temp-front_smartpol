@@ -7,6 +7,7 @@ import {
   searchVotersByTrackingFilter,
 } from "../api/voters";
 import { getVotingBooths } from "../api/votingbooths";
+import { getDepartments } from "../api/departments";
 import Pagination from "./Pagination";
 import { useAlert } from "../hooks/useAlert";
 import {
@@ -15,6 +16,7 @@ import {
   UserGroupIcon,
   ArrowPathIcon,
 } from "@heroicons/react/24/outline";
+import { exportTrackingToExcel } from "../utils/exportToExcel";
 import "../styles/dashboard-animations.css";
 
 export default function VotersTrackingTable({
@@ -39,6 +41,9 @@ export default function VotersTrackingTable({
   const [voterLeaders, setVoterLeaders] = useState({});
   const [loadingVoters, setLoadingVoters] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [departmentsMap, setDepartmentsMap] = useState({});
   const ITEMS_PER_PAGE = 20;
 
   // Cargar estadísticas
@@ -54,18 +59,28 @@ export default function VotersTrackingTable({
     }
   };
 
-  // Cargar centros de votación
+  // Cargar centros de votación y departamentos
   useEffect(() => {
     const loadBooths = async () => {
       try {
-        const booths = await getVotingBooths();
+        const [booths, departments] = await Promise.all([
+          getVotingBooths(),
+          getDepartments(),
+        ]);
+
         const boothsMapTemp = {};
         booths.forEach((booth) => {
           boothsMapTemp[booth.id] = booth;
         });
         setBoothsMap(boothsMapTemp);
+
+        const deptMapTemp = {};
+        departments.forEach((dept) => {
+          deptMapTemp[dept.id] = dept;
+        });
+        setDepartmentsMap(deptMapTemp);
       } catch (err) {
-        console.error("Error loading voting booths:", err);
+        console.error("Error loading voting booths and departments:", err);
       }
     };
 
@@ -208,7 +223,85 @@ export default function VotersTrackingTable({
     if (voter.votingBoothId && boothsMap[voter.votingBoothId]) {
       enriched.votingBooth = boothsMap[voter.votingBoothId];
     }
+    // Enriquecer con departamento y municipio
+    if (voter.departmentId && departmentsMap[voter.departmentId]) {
+      enriched.department = departmentsMap[voter.departmentId];
+    }
+    if (voter.municipalityId && voter.departmentId) {
+      const dept = departmentsMap[voter.departmentId];
+      if (dept && dept.municipalities && Array.isArray(dept.municipalities)) {
+        const mun = dept.municipalities.find(
+          (m) => m.id === voter.municipalityId,
+        );
+        if (mun) {
+          enriched.municipality = mun;
+        }
+      }
+    }
     return enriched;
+  };
+
+  // Función para obtener todos los datos según el filtro actual con paginación
+  const getAllVotersForExport = async () => {
+    try {
+      const allVoters = [];
+      const pageSize = 100; // Máximo permitido por el backend
+      let page = 1;
+      let hasMore = true;
+
+      while (hasMore) {
+        let response;
+
+        switch (activeFilter) {
+          case "registered":
+            response = await getRegisteredVoters(page, pageSize);
+            break;
+          case "pending":
+            response = await getPendingVoters(page, pageSize);
+            break;
+          case "expected":
+          default:
+            response = await getVotersWithAssignments(page, pageSize);
+            break;
+        }
+
+        if (response.data && response.data.length > 0) {
+          allVoters.push(...response.data);
+          page++;
+
+          // Si la página actual tiene menos de pageSize registros, no hay más páginas
+          if (response.data.length < pageSize) {
+            hasMore = false;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
+
+      // Enriquecer los datos con información de departamentos y municipios
+      const enrichedData = allVoters.map(enrichVoterData);
+      return enrichedData;
+    } catch (error) {
+      console.error("Error al obtener datos para exportación:", error);
+      alert("Error al obtener datos para exportación");
+      setIsExporting(false);
+      throw error;
+    }
+  };
+
+  // Función para manejar la exportación
+  const handleExport = async () => {
+    try {
+      setIsExporting(true);
+      setShowExportMenu(false);
+
+      const votersData = await getAllVotersForExport();
+      await exportTrackingToExcel(votersData, activeFilter);
+    } catch (error) {
+      console.error("Error en exportación:", error);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const filteredVoters = voters.map(enrichVoterData);
@@ -322,6 +415,70 @@ export default function VotersTrackingTable({
 
       {/* Table Section */}
       <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+        {/* Header con título y botón de exportación */}
+        <div className="px-6 py-4 bg-white border-b border-gray-200 flex justify-between items-center">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">
+              Seguimiento de Votantes
+            </h3>
+            <p className="text-xs text-gray-500 mt-1">
+              {activeFilter === "registered"
+                ? "Votantes que ya han votado"
+                : activeFilter === "pending"
+                  ? "Votantes pendientes de votación"
+                  : "Votantes esperados del padrón"}
+            </p>
+          </div>
+          <div className="relative">
+            <button
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              disabled={
+                loadingVoters || filteredVoters.length === 0 || isExporting
+              }
+              title={
+                loadingVoters || filteredVoters.length === 0
+                  ? "No hay datos para exportar"
+                  : isExporting
+                    ? "Generando archivo..."
+                    : "Exportar a Excel"
+              }
+              className={`w-full sm:w-auto px-3 sm:px-4 py-2 rounded-md transition flex items-center justify-center sm:justify-start gap-2 text-sm sm:text-base ${
+                !loadingVoters && filteredVoters.length > 0 && !isExporting
+                  ? "bg-green-600 text-white hover:bg-green-700"
+                  : isExporting
+                    ? "bg-orange-500 text-white cursor-wait opacity-70"
+                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+              }`}
+            >
+              {isExporting ? (
+                <>
+                  <span className="inline-block animate-spin">⏳</span>
+                  Generando...
+                </>
+              ) : (
+                <>
+                  <span>📊</span> Exportar
+                  <span className="text-xs">▼</span>
+                </>
+              )}
+            </button>
+
+            {showExportMenu &&
+              !isExporting &&
+              !loadingVoters &&
+              filteredVoters.length > 0 && (
+                <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
+                  <button
+                    onClick={handleExport}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-100 transition flex items-center gap-2 text-sm"
+                  >
+                    <span>📈</span> Exportar a Excel
+                  </button>
+                </div>
+              )}
+          </div>
+        </div>
+
         {/* Loading State */}
         {loadingVoters && (
           <div className="flex items-center justify-center min-h-96">

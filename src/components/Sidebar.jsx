@@ -22,7 +22,7 @@ export default function Sidebar({ isOpen, onClose }) {
   // Nueva estructura de permisos:
   // - resource:read = acceso de lectura únicamente
   // - resource:manage = gestión completa (crear, editar, eliminar) + mostrar en sidebar
-  const canSeeDashboard = true; // Todos pueden ver dashboard
+  const canSeeDashboard = can("dashboard:read"); // Requiere permiso dashboard:read
 
   // Votantes: mostrar si tiene permiso de lectura
   const canSeeVotantes = can("voters:read");
@@ -142,20 +142,22 @@ export default function Sidebar({ isOpen, onClose }) {
         <nav className="flex-1 px-4 py-6">
           <ul className="space-y-2">
             {/* Dashboard */}
-            <li>
-              <Link
-                to="/app/dashboard"
-                onClick={handleLinkClick}
-                className={`flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all
-                  ${
-                    isActive("/app/dashboard") || location.pathname === "/app"
-                      ? "bg-orange-500 text-white shadow-md"
-                      : "text-gray-600 hover:bg-orange-100 hover:text-orange-600"
-                  }`}
-              >
-                <span className="ml-3">Dashboard</span>
-              </Link>
-            </li>
+            {canSeeDashboard && (
+              <li>
+                <Link
+                  to="/app/dashboard"
+                  onClick={handleLinkClick}
+                  className={`flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all
+                    ${
+                      isActive("/app/dashboard") || location.pathname === "/app"
+                        ? "bg-orange-500 text-white shadow-md"
+                        : "text-gray-600 hover:bg-orange-100 hover:text-orange-600"
+                    }`}
+                >
+                  <span className="ml-3">Dashboard</span>
+                </Link>
+              </li>
+            )}
 
             {/* Votantes */}
             {canSeeVotantes && (
